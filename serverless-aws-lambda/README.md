@@ -56,7 +56,15 @@ serverless deploy
 ```
 7. Check the provided URL to see the result of your first deployed lambda function
 ## Coding time!
-
+TBD
+### Test the API
+```
+serverless invoke -f <FUNCTION_NAME> --path <PATH_TO_FILE>
+```
+### Deploy single function (quicker)
+```
+serverless deploy function -f <FUNCTION_NAME>
+```
 ## Remove the Lambda
 ```
 serverless remove
