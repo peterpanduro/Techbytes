@@ -54,7 +54,7 @@ provider:
 ```
 serverless deploy
 ```
-
+7. Check the provided URL to see the result of your first deployed lambda function
 ## Coding time!
 
 ## Remove the Lambda
@@ -78,6 +78,12 @@ https://www.serverless.com/pricing
 ## Suggested Next Steps
 - Connect Serverless to AWS
     - You are guided through this process if you navigate to Serverless Dashboard
-- Authentication / Authorization
+- Connect to database
+    - DynamoDB
+    - Any custom database
+- POST, PUT, PATCH, DELETE
+- Authentication / Authorization / Security
 - Separate staging and production environments
+- Automate deployments using CI/CD
 - Custom domain
+- Other programming languages
