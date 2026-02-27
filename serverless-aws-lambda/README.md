@@ -18,26 +18,31 @@ Additional objectives:
 
 ## Steps
 
-### AWS
+### 1. AWS
 Make sure you have an account. Serverless will take care of the rest.
 
-### Serverless
+### 2. Serverless
 Serverless documentation: https://www.serverless.com/framework/docs/tutorial
 1. Install serverless framework
 ```
 npm install -g serverless
 ```
-2. Create serverless project
+2. Login
+```
+serverless login
+serverless login aws
+```
+3. Create serverless project
 ```
 serverless
 ```
-3. Follow the prompts (AWS - Node.js - HTTP API)
+4. Follow the prompts (AWS - Node.js - HTTP API)
 
-4. Navigate to the project directory
+5. Navigate to the project directory
 ```
 cd <NAME_OF_PROJECT>
 ```
-5. Install dependencies
+6. Install dependencies
 ```
 npm init
 npm install
@@ -50,20 +55,22 @@ provider:
   runtime: nodejs20.x
   region: eu-north-1
 ```
-6. Deploy
+8. Deploy
 ```
 serverless deploy
 ```
-7. Check the provided URL to see the result of your first deployed lambda function
+9. Check the provided URL to see the result of your first deployed lambda function
 ## Coding time!
 TBD
 ### Test the API
 ```
-serverless invoke -f <FUNCTION_NAME> --path <PATH_TO_FILE>
+# serverless invoke -f <FUNCTION_NAME> --path <PATH_TO_FILE>
+serverless invoke -f weather --path ./weather/weather.json
 ```
 ### Deploy single function (quicker)
 ```
-serverless deploy function -f <FUNCTION_NAME>
+# serverless deploy function -f <FUNCTION_NAME>
+serverless deploy function -f weather
 ```
 ## Remove the Lambda
 ```
@@ -83,11 +90,15 @@ Q: Does Serverless cost anything?
 A: Only for organizations earning over $2 million annually.
 https://www.serverless.com/pricing
 
+Q: Why Serverless?
+A: It's the easiest and quickest way to deploy a lambda function.
+
 ## Suggested Next Steps
 - Connect Serverless to AWS
     - You are guided through this process if you navigate to Serverless Dashboard
 - Connect to database
-    - DynamoDB
+    - DynamoDB inside AWS (also has a generous free tier)
+    - AtlasDB (MongoDB with 512MB free storage)
     - Any custom database
 - POST, PUT, PATCH, DELETE
 - Authentication / Authorization / Security
