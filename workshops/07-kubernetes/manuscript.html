@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kubernetes on a Laptop · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 7</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 7 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">Kubernetes on a Laptop</h1>
+  <p class="muted">Word for word, in first person. 1734 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  
+  <article class="ms">
+    <header><span class="num">1</span><h3>Who restarts it at three in the morning?</h3><span class="time">0:00 → 1:00 · 1 min · 123 words</span></header>
+    <p>Last week you ran three containers with one command, docker compose up, and it worked on your laptop. Now imagine the same three containers on a server, and it is three in the morning. The worker crashes. Who restarts it? The server itself dies. Who moves the containers to another one? You ship a broken API image at five in the afternoon. Who puts the old one back?</p><p>Today the answer to all three questions is the same thing: a small loop that never stops running. By the end of the afternoon you will have watched it restart a pod you killed, and you will have rolled a bad version back with one command. Fifteen minutes of talking, then ninety minutes of typing.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>What a cluster is</h3><span class="time">1:00 → 3:00 · 2 min · 209 words</span></header>
+    <p>First the words. A cluster is a set of machines called nodes, which run containers, plus a control plane, which decides what runs where. The control plane is a handful of programs. The API server is the one that matters: it stores the state of everything, and every other program, including you, talks to it over HTTP. Behind it sit a scheduler, which picks a node for each new pod, and a collection of controllers, which we get to on the next slide.</p><p>kubectl, the command you will type all afternoon, is nothing more than an HTTP client for that API server. When you type kubectl get pods, it sends a GET request and prints the answer as a table. When you type kubectl apply, it sends your YAML file as a request body. There is no magic in the tool; you could do it with curl.</p><p>On your laptop today, the entire cluster, control plane and node together, is one Docker container. A tool called kind builds it in about thirty seconds. On a cloud provider the same cluster is dozens or hundreds of machines. The commands, the files and the mental model are identical, which is exactly why we learn it here, where breaking it costs nothing.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>Desired versus actual</h3><span class="time">3:00 → 5:00 · 2 min · 214 words</span></header>
+    <p>Here is the one idea that everything else hangs on. You never tell Kubernetes what to do. You tell it what should be true, and it keeps making it true.</p><p>Look at the widget. There is a number: replicas, three. That is the desired state, and it is stored in the API server. And there are the pods that actually exist, the actual state. In between runs a controller, and a controller is a loop with three lines: look at what should be true, look at what is true, do the smallest thing that closes the gap. Then go back to line one. Forever.</p><p>Watch. I kill a pod. Actual drops to two, desired is still three, and within a second the loop notices and creates a new one, with a new name. Nobody said restart. Now I set replicas to one. Two pods go away. Nobody said stop. I changed a number, and the loop did the rest.</p><p>The Kubernetes documentation uses a thermostat: you set the temperature you want, not the sequence of heater on, heater off. That is the whole model, and every command this afternoon is either setting the number on the thermostat or reading the thermometer. When something surprises you today, ask which of the two you just did.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>The Pod is the unit</h3><span class="time">5:00 → 6:00 · 1 min · 120 words</span></header>
+    <p>Kubernetes never runs a container on its own. It runs a pod, which is one or more containers that share one network address and can share storage. Almost always it is one container, so for today, pod means container with a name and an IP address.</p><p>The thing to absorb is that a pod is disposable. It gets a name and an IP when it is born, and when it dies, it is not restarted; a fresh one is made, with a fresh name and a fresh IP. Step one runs a single pod by hand, and you will delete it and see that nothing brings it back, because nothing was asked to. That is the setup for step three.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>Deployment, ReplicaSet, Pods</h3><span class="time">6:00 → 8:00 · 2 min · 255 words</span></header>
+    <p>This is the file you type in step three, and it is the only YAML you type all afternoon, so let us read it now. Every Kubernetes object has the same four top-level keys. apiVersion and kind say what sort of thing this is. metadata has its name. spec is the desired state, and it is different for every kind.</p><p>For a Deployment the spec has three parts, and they are the three bold words. Replicas: how many pods should exist. Selector: which pods count as mine, and the answer is always a label; here, any pod labelled app equals redis. Template: what to create when one is missing. Everything under template is a pod description, and it is the pod from step one, written down. The template&#x27;s labels must match the selector, or the API server refuses the file.</p><p>Now the chain on the right. You create a Deployment. The Deployment creates a ReplicaSet, and the ReplicaSet is the thing that actually keeps N pods alive; it is the loop from the previous slide. Why the extra layer? Because when you change the template, say a new image, the Deployment makes a second ReplicaSet next to the old one and moves pods across. That is a rolling update, and it is two slides from now.</p><p>Labels are the glue in all of this. The selector uses them, the Service on the next slide uses them, kubectl logs dash l uses them. Every time Kubernetes needs to answer which pods, the answer is a label.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>A Service is a stable name</h3><span class="time">8:00 → 10:00 · 2 min · 211 words</span></header>
+    <p>Pods die and come back with new IP addresses, so nothing may ever talk to a pod by its address. Instead you make a Service. A Service is three things: a name, a virtual IP that never changes, and a selector. Traffic sent to the name goes to whichever pods match the selector right now. When the Redis pod is replaced, the Service just points at the new one, and the API never notices.</p><p>The cluster runs its own DNS server, and every Service gets a DNS entry, so inside the cluster the word redis resolves. Last week in compose the API found Redis with the environment variable REDIS underscore ADDR set to redis colon six three seven nine. This week it is the identical variable with the identical value. Same word. The Service is why.</p><p>One more thing about step three: you will not type the Service. You will run kubectl expose deployment redis, and Kubernetes writes the YAML for you and stores it. Not every object in a cluster was typed by a human; a lot of it is generated, and you can always read it back with kubectl get, dash o yaml. That matters more than it sounds: the cluster is the source of truth, not your folder.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>Rolling update and rollback</h3><span class="time">10:00 → 12:00 · 2 min · 220 words</span></header>
+    <p>A new version is a new image with a new tag. You change one field in the Deployment&#x27;s template, the image, and the Deployment does not touch the running pods. It creates a second ReplicaSet with the new template and starts shifting: one new pod up, one old pod down, one new up, one old down. By default it allows at most twenty-five percent extra pods and at most twenty-five percent missing, so with three replicas you never have fewer than three serving and never more than four running. Users see no gap.</p><p>When the new ReplicaSet is at full strength, the old one is scaled to zero. Not deleted. Scaled to zero, and kept, along with its template, as revision one in the rollout history. That is why the rollback command on the slide is instant: undo just scales the old ReplicaSet back up and the new one down. Nothing is rebuilt, nothing is pulled, and it takes about as long as the pods take to start.</p><p>Step six does exactly this. You change one string in workshop six&#x27;s API, build it as api colon two, roll it out, watch the status, look at the history, and roll it back. Then look at the history again, because the rollback itself is a new revision, and the numbering surprises people.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>kind, and the :latest trap</h3><span class="time">12:00 → 13:00 · 1 min · 124 words</span></header>
+    <p>Two practical things. kind runs the node as a Docker container with its own image store, so last week&#x27;s images are invisible to it until step two copies them in with kind load. On a cloud cluster you push to a registry instead.</p><p>And the trap, which you will trigger on purpose. Image colon api with no tag means api colon latest, and for latest the pull policy is Always: ask the registry every time, even if the image is right there on the node. Docker Hub has no api image, so the pod sits in ImagePullBackOff forever. Any other tag means IfNotPresent: use what you have. Hence api colon one in the prep and api colon two in step six. Never ship latest.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>What the laptop cluster is not</h3><span class="time">13:00 → 14:00 · 1 min · 126 words</span></header>
+    <p>Three things you will not see today, so that you know what a cloud cluster adds. There is one node, so the story where a machine dies and its pods move to another machine cannot be shown; you will have to take it on trust that it is the same loop with a bigger gap. There is no load balancer, so instead of a public IP address you use kubectl port-forward, a tunnel from your laptop into the cluster. And there is no persistent storage, so when the Redis pod is replaced, its queue is gone.</p><p>A cloud provider sells you exactly those three things: more nodes, a load balancer, and disks that survive. Everything else, every file and every command from this afternoon, transfers unchanged.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 132 words</span></header>
+    <p>Here is the afternoon. We create the cluster and look at its one node. We run a single pod by hand and delete it. We load last week&#x27;s images and trigger the latest trap on purpose. Then the one file you type: a Deployment for Redis, with a generated Service. The API and the worker are pasted, and you send last week&#x27;s request through a port-forward. Step five is the moment: scale the worker to three, delete one, and watch a new one appear without anyone asking. Step six rolls out a new API image and rolls it back.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference file to paste. Five-minute break. Then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the RFC test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

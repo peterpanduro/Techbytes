@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storing Passwords Properly · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="03-passwords">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="Assume the database will leak" data-notes="&lt;p&gt;Every service you build stores passwords for people who trust you with them, and who almost certainly used the same password somewhere else. So here is the uncomfortable assumption we start from and never drop today: one day your database will leak. A backup on a lost laptop, an SQL injection, a misconfigured bucket, a disgruntled admin. It happens to careful companies constantly.&lt;/p&gt;&lt;p&gt;The whole job of password storage is to make that leak worthless. Not less likely, worthless. If a stolen copy of your users table lets an attacker log in as anyone, you have failed. If it is a pile of numbers that costs centuries of computing to turn back into passwords, you have won. In the next hour and three quarters you will build both the failure and the fix, and attack them yourself.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 3</p>
+  <h1>Storing Passwords Properly</h1>
+  <p class="s-big">Assume the database <em>will</em> leak. What then?</p>
+</div></section><section class="slide" id="s2" data-minutes="1" data-title="A leak is the whole file" data-notes="&lt;p&gt;Here is the naive version, the one every beginner writes: a file, one line per user, name and password. It works. Logging in is a string comparison. And the moment a copy of this file walks out the door, the attacker does not need to break anything. They read it. They log in as alice, as bob, as you. And because people reuse passwords, they now try alice&amp;#x27;s password on her email and her bank.&lt;/p&gt;&lt;p&gt;So the first rule writes itself: never store the password. Store something you can check a password against, but that cannot be turned back into it. That something is a hash.&lt;/p&gt;">
+<h2>What leaks is the whole file</h2>
+<div class="s-one">
+  <pre>alice:password
+bob:123456
+carol:qwerty
+dave:letmein
+…</pre>
+</div>
+<p class="s-line">Stored in plaintext, <b>the file is the passwords.</b></p></section><section class="slide" id="s3" data-minutes="2" data-title="Don&#x27;t store it, hash it" data-notes="&lt;p&gt;A cryptographic hash takes any input and produces a fixed-size fingerprint. SHA-256 always gives thirty-two bytes. Two things make it useful here. It is one-way: given the fingerprint there is no formula that gives you back the input. And it is deterministic: the same password always gives the same fingerprint.&lt;/p&gt;&lt;p&gt;So instead of the password we store its hash. To check a login we hash what the user typed and compare fingerprints. If they match, the passwords matched, and we never wrote the password down. When the file leaks, the attacker gets fingerprints, not passwords.&lt;/p&gt;&lt;p&gt;That sounds like the end of the story. It is not, and the reason is the deterministic part. There is no formula to reverse a hash, but nothing stops the attacker from guessing. Same password, same fingerprint, every time. So they hash a guess and see if it matches. And they can guess very, very fast.&lt;/p&gt;">
+<h2>Store a fingerprint, not the secret</h2>
+<div class="s-flow">
+  <div class="s-fl"><span class="s-fl-t"><code>"dragon"</code></span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t">SHA-256</span><span class="s-muted">one way</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t"><code>a9c43b…</code></span></div>
+</div>
+<p class="s-line">Easy forwards. <b>No formula backwards.</b> So we check by re-hashing.</p></section><section class="slide" id="s4" data-minutes="2" data-title="The dictionary attack" data-notes="&lt;p&gt;This is the attack you will write in step two, and it is about fifteen lines. Take a wordlist: the most common passwords, leaked from previous breaches, three hundred of them for us, hundreds of millions in real life. Hash each word. Check whether that fingerprint is one of the ones you stole. If it is, you have cracked that account.&lt;/p&gt;&lt;p&gt;On my laptop this cracks nine of the ten stolen hashes in well under a millisecond — a fraction of a millisecond to hash all three hundred words. Not seconds. Because SHA-256 was designed to be fast, and fast is exactly wrong for passwords. A real attacker with one gaming graphics card does twenty-two billion SHA-256 hashes a second; that is hashcat&amp;#x27;s published benchmark for an RTX 4090, and the widget on the workshop page lets you feel that number.&lt;/p&gt;&lt;p&gt;The tenth hash, the one that does not crack, is a long random password that is not in any wordlist. That is the difference a good password makes. But you cannot make your users choose good passwords, so the fix has to be on your side.&lt;/p&gt;">
+<h2>Guessing is cheap</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre>for sc.Scan() {
+  sum := sha256.Sum256(<b>[]byte(sc.Text())</b>)
+  if want[hex.EncodeToString(sum[:])] {
+    fmt.Printf("cracked %q\n", sc.Text())
+  }
+}</pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-good">9 / 10</span><span class="s-muted">cracked</span></div>
+    <div class="s-arrow">in</div>
+    <div><span class="s-num">&lt; 1 ms</span><span class="s-muted">300 words · SHA-256</span></div>
+  </div>
+</div>
+<p class="s-line">A fast hash is the <b>attacker’s</b> friend, not yours.</p></section><section class="slide" id="s5" data-minutes="1" data-title="Salt" data-notes="&lt;p&gt;Two users pick the same password. With a plain hash their stored fingerprints are identical, which leaks that fact, and lets an attacker precompute one giant table of word-to-hash once and look up everybody. Those precomputed tables are called rainbow tables.&lt;/p&gt;&lt;p&gt;The fix is a salt: a few random bytes, different for every user, stored next to the hash and mixed in before hashing. Now alice&amp;#x27;s dragon and erin&amp;#x27;s dragon hash to completely different fingerprints. The precomputed table is useless, because it would need to be redone for every salt. Reuse is invisible.&lt;/p&gt;&lt;p&gt;But be honest about what salt does not do. The salt is stored right next to the hash, so when the file leaks the salt leaks too. An attacker who targets erin specifically just hashes the wordlist again with erin&amp;#x27;s salt. In step three you will do exactly that and crack her anyway. Salt defeats bulk precomputation. It does nothing to slow down a single guess. For that we need the hash itself to be slow.&lt;/p&gt;">
+<h2>Salt: make identical passwords look different</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">alice · "dragon"</p><p class="s-big"><code>8eab3a…</code></p></div>
+    <div class="s-card s-card-accent"><p class="s-kicker">erin · "dragon"</p><p class="s-big"><code>7c035f…</code></p></div>
+  </div>
+</div>
+<p class="s-line">A random salt per user kills reuse and rainbow tables — <b>but not one targeted guess.</b></p></section><section class="slide" id="s6" data-minutes="2" data-title="Slow it down" data-notes="&lt;p&gt;The trick is to use a hash that is deliberately slow, by repeating it. PBKDF2 runs HMAC-SHA256 over and over, and you choose how many times. The current OWASP recommendation, which we verified for this workshop, is six hundred thousand iterations for PBKDF2 with SHA-256. It is one line of Go from the standard library in step four.&lt;/p&gt;&lt;p&gt;One password check now takes a fraction of a second instead of a fraction of a microsecond. For a single login, nobody notices. But the attacker does everything times six hundred thousand. Play with the widget: a gaming graphics card that tried every eight-character lowercase password in about ten seconds against raw SHA-256 now needs about a hundred and thirty days against the same passwords hashed properly. That is the whole game. You raise the cost of one guess just enough to be invisible to you and ruinous to someone making billions of them.&lt;/p&gt;&lt;p&gt;This is why the story ends at a slow hash and not a clever one. You are not trying to be unbreakable. You are trying to be expensive.&lt;/p&gt;">
+<h2>Make each guess expensive</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-widget"><div class="demo w3-calc" id="w3-calc">
+      <span class="eyebrow">Interactive · what a leak is worth</span>
+      <p class="note" style="margin:.3rem 0 .6rem">Three things decide how long a stolen hash survives: who is guessing, how the password was stored, and what the password looks like. Drag each one.</p>
+
+      <div class="w3-slab"><span class="w3-lbl">Cracking hardware</span><b id="w3-rate-v"></b>
+        <input id="w3-rate" type="range" min="6.6" max="21" step="0.02" value="10.34" aria-label="Cracking hardware, hashes per second">
+        <div class="w3-scale" id="w3-rate-scale"></div>
+        <span class="w3-why" id="w3-rate-why"></span>
+      </div>
+
+      <div class="w3-slab"><span class="w3-lbl">Password storage</span><b id="w3-iter-v"></b>
+        <input id="w3-iter" type="range" min="0" max="7" step="0.02" value="0" aria-label="Hashing rounds per guess">
+        <div class="w3-scale" id="w3-iter-scale"></div>
+        <span class="w3-why" id="w3-iter-why"></span>
+      </div>
+
+      <div class="w3-slab"><span class="w3-lbl">The password</span><b id="w3-pw-v"></b>
+        <input id="w3-len" type="range" min="4" max="20" step="1" value="8" aria-label="Password length">
+        <div class="seg w3-seg" role="group" aria-label="Characters used">
+          <button type="button" data-set="26" data-name="lowercase letters" aria-pressed="true">a–z</button>
+          <button type="button" data-set="62" data-name="letters and digits" aria-pressed="false">a–z A–Z 0–9</button>
+          <button type="button" data-set="95" data-name="anything on the keyboard" aria-pressed="false">all 95 keys</button>
+        </div>
+        <span class="w3-why" id="w3-pw-why"></span>
+      </div>
+
+      <dl class="w3-out">
+        <dt>guesses the attacker can test per second</dt><dd id="w3-eff">–</dd>
+        <dt>the lab's 300-word list, one salted user</dt><dd id="w3-word">–</dd>
+        <dt>every password of that shape, one user</dt><dd id="w3-brute">–</dd>
+      </dl>
+      <p class="note" id="w3-note"></p>
+      <p class="note w3-fine">Guesses per second = hashes per second ÷ hashes per guess (PBKDF2 does two SHA-256 per round). Brute-force time is the worst case; on average an attacker needs half of it. Real tools land within a factor of two.</p>
+    </div></div>
+  <div class="s-stat">
+    <div><span class="s-num">600,000</span><span class="s-muted">PBKDF2-HMAC-SHA256 rounds · OWASP</span></div>
+    <div class="s-arrow">↓</div>
+    <div><span class="s-num s-good" style="font-size:54px">10 s → 130 days</span><span class="s-muted">every 8-letter lowercase password, one RTX 4090</span></div>
+  </div>
+</div>
+<p class="s-line">Slow for one login you can afford. <b>Slow times billions you cannot.</b></p></section><section class="slide" id="s7" data-minutes="2" data-title="Compare in constant time" data-notes="&lt;p&gt;One more leak, and it is a subtle one, because it is not in what you store at all — it is in how you check it. When you compare two byte strings with the ordinary equals operator, the computer stops the instant it finds a byte that differs. That is the sensible thing to do, normally: why keep reading once you know they are not equal? But it means a comparison that fails on the very first byte returns faster than one that matches for a while and fails at the end.&lt;/p&gt;&lt;p&gt;In step five you will measure exactly this. Two strings that are identical except for one byte. When that byte is at the front, the equals operator returns in about three nanoseconds. When that byte is at the very end, it takes over a microsecond — hundreds of times longer — because it had to read everything first. Same strings, same length, wildly different time, and the only difference is where they stop matching.&lt;/p&gt;&lt;p&gt;Now imagine that string is a secret token an attacker is guessing. If they can time your responses, a slightly slower rejection tells them their guess was right for one more byte. They pin the first byte, then the second, and walk the secret out one byte at a time. This is a real class of attack, called a timing side-channel.&lt;/p&gt;&lt;p&gt;The fix is a comparison that always reads every byte: Go&amp;#x27;s crypto subtle ConstantTimeCompare. Its timing is the same whether the difference is at the front or the back, so it tells the attacker nothing. You saw this exact idea comparing TOTP codes in workshop two, and the rule is identical: any comparison of secret material is constant-time, always.&lt;/p&gt;">
+<h2>Even the comparison leaks</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre><i>// stops at the first wrong byte</i>
+a == b
+
+<i>// always reads every byte</i>
+subtle.ConstantTimeCompare(a, b)</pre></div>
+  <div class="s-stat">
+    <div><span class="s-num">3 ns</span><span class="s-muted">== · first byte wrong</span></div>
+    <div><span class="s-num">1.3 µs</span><span class="s-muted">== · last byte wrong</span></div>
+    <div><span class="s-num s-good">≈ equal</span><span class="s-muted">ConstantTimeCompare</span></div>
+  </div>
+</div>
+<p class="s-line">How long "no" takes can spell out the secret. <b>A callback to TOTP.</b></p></section><section class="slide" id="s8" data-minutes="2" data-title="A hash that describes itself" data-notes="&lt;p&gt;Last piece. You picked six hundred thousand iterations today. In three years the advice will be higher, and you will have accounts hashed at the old cost. You cannot re-hash them in bulk, because you do not have anyone&amp;#x27;s password. You only see it when they log in.&lt;/p&gt;&lt;p&gt;So store the hash as a string that describes itself: the algorithm, the iteration count, the salt, and the hash, all separated by dollar signs, salt and hash in Base64. This is the shape real systems use. To verify, you parse that string, read the parameters straight out of it, and check. And here is the upgrade: if the login succeeds and the stored iteration count is below today&amp;#x27;s policy, you have the plaintext in your hand for one instant, so you re-hash it at the new cost and save it. In step six you write a verify function that does exactly this, and watch an old hundred-thousand-round hash quietly become a six-hundred-thousand-round one on a correct login. Your storage heals itself, one login at a time.&lt;/p&gt;">
+<h2>Store the recipe with the hash</h2>
+<div class="s-one">
+  <p class="s-code-line"><code>$pbkdf2-sha256$<b>600000</b>$<b>&lt;salt&gt;</b>$<b>&lt;hash&gt;</b></code></p>
+  <p class="s-big s-center">algorithm · iterations · salt · hash — all in one string.</p>
+</div>
+<p class="s-line">So next login you can <b>re-hash at today’s cost</b> and move on.</p></section><section class="slide" id="s9" data-minutes="1" data-title="The production answer" data-notes="&lt;p&gt;What we built with PBKDF2 is real and acceptable; it is in the standard library and it is FIPS-approved. But the modern default is Argon2id, and the reason is one idea. PBKDF2 costs the attacker time, and a graphics card has thousands of cores to throw at time. Argon2id also costs memory — a lot of it per guess — and memory is the one thing a graphics card cannot cheaply multiply by thousands. So it flattens the attacker&amp;#x27;s biggest advantage. bcrypt is the older middle ground, everywhere, solid, with a quirky seventy-two-byte input limit.&lt;/p&gt;&lt;p&gt;Argon2id lives in Go&amp;#x27;s extended crypto library rather than the standard one, so we could not run it in this sealed workshop environment; it is written up as the first stretch goal with the exact parameters OWASP recommends. But notice the shape is identical to what you built: a salt, a tunable cost, a self-describing string, a constant-time compare. Learn the shape today and Argon2id is a one-line swap tomorrow.&lt;/p&gt;">
+<h2>In production: Argon2id</h2>
+<ul class="s-list s-list-huge">
+  <li><b>PBKDF2</b> <span class="s-muted">stdlib, FIPS, what we built. Fine.</span></li>
+  <li><b>Argon2id</b> <span class="s-muted">memory-hard — beats GPUs. Today’s default.</span></li>
+  <li><b>bcrypt</b> <span class="s-muted">everywhere, solid, 72-byte limit.</span></li>
+</ul>
+<p class="s-line">Same shape, one better knob: <b>make guessing cost memory, not just time.</b></p></section><section class="slide" id="s10" data-minutes="1" data-title="The next 90 minutes" data-notes="&lt;p&gt;Here is the afternoon. You start by storing passwords in plaintext and logging in as a stranger, so the problem is in your hands, not just on a slide. Then you write the dictionary attack and crack nine of ten hashes in under a second. You add per-user salt and watch it kill rainbow tables but not your own targeted attack. You slow the hash down with PBKDF2 at OWASP&amp;#x27;s number and re-run the arithmetic. You measure a timing leak and fix it with a constant-time compare. And you finish with a self-describing hash and a verify that upgrades old accounts on login.&lt;/p&gt;&lt;p&gt;Everything is Go and the standard library, nothing to install but Go itself. Every step ends in a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and paste the reference. Five-minute break. Then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>Ready: project + check</li>
+  <li><span>1</span>Plaintext: log in as anyone</li>
+  <li><span>2</span>Crack it: the dictionary attack</li>
+  <li><span>3</span>Per-user salt</li>
+  <li><span>4</span>Slow it down: PBKDF2</li>
+  <li><span>5</span>Constant-time compare</li>
+  <li><span>6</span>Verify and upgrade</li>
+  <li><span>7</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">Go, standard library only. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/03-passwords-hero.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

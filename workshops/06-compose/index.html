@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Two Services and a Queue · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 6 · Two Services and a Queue</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 6</span>
+      <h1>Two Services and a Queue</h1>
+      <p class="lede">An API in Go that accepts jobs, a worker in TypeScript that does them, and a Redis list between them. First each piece runs by itself on your laptop; then one <code>compose.yaml</code> starts all three as containers on a private network, scales the worker to three, and shows what a plain queue loses when a worker dies.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~25 min</b> student prep, one week before</li>
+        <li>Needs workshop 1 (Docker)</li>
+        <li>Deno + Go, deliberately both</li>
+        <li>Any OS</li>
+      </ul>
+    </div>
+    <div class="demo" id="w6-demo">
+      <span class="eyebrow">Interactive · three services, one network, one list</span>
+      <p class="note" style="margin:.3rem 0 .7rem">The API pushes jobs on the left end of a Redis list; each worker blocks on the right end. Post jobs, add workers, then kill one while it is busy and see what a plain queue does with the job it was holding.</p>
+      <svg viewBox="0 0 560 262" class="w6-fig" role="img" aria-label="api, redis and worker boxes joined by one network; job dots travel from the api into the redis list and out to a worker">
+        <rect x="10" y="226" width="540" height="30" rx="7" class="w6-net"/>
+        <text x="280" y="245" class="w6-cap">one private network · api, redis and worker find each other by name</text>
+        <line x1="83" y1="170" x2="83" y2="226" class="w6-stub"/><line x1="280" y1="190" x2="280" y2="226" class="w6-stub"/><line x1="475" y1="205" x2="475" y2="226" class="w6-stub"/>
+        <g class="w6-box"><rect x="18" y="60" width="130" height="110" rx="8"/><text x="83" y="90" class="w6-t">api</text><text x="83" y="114" class="w6-s">Go · :8080</text><text x="83" y="136" class="w6-s">POST /jobs</text><text x="83" y="156" class="w6-s">GET /jobs/id</text></g>
+        <g class="w6-box"><rect x="205" y="40" width="150" height="150" rx="8"/><text x="280" y="68" class="w6-t">redis</text><text x="280" y="90" class="w6-s">list "jobs"</text><rect x="212" y="104" width="136" height="24" rx="5" class="w6-slots"/><text x="222" y="150" class="w6-tiny">LPUSH →</text><text x="338" y="150" class="w6-tiny" text-anchor="end">→ BRPOP</text><text x="280" y="176" class="w6-s" id="w6-qlen">0 waiting</text></g>
+        <g class="w6-box w6-wk" id="w6-wk0"><rect x="410" y="60" width="130" height="110" rx="8"/><text x="475" y="90" class="w6-t">worker</text><text x="475" y="114" class="w6-s">Deno</text><text x="475" y="136" class="w6-s w6-state">idle</text></g>
+        <g class="w6-box w6-wk" id="w6-wk1" hidden><rect x="410" y="60" width="130" height="110" rx="8"/><text x="475" y="90" class="w6-t">worker</text><text x="475" y="114" class="w6-s">Deno</text><text x="475" y="136" class="w6-s w6-state">idle</text></g>
+        <g class="w6-box w6-wk" id="w6-wk2" hidden><rect x="410" y="60" width="130" height="110" rx="8"/><text x="475" y="90" class="w6-t">worker</text><text x="475" y="114" class="w6-s">Deno</text><text x="475" y="136" class="w6-s w6-state">idle</text></g>
+        <g id="w6-dots"></g>
+      </svg>
+      <div class="w6-ctl">
+        <button type="button" class="w6-btn" id="w6-post">POST /jobs</button>
+        <button type="button" class="w6-btn" id="w6-burst">POST ×8</button>
+        <div class="seg" role="group" aria-label="Workers"><button type="button" data-w="1" aria-pressed="true">1 worker</button><button type="button" data-w="3" aria-pressed="false">3 workers</button></div>
+        <button type="button" class="w6-btn w6-warn" id="w6-kill">kill a busy worker</button>
+      </div>
+      <p class="note" id="w6-stat" aria-live="polite">queue 0 · working 0 · done 0 · lost 0</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Hello</a></li>
+        <li><a href="#s1">1 · Redis alone</a></li>
+        <li><a href="#s2">2 · The API, natively</a></li>
+        <li><a href="#s3">3 · The worker</a></li>
+        <li><a href="#s4">4 · All three in Compose</a></li>
+        <li><a href="#s5">5 · Scale the worker</a></li>
+        <li><a href="#s6">6 · Kill a worker mid-job</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 6</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves with a three-service application they can start with one command, a compose file they wrote themselves and understand line by line, and two things in their fingers that no amount of reading gives: that services reach each other by service name and not <code>localhost</code>, and that a queue built from a Redis list drops the job a worker was holding when it dies.</td></tr>
+    <tr><th>Why this topic</th><td>Almost every system students will work on is several processes that only meet over the network. Docker Compose is where most people first see that written down, and most people first see it as a file somebody else wrote. Writing one from an empty file, with a real queue in the middle, makes the architecture visible. Workshops 7 and 8 deploy and instrument exactly these containers.</td></tr>
+    <tr><th>Concepts</th><td>Services as separate processes; a queue as a Redis list with <code>LPUSH</code> and <code>BRPOP</code>; a wire protocol (RESP) small enough to speak by hand; <code>compose.yaml</code>: <code>services</code>, <code>build</code>, <code>image</code>, <code>ports</code>, <code>environment</code>, <code>depends_on</code>; the project network and service-name DNS; published ports versus container ports; <code>up --build</code>, <code>ps</code>, <code>logs -f</code>, <code>exec</code>, <code>--scale</code>, <code>kill</code>, <code>down</code>; blocking pops and who gets woken; at-most-once versus at-least-once delivery and why idempotency matters.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Workshop 1: image versus container, <code>-p</code>, <code>-e</code>, <code>docker ps</code>/<code>logs</code>. Enough TypeScript to type 15 lines (workshop 2) and enough Go to read 90 lines aloud (workshops 3 and 4). No Redis, no Compose, no queues.</td></tr>
+    <tr><th>Language</th><td>Both, on purpose. The API is Go (pasted, read aloud, never edited) because its standard library speaks TCP and HTTP and workshop 1's Dockerfile builds it unchanged. The worker is TypeScript on Deno (typed) because a 15-line blocking loop is the whole idea and the Deno image needs no build stage. The two never share a line of code; they share a list in Redis. That is what "microservices" means at the smallest useful size.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Docker Desktop or Docker Engine (workshop 1), Deno 2 (workshop 2), Go 1.27 (workshops 3–4), <code>curl</code>, a text editor, and the three images from the prep pack already pulled: <code>redis:7</code>, <code>denoland/deno:2.9.7</code>, <code>golang:1.27</code>.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Wi-Fi only for step 3's one-time <code>npm:redis</code> download (a few hundred kilobytes) and for anyone who skipped the prep; the instructor carries the images on a USB stick.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on). The heaviest afternoon of the year: two terminals open from step 1 and nothing optional before step 7.</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 25 minutes, mostly downloads)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. You need three tools from earlier workshops</h4>
+  <p>Docker (workshop 1), Deno (workshop 2) and Go (workshops 3 and 4). If any is missing: Docker Desktop for macOS and Windows or Docker Engine for Linux from <a href="https://docs.docker.com/get-started/get-docker/">docs.docker.com/get-started/get-docker</a>; Deno with <code>curl -fsSL https://deno.land/install.sh | sh</code> (macOS, Linux) or <code>irm https://deno.land/install.ps1 | iex</code> (Windows PowerShell), from <a href="https://docs.deno.com/runtime/getting_started/installation/">docs.deno.com</a>; Go 1.27 from <a href="https://go.dev/doc/install">go.dev/doc/install</a>. Docker Desktop includes Docker Compose. On Linux, Compose is a separate package: install <code>docker-compose-plugin</code> from Docker's repository as described at <a href="https://docs.docker.com/compose/install/linux/">docs.docker.com/compose/install/linux</a>.</p>
+
+  <h4>2. Download the three images we will use</h4>
+  <p>About 400 MB in total. Do this at home; it is the only part that needs a good connection.</p>
+<pre><code>docker pull redis:7
+docker pull denoland/deno:2.9.7
+docker pull golang:1.27</code></pre>
+
+  <h4>3. The readiness check</h4>
+  <p>Make a folder called <code>compose-lab</code> and open a terminal in it (Terminal on macOS, PowerShell on Windows). Run these four commands:</p>
+<pre><code>docker compose version
+docker run --rm redis:7 sh -c &quot;redis-server --daemonize yes &amp;&amp; sleep 1 &amp;&amp; redis-cli LPUSH jobs ready &amp;&amp; redis-cli BRPOP jobs 0&quot;
+deno eval &quot;console.log([...&#x27;ydaer&#x27;].reverse().join(&#x27;&#x27;))&quot;
+go version</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p>A line starting <code>Docker Compose version v5</code> (v2 is also fine); then the three lines <code>1</code>, <code>jobs</code>, <code>ready</code> from Redis; then <code>ready</code> from Deno; then a line starting <code>go version go1.27</code>. The Redis line is the whole workshop in miniature: it put one job on a list and took it off again. If all four work, bring the laptop. If not, bring the error message and arrive ten minutes early.</p></div>
+
+  <div class="call inst"><p class="lbl">If Compose is missing</p><p>The only realistic case is Docker Engine on Linux installed without the plugin, so <code>docker compose</code> says "not a docker command". The fix is <code>sudo apt-get install docker-compose-plugin</code> (or the dnf equivalent) from Docker's own repository, two minutes on Wi-Fi. The older standalone <code>docker-compose</code> (with a hyphen) also works for everything on this page.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run the whole lab yourself on each OS you expect in the room, with the exact commands on this page. Note how long <code>docker compose up --build</code> takes in step 4 on your laptop; it is the slow moment.</li>
+    <li>Save the three images to a USB stick for anyone whose pull failed: <code>docker save redis:7 denoland/deno:2.9.7 golang:1.27 -o images.tar</code> (about 1.2 GB), restored with <code>docker load -i images.tar</code>.</li>
+    <li>Step 3 downloads <code>npm:redis@4</code> once per laptop (Deno caches it). If the venue has no Wi-Fi, have students run <code>deno cache worker.ts</code> against the reference file at home, or share your <code>~/.cache/deno</code> folder on the stick.</li>
+    <li>The widget at the top of this page is your slide 8. Practise the sequence: post eight jobs with one worker, switch to three, then kill a busy one.</li>
+    <li>Have the <a href="#solution">full solution</a> ready. <code>worker.ts</code> is short enough to retype from the projector; <code>main.go</code> and the Dockerfiles must be pasted.</li>
+    <li>Ask the room to stop anything listening on 8080 or 6379 before step 1 (workshop 1's container, a local Redis from a homebrew install). "port is already allocated" is the most common error of the day.</li>
+    <li>Two terminals per student from step 1. On Windows that is two PowerShell tabs; say it out loud, because the blocking <code>BRPOP</code> demo makes no sense in one terminal.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 10 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: the compose file is the architecture, written down</h2>
+  <p>The single idea to land: <strong>services are separate processes that only ever meet over the network, so the file that says which processes exist, how they find each other and what they are told is the whole architecture.</strong> Everything in the lab, including the lost job, follows from it.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">Two services and a queue</span><span class="d">1 min</span>
+      <span class="say">Title slide. Ask who has run a program that was really three programs: a web app plus a database plus something else, started in the right order in three terminals. Today we write that order down.</span></li>
+    <li><span class="n">2</span><span class="t">A service is a process with an address</span><span class="d">2 min</span>
+      <span class="say">Three boxes on one network. Each is an ordinary process, exactly as in workshop 1, and the only thing any of them knows about the others is a name and a port. No shared memory, no shared files, no shared language: the API is Go, the worker is TypeScript, Redis is C. They meet on a socket or not at all. This is what "microservices" means at its smallest, and it is why the network is the first thing to get right.</span></li>
+    <li><span class="n">3</span><span class="t">Why a queue</span><span class="d">2 min</span>
+      <span class="say">The API answers in a millisecond because it does not do the work: it writes the job down and says "accepted". The worker takes a second per job. The list in between lets a fast thing and a slow thing cooperate without waiting for each other, absorbs bursts, and lets us add workers without touching the API. It also means the answer arrives later, so there is a second request to fetch it. Two cards: "API: 2 ms, accepted" and "worker: 1 s each".</span></li>
+    <li><span class="n">4</span><span class="t">A queue is a list: LPUSH and BRPOP</span><span class="d">1 min</span>
+      <span class="say">Redis is a server that holds data structures in memory. One of them is a list. <code>LPUSH jobs x</code> puts x on the left end; <code>BRPOP jobs 0</code> takes from the right end, and if the list is empty it waits, holding the connection open, until something arrives. That B is the whole trick: the worker does not poll, it sleeps inside Redis. Step 1 does this by hand in two terminals.</span></li>
+    <li><span class="n">5</span><span class="t">What is on the wire</span><span class="d">1 min</span>
+      <span class="say">The bytes the API sends: <code>*3\r\n</code> <code>$5\r\nLPUSH\r\n</code> <code>$4\r\njobs\r\n</code> <code>$5\r\nhello\r\n</code>. A star, the number of words, then each word as a dollar, its length, the word. Redis answers <code>:1\r\n</code>, the length of the list. That is the entire protocol we need, and the Go API speaks it in one function with no library, so that nobody has to trust a client they cannot read. The Deno worker uses the official client instead; both are fine, and the point is that a protocol is just bytes both sides agree on.</span></li>
+    <li><span class="n">6</span><span class="t">compose.yaml: the architecture, written down</span><span class="d">1 min</span>
+      <span class="say">The file, alone. Three services. Each one is a <code>docker run</code> from workshop 1 with the flags turned into keys: <code>build</code> or <code>image</code>, <code>ports</code>, <code>environment</code>, <code>depends_on</code>. One command starts all three on a private network. Read it as a description of the system: which processes exist, which one is reachable from outside, what each is told.</span></li>
+    <li><span class="n">7</span><span class="t">Names, not localhost</span><span class="d">2 min</span>
+      <span class="say">The thing that bites everyone once. On your laptop Redis is <code>localhost:6379</code>, because Compose published that port. Inside the network, the API's <code>localhost</code> is the API's own container, where nothing listens on 6379. The address of Redis from another container is the service name, <code>redis</code>, and the container port, <code>6379</code>, whether or not anything is published. Compose runs a DNS server that answers for service names. Two cards: from the laptop, from a container.</span></li>
+    <li><span class="n">8</span><span class="t">Scaling is a number</span><span class="d">2 min</span>
+      <span class="say">The widget from the top of this page. Post eight jobs with one worker: they queue and drain one a second. Switch to three workers: same list, three times faster. <code>--scale worker=3</code> is three containers from the same image, all blocked on the same list; Redis wakes the one that has been waiting longest, so the jobs go round-robin: in the lab ten jobs took about four seconds instead of ten. Nothing in the code knows it was scaled. Press the red button once and say "hold that thought".</span></li>
+    <li><span class="n">9</span><span class="t">What gets lost</span><span class="d">2 min</span>
+      <span class="say">Kill a worker while it is holding a job. The job was popped, so it is not in the list; the worker is dead, so it is not in the result either. It is gone. That is at-most-once delivery, and it is what a plain <code>BRPOP</code> gives you. The alternative, at-least-once, moves the job to a "working" list instead of popping it (<code>BLMOVE</code>) and puts it back if the worker dies; the price is that a job can then run twice, so the work has to be safe to repeat: idempotent. Every queue system you will ever use is one of these two, and the lab shows you the loss with your own eyes so you never forget which one you chose.</span></li>
+    <li><span class="n">10</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Seven steps: Redis alone, the queue by hand; the API natively; the worker natively; all three in Compose; scale; kill; wrap-up. Two terminals from step 1. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 7 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in the <code>compose-lab</code> folder from the prep with <strong>two terminals</strong> open in it and a browser beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the worker (15 lines of TypeScript), <code>compose.yaml</code> (15 lines of YAML, in two instalments) and about 25 commands: 55 lines over the afternoon. The worker and the compose file are the topic; typing a Compose command is the skill. <strong>Paste this</strong> is the Go API, both Dockerfiles and the two job-posting loops: read aloud and understood, but not the topic. Windows users use PowerShell, type <code>curl.exe</code> wherever the page says <code>curl</code> (plain <code>curl</code> is an alias for something else there), and use the PowerShell version of each loop.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Hello, Compose is there, the images are there</span></div>
+    <div class="row" data-from="5" data-to="20"><span class="k">0:05–0:20</span><span>Step 1 · Redis alone: the queue is two commands</span></div>
+    <div class="row" data-from="20" data-to="35"><span class="k">0:20–0:35</span><span>Step 2 · The API, natively, against the Compose Redis</span></div>
+    <div class="row" data-from="35" data-to="50"><span class="k">0:35–0:50</span><span>Step 3 · The worker</span></div>
+    <div class="row" data-from="50" data-to="65"><span class="k">0:50–1:05</span><span>Step 4 · All three in Compose</span></div>
+    <div class="row" data-from="65" data-to="72"><span class="k">1:05–1:12</span><span>Step 5 · Scale the worker</span></div>
+    <div class="row" data-from="72" data-to="82"><span class="k">1:12–1:22</span><span>Step 6 · Kill a worker mid-job</span></div>
+    <div class="row" data-from="82" data-to="90"><span class="k">1:22–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Hello, Compose is there, the images are there</h3><span class="time">5 min</span></header>
+<pre data-mode="type this"><code>docker compose version
+mkdir api worker</code></pre>
+    <p>Windows users type the PowerShell form of the second line instead (PowerShell wants a comma between the names):</p>
+<pre data-mode="type this"><code>mkdir api, worker</code></pre>
+    <p>Compose is a sub-command of <code>docker</code>, not a separate program. The two folders are where the API and the worker will live; the compose file will point at them. If you want to see the three images from the prep, <code>docker images</code> lists them.</p>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>docker compose version</code> prints a version (v5 or v2), and the folders <code>api</code> and <code>worker</code> exist inside <code>compose-lab</code>.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Anyone whose images are missing plugs in the USB stick now. Anyone with "not a docker command" is on Linux without the plugin; see the prep note. Say "two terminals" again.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Redis alone: the queue is two commands</h3><span class="time">15 min</span></header>
+    <p>Before any code, the queue itself. Create <code>compose.yaml</code> in <code>compose-lab</code> with one service in it:</p>
+<pre data-mode="type this"><code>services:
+  redis:
+    image: redis:7
+    ports: [&quot;6379:6379&quot;]</code></pre>
+    <p>Four lines: a <code>services</code> map, a service called <code>redis</code>, the image it runs, and a published port so that programs on your laptop can reach it at <code>localhost:6379</code>. Start it and open a Redis prompt inside the container:</p>
+<pre data-mode="type this"><code>docker compose up -d redis
+docker compose exec redis redis-cli
+BRPOP jobs 0</code></pre>
+    <p>The prompt hangs. <code>BRPOP jobs 0</code> means "take one element from the right end of the list called <code>jobs</code>, and if there is none, wait forever". Nothing is there, so it waits. In your <strong>second terminal</strong>, put something on the left end:</p>
+<pre data-mode="type this"><code>docker compose exec redis redis-cli LPUSH jobs hello</code></pre>
+    <p>The first terminal wakes up immediately and prints the list name and the element. That is the entire mechanism of the afternoon: one side pushes, the other side blocks until there is something to pop. Now, still in the first terminal's prompt, push three at once and pop them one by one (press the up arrow to repeat <code>BRPOP</code>):</p>
+<pre data-mode="type this"><code>LPUSH jobs a b c
+BRPOP jobs 0</code></pre>
+    <p>They come out <code>a</code>, <code>b</code>, <code>c</code>: <code>LPUSH</code> adds to the left, so <code>a</code> was pushed first and ended up rightmost, and <code>BRPOP</code> takes from the right. Oldest first, a queue. A fourth <code>BRPOP</code> hangs again; Ctrl-C it (the image's <code>redis-cli</code> returns to its prompt) and type <code>exit</code>.</p>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p>The blocked <code>BRPOP</code> in terminal one printed <code>1) "jobs"</code> <code>2) "hello"</code> the moment terminal two ran <code>LPUSH</code>; <code>LPUSH jobs a b c</code> printed <code>(integer) 3</code>; three pops gave <code>a</code>, <code>b</code>, <code>c</code> in that order; <code>docker compose ps</code> would show one container, <code>compose-lab-redis-1</code>.</p></div>
+    <p><strong>Talk about it:</strong> where was the blocked client while it waited: in your terminal, or inside Redis? (Its connection was open and Redis was holding it; no polling.) What is the difference between <code>docker compose exec redis</code> and workshop 1's <code>docker exec compose-lab-redis-1</code>? (None; Compose only fills in the container name.) Why is the container called <code>compose-lab-redis-1</code>? (Project name from the folder, service name, replica number. The <code>-1</code> matters in step 5.)</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>The API, natively, against the Compose Redis</h3><span class="time">15 min</span></header>
+    <p>The API is 95 lines of Go, and it is pasted: Go is not today's topic. Create these two files in the <code>api</code> folder, then read <code>main.go</code> top to bottom as a room. It does three things. <code>POST /jobs</code> makes an id and pushes <code>"&lt;id&gt; &lt;body&gt;"</code> on the list, exactly your <code>LPUSH</code> from step 1. <code>GET /jobs/&lt;id&gt;</code> reads the key <code>result:&lt;id&gt;</code>, which nothing writes yet. And the function <code>redis()</code> at the bottom speaks the Redis protocol itself: it opens a TCP connection, writes the command as a counted list of words, and reads one reply. Match the bytes in its comment against what you typed in step 1.</p>
+    <h4>api/go.mod</h4>
+<pre data-mode="paste this"><code>module api
+
+go 1.24</code></pre>
+    <h4>api/main.go</h4>
+<pre data-mode="paste this"><code>// The API: takes jobs in over HTTP and puts them on a Redis list.
+// It never does the work itself; a worker somewhere else does.
+package main
+
+import (
+	&quot;bufio&quot;
+	&quot;crypto/rand&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+	&quot;io&quot;
+	&quot;log&quot;
+	&quot;net&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+)
+
+func main() {
+	addr := os.Getenv(&quot;REDIS_ADDR&quot;) // &quot;redis:6379&quot; inside Compose
+	if addr == &quot;&quot; {
+		addr = &quot;localhost:6379&quot;
+	}
+
+	// POST /jobs with any text body: give it an id, push &quot;&lt;id&gt; &lt;text&gt;&quot; on the list.
+	http.HandleFunc(&quot;POST /jobs&quot;, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		id := newID()
+		n, err := redis(addr, &quot;LPUSH&quot;, &quot;jobs&quot;, id+&quot; &quot;+string(body))
+		if err != nil {
+			http.Error(w, err.Error(), 502)
+			return
+		}
+		log.Printf(&quot;queued %s (%s waiting)&quot;, id, n)
+		fmt.Fprintf(w, &quot;{\&quot;id\&quot;:%q}\n&quot;, id)
+	})
+
+	// GET /jobs/&lt;id&gt;: the worker leaves the answer in the key result:&lt;id&gt;.
+	http.HandleFunc(&quot;GET /jobs/{id}&quot;, func(w http.ResponseWriter, r *http.Request) {
+		result, err := redis(addr, &quot;GET&quot;, &quot;result:&quot;+r.PathValue(&quot;id&quot;))
+		if err != nil {
+			http.Error(w, err.Error(), 502)
+			return
+		}
+		if result == &quot;&quot; {
+			http.Error(w, &quot;not done yet&quot;, 404)
+			return
+		}
+		fmt.Fprintln(w, result)
+	})
+
+	log.Println(&quot;api listening on :8080, redis at&quot;, addr)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}
+
+// redis sends one command in RESP, the Redis wire protocol, and returns the reply.
+// A command is an array of bulk strings: &quot;*2\r\n$3\r\nGET\r\n$5\r\nhello\r\n&quot;.
+func redis(addr string, args ...string) (string, error) {
+	c, err := net.Dial(&quot;tcp&quot;, addr)
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	defer c.Close()
+	fmt.Fprintf(c, &quot;*%d\r\n&quot;, len(args))
+	for _, a := range args {
+		fmt.Fprintf(c, &quot;$%d\r\n%s\r\n&quot;, len(a), a)
+	}
+	rd := bufio.NewReader(c)
+	line, err := rd.ReadString(&#x27;\n&#x27;)
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	line = strings.TrimRight(line, &quot;\r\n&quot;)
+	switch line[0] {
+	case &#x27;+&#x27;, &#x27;:&#x27;: // simple string or integer: &quot;+OK&quot;, &quot;:3&quot;
+		return line[1:], nil
+	case &#x27;-&#x27;: // error: &quot;-ERR unknown command&quot;
+		return &quot;&quot;, fmt.Errorf(&quot;redis: %s&quot;, line[1:])
+	case &#x27;$&#x27;: // bulk string: &quot;$5\r\nhello\r\n&quot;; &quot;$-1&quot; means no such key
+		n, _ := strconv.Atoi(line[1:])
+		if n &lt; 0 {
+			return &quot;&quot;, nil
+		}
+		buf := make([]byte, n+2)
+		_, err = io.ReadFull(rd, buf)
+		return string(buf[:n]), err
+	}
+	return &quot;&quot;, fmt.Errorf(&quot;redis: unexpected reply %q&quot;, line)
+}
+
+func newID() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}</code></pre>
+    <p>Run it natively in terminal one, from inside the <code>api</code> folder. With no <code>REDIS_ADDR</code> set it talks to <code>localhost:6379</code>, which is the port you published in step 1:</p>
+<pre data-mode="type this"><code>go run .</code></pre>
+    <p>In terminal two, post a job and then ask for its result, using the id you got back:</p>
+<pre data-mode="type this"><code>curl -d &quot;hello world&quot; localhost:8080/jobs
+curl localhost:8080/jobs/1c8a66fe
+docker compose exec redis redis-cli LRANGE jobs 0 -1</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>The POST prints <code>{"id":"1c8a66fe"}</code> (your eight hex characters differ). The GET prints <code>not done yet</code>, and that is correct: nobody has done it. <code>LRANGE</code> shows the job sitting in the list as one string, <code>1) "1c8a66fe hello world"</code>. Terminal one logged <code>queued 1c8a66fe (1 waiting)</code>.</p></div>
+    <p><strong>Common mistakes:</strong> <code>go run</code> from <code>compose-lab</code> instead of <code>api</code> ("no Go files"); <code>bind: address already in use</code> because workshop 1's container is still running on 8080 (<code>docker ps</code>, then <code>docker rm -f</code> it); on Windows, <code>curl</code> without <code>.exe</code> gives a PowerShell error about <code>-d</code>. <strong>Talk about it:</strong> the API answered in a millisecond and did no work. Where is the job now, and who owns it?</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>The worker</h3><span class="time">15 min</span></header>
+    <p>Now the other half, typed. Create <code>worker/worker.ts</code>. It is step 1's <code>BRPOP</code> loop in TypeScript: block on the list, split the job into its id and its text, pretend the work is hard for one second, write the answer under <code>result:&lt;id&gt;</code>, repeat. The "work" is reversing the text, so you can check it by eye. The <code>npm:redis</code> client is the official one; <code>brPop</code> returns the same two things <code>redis-cli</code> printed, the list name and the element. The <code>!</code> after <code>job</code> is not a typo: it tells TypeScript the pop cannot be empty, because we asked it to wait forever.</p>
+<pre data-mode="type this"><code>import { createClient } from &quot;npm:redis@4&quot;;
+
+const redis = createClient({ url: Deno.env.get(&quot;REDIS_URL&quot;) });
+await redis.connect();
+const me = Deno.hostname();
+console.log(me, &quot;waiting for jobs&quot;);
+
+while (true) {
+  const job = await redis.brPop(&quot;jobs&quot;, 0);
+  const [id, ...words] = job!.element.split(&quot; &quot;);
+  const text = words.join(&quot; &quot;);
+  console.log(me, &quot;got&quot;, id, text);
+  await new Promise((r) =&gt; setTimeout(r, 1000));
+  const result = [...text].reverse().join(&quot;&quot;);
+  await redis.set(`result:${id}`, result);
+  console.log(me, &quot;done&quot;, id, result);
+}</code></pre>
+    <p>Leave the API running in terminal one and start the worker in terminal two, after <code>cd worker</code> (terminal two has been in <code>compose-lab</code> since step 1). Deno asks for each thing the program touches: the network, the <code>REDIS_URL</code> variable (unset for now, so the client uses <code>localhost:6379</code>), and the hostname it prints so you can tell workers apart later.</p>
+<pre data-mode="type this"><code>deno run --allow-net --allow-env --allow-sys worker.ts</code></pre>
+    <p>The first run downloads <code>npm:redis@4</code>. Watch the worker's output: the job you posted in step 2 was still in the list, so it is taken at once. Then, in a third terminal (this is the only step that needs one), post another and fetch the result:</p>
+<pre data-mode="type this"><code>curl -d &quot;hello world&quot; localhost:8080/jobs
+curl localhost:8080/jobs/1d33a31b</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p>The worker printed <code>vm waiting for jobs</code> (your hostname instead of <code>vm</code>), then <code>got 1c8a66fe hello world</code> and one second later <code>done 1c8a66fe dlrow olleh</code>. A GET for the new id within the first second says <code>not done yet</code>; after that it prints <code>dlrow olleh</code>. The list is empty again.</p></div>
+    <p><strong>Common mistakes:</strong> <code>error: Module not found "file:///…/compose-lab/worker.ts"</code> means terminal two is still in <code>compose-lab</code>: <code>cd worker</code>; a missing <code>--allow-</code> flag stops the program with <code>NotCapable: Requires env access</code> (or sys access) and names the flag to add; <code>job.element</code> underlined red in the editor because the <code>!</code> was left out (<code>brPop</code> can return null on a timeout, and the type system does not know we passed 0). <strong>Talk about it:</strong> the worker got a job it never saw posted. What does that say about where the queue lives? What if two people in the room pointed their worker at the same Redis?</p>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>All three in Compose</h3><span class="time">15 min</span></header>
+    <p>Everything works, and it works because two programs are running natively in two terminals with the right folders and the right addresses in your head. Now write that down. First the two Dockerfiles, pasted: the API's is workshop 1's multi-stage file unchanged; the worker's is one stage because the Deno runtime has to stay in the image.</p>
+    <h4>api/Dockerfile</h4>
+<pre data-mode="paste this"><code># Same recipe as workshop 1: build in the Go image, ship one file in an empty image.
+FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+FROM scratch
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD [&quot;/server&quot;]</code></pre>
+    <h4>worker/Dockerfile</h4>
+<pre data-mode="paste this"><code># Deno ships its own image; the runtime stays in, so this is one stage.
+FROM denoland/deno:2.9.7
+WORKDIR /app
+COPY worker.ts .
+RUN deno cache worker.ts
+CMD [&quot;deno&quot;, &quot;run&quot;, &quot;--allow-net&quot;, &quot;--allow-env&quot;, &quot;--allow-sys&quot;, &quot;worker.ts&quot;]</code></pre>
+    <p>Now stop both native programs with Ctrl-C and add two services to <code>compose.yaml</code>, under the <code>redis</code> service from step 1, at the same indentation:</p>
+<pre data-mode="type this"><code>  api:
+    build: ./api
+    ports: [&quot;8080:8080&quot;]
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on: [redis]
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on: [redis]</code></pre>
+    <p>Read it as three <code>docker run</code> commands. <code>build: ./api</code> is <code>docker build ./api</code>; <code>ports</code> is <code>-p</code>; <code>environment</code> is <code>-e</code>; <code>depends_on</code> says "start Redis first". The one new idea is in the two environment values: the address of Redis is <code>redis</code>, the service name, not <code>localhost</code>. Build and start all three in terminal one, in the foreground so you see every log line:</p>
+<pre data-mode="type this"><code>docker compose up --build
+curl -d &quot;hello world&quot; localhost:8080/jobs
+curl localhost:8080/jobs/9f0c3a11</code></pre>
+    <p>The two <code>curl</code>s go in terminal two once the logs settle. The API's build pulls nothing (you have <code>golang:1.27</code>) but compiles for a few seconds; the worker's build runs <code>deno cache</code> inside the image, which downloads <code>npm:redis</code> again, because the image has its own filesystem.</p>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>Three services start, <code>compose-lab-redis-1</code>, <code>compose-lab-api-1</code> and <code>compose-lab-worker-1</code> (<code>docker compose ps</code> in terminal two lists them, all <code>Up</code>). The same two <code>curl</code>s as before work with nothing running natively, and the answer comes back <code>dlrow olleh</code>. In terminal one the three logs are interleaved with a coloured prefix per service, and the worker's line says <code>waiting for jobs</code> with a twelve-character hostname: the container id, as in workshop 1.</p></div>
+    <div class="call warn"><p class="lbl">The one that always bites</p><p>If the worker log says <code>ECONNREFUSED 127.0.0.1:6379</code> or the API answers with a 502, an address still says <code>localhost</code>. Inside a container, <code>localhost</code> is that container, and nothing there listens on 6379. Service name, container port: <code>redis:6379</code>. Fix the compose file and <code>docker compose up -d</code> again; Compose restarts only what changed. The other silent one: <code>worker-1 Exited (1)</code> right after <code>up</code> with <code>ECONNREFUSED</code> in its log means the worker lost the start race with Redis (<code>depends_on</code> only orders the starts, and the worker has no retry); <code>docker compose up -d worker</code> again, and stretch goal 2 fixes it properly.</p></div>
+    <p><strong>Talk about it:</strong> the worker's <code>REDIS_URL</code> says <code>redis:6379</code>, the container port, although Redis is also published on your laptop's 6379. Would it still work if you deleted the <code>ports</code> line under <code>redis</code>? (Yes for the containers, no for your laptop's <code>redis-cli</code>.) What resolves the name <code>redis</code>? What would happen if two students ran this in folders with the same name on one machine?</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Scale the worker</h3><span class="time">7 min</span></header>
+    <p>Ctrl-C the foreground <code>up</code> (it stops the containers; that is fine) and start again detached, with three workers, then follow only the workers' logs:</p>
+<pre data-mode="type this"><code>docker compose up -d --scale worker=3
+docker compose logs -f worker</code></pre>
+    <p>In terminal two, post ten jobs in one go. Paste the loop for your shell:</p>
+<pre data-mode="paste this"><code>for i in $(seq 1 10); do curl -sd &quot;job $i&quot; localhost:8080/jobs; done</code></pre>
+<pre data-mode="paste this"><code>1..10 | ForEach-Object { curl.exe -sd &quot;job $_&quot; localhost:8080/jobs }</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>The log shows three prefixes, <code>worker-1</code>, <code>worker-2</code>, <code>worker-3</code>, each with its own hostname, and the jobs are dealt round-robin: job 1 to the worker that had been waiting longest, job 2 to the next, job 3 to the third, then job 4 to whichever finished first. All ten are done about four seconds after the loop, instead of ten. Nothing in <code>worker.ts</code> or the compose file changed.</p></div>
+    <p><strong>Talk about it:</strong> what decided which worker got job 1? (Redis wakes blocked clients in the order they blocked.) What would happen if you scaled the API to 3? (It would fail: three containers cannot all publish port 8080. Workshop 7 solves that with a load balancer.) Could you scale Redis the same way? (No: then there would be three queues.)</p>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>Kill a worker mid-job</h3><span class="time">10 min</span></header>
+    <p>Keep <code>logs -f</code> running in terminal one and do all of this step in terminal two. Back to one worker, so that the queue drains slowly enough to catch. Then post thirty jobs (thirty seconds of work), count to three, and kill the worker the hard way, which is what a crash, an out-of-memory or a machine reboot looks like:</p>
+<pre data-mode="type this"><code>docker compose up -d --scale worker=1</code></pre>
+<pre data-mode="paste this"><code>for i in $(seq 1 30); do curl -sd &quot;job $i&quot; localhost:8080/jobs; done</code></pre>
+<pre data-mode="paste this"><code>1..30 | ForEach-Object { curl.exe -sd &quot;job $_&quot; localhost:8080/jobs }</code></pre>
+<pre data-mode="type this"><code>docker compose kill worker
+docker compose up -d worker</code></pre>
+    <p>Look at terminal one's <code>logs -f</code> just before the restart: the worker had printed <code>got</code> for one job, say job 4, and no <code>done</code>. Copy the id from that last <code>got</code> line (not from the loop's output: a mistyped id also says <code>not done yet</code>, which would prove nothing) and fetch that job's result:</p>
+<pre data-mode="type this"><code>curl localhost:8080/jobs/9b4c2ae7</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>docker compose kill worker</code> prints <code>Killed</code> and <code>docker compose ps -a</code> would show <code>Exited (137)</code>, which is 128 plus signal 9. After <code>up -d worker</code> the worker continues with the <em>next</em> job (job 5 onwards) and finishes all of them. The job it was holding says <code>not done yet</code>, forever. It is not in the list (<code>BRPOP</code> removed it) and not in a result (the worker died first). Every other job survived, because they were still in Redis.</p></div>
+    <p><strong>Talk about it:</strong> this is at-most-once delivery, and it is what a plain <code>BRPOP</code> gives you. For a thumbnail or an email it may be acceptable; for a payment it is not. The alternative is at-least-once: move the job to a second list instead of popping it, and put it back if the worker dies (stretch goal 1). The price is that a job can then run twice, so the work must be idempotent: doing it again gives the same result, like <code>SET result:&lt;id&gt;</code> does and "charge the card" does not. Ask the room which of their own projects' jobs are idempotent.</p>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">8 min</span></header>
+    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal. Everyone finishes with:</p>
+<pre data-mode="type this"><code>docker compose down</code></pre>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>Three processes, three languages, one list. They never shared anything but a network; that is why they could be started separately in steps 1–3 and together in step 4 without changing a line.</li>
+      <li>The compose file is the architecture: which services exist, what they run, which ports leave the network, what each is told. Read someone else's compose file this way and you understand their system.</li>
+      <li>Names, not <code>localhost</code>. Service name plus container port, always, from inside the network.</li>
+      <li>A queue is a list; blocking pop is why workers can sleep; scaling is a number. And <code>BRPOP</code> loses the job in flight: choose at-most-once or at-least-once on purpose, and make work idempotent if you choose the second.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>A queue that does not lose jobs.</strong> Replace the worker with <code>worker-reliable.ts</code> from the <a href="#solution">solution</a>: <code>BLMOVE jobs working RIGHT LEFT</code> moves the job to a <code>working</code> list instead of popping it, <code>LREM</code> removes it when done, and a starting worker puts anything left in <code>working</code> back on the queue. Repeat step 6: the killed job now completes after the restart. Then argue about what happens with three workers when one dies (the restarted one re-queues the other two's in-flight jobs too, so they run twice: idempotency again).</li>
+      <li><strong>Wait for healthy, not just started.</strong> <code>depends_on: [redis]</code> only orders the starts. Use <code>compose-healthy.yaml</code> from the solution: a <code>healthcheck</code> on Redis (<code>redis-cli ping</code> every 2 s), <code>condition: service_healthy</code> on the other two, and a named volume so the queue survives <code>docker compose down</code>. Watch <code>docker compose up</code> print <code>Waiting</code> then <code>Healthy</code> before starting the API.</li>
+      <li><strong>Settings out of the file.</strong> Put <code>REDIS_URL</code> and the published port in a <code>.env</code> file next to <code>compose.yaml</code> and reference them as <code>${REDIS_URL}</code>; run <code>docker compose config</code> to see the file with values filled in. That is how the same file runs on a laptop and a server.</li>
+      <li><strong>Real work.</strong> Replace the reversal with a SHA-256 of the text using <code>crypto.subtle.digest</code> (WebCrypto, the same API whose <code>sign</code> you used in workshop 2), and bump the sleep to three seconds so the scaling in step 5 is more dramatic.</li>
+      <li><strong>Where does the worker's hostname come from?</strong> Compare <code>Deno.hostname()</code> in the log with <code>docker compose ps</code> and <code>docker inspect</code>. Then set <code>hostname:</code> in the compose file and see it change.</li>
+      <li><strong>The CI demo (instructor, projector, 10 min).</strong> Show a GitHub Actions workflow that runs <code>docker compose up --build -d</code>, posts a job with <code>curl</code>, polls for the result and fails the build if it never appears. Workshop 10 builds the full pipeline; the compose file is what makes an integration test a shell script.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The final state of the <code>compose-lab</code> folder, plus the two stretch-goal files. <code>Dockerfile.api</code> is saved as <code>api/Dockerfile</code> and <code>Dockerfile.worker</code> as <code>worker/Dockerfile</code>; <code>main.go</code> and <code>go.mod</code> live in <code>api</code>, the two <code>.ts</code> files in <code>worker</code>. Everything was tested in the authoring environment with the exact commands in steps 1–6: Redis 7.0 locally, the API with <code>go run</code>, the worker with <code>deno run</code> (both against <code>npm:redis@4</code> and the current <code>npm:redis</code> 6.2.1, unchanged), the ten-job and thirty-job loops, the kill and the restart. The Compose steps were run for real with the same <code>compose.yaml</code> and stand-in images built from the local binaries, because that environment cannot pull from Docker Hub; so the multi-stage <code>golang:1.27</code> build and the <code>denoland/deno:2.9.7</code> image were checked against their documentation and tag lists rather than run. The API's <code>scratch</code> stage was built and run; it is 12.8 MB.</p>
+  <div class="dlrow"><a href="code/compose.yaml" download>compose.yaml</a><a href="code/main.go" download>main.go</a><a href="code/go.mod" download>go.mod</a><a href="code/Dockerfile.api" download>Dockerfile.api</a><a href="code/worker.ts" download>worker.ts</a><a href="code/Dockerfile.worker" download>Dockerfile.worker</a><a href="code/worker-reliable.ts" download>worker-reliable.ts</a><a href="code/compose-healthy.yaml" download>compose-healthy.yaml</a></div>
+  <details class="sol"><summary>compose.yaml<a class="dl" href="code/compose.yaml" download>download</a></summary><pre><code>services:
+  redis:
+    image: redis:7
+    ports: [&quot;6379:6379&quot;]
+  api:
+    build: ./api
+    ports: [&quot;8080:8080&quot;]
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on: [redis]
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on: [redis]</code></pre></details>
+  <details class="sol"><summary>main.go<a class="dl" href="code/main.go" download>download</a></summary><pre><code>// The API: takes jobs in over HTTP and puts them on a Redis list.
+// It never does the work itself; a worker somewhere else does.
+package main
+
+import (
+	&quot;bufio&quot;
+	&quot;crypto/rand&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+	&quot;io&quot;
+	&quot;log&quot;
+	&quot;net&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+)
+
+func main() {
+	addr := os.Getenv(&quot;REDIS_ADDR&quot;) // &quot;redis:6379&quot; inside Compose
+	if addr == &quot;&quot; {
+		addr = &quot;localhost:6379&quot;
+	}
+
+	// POST /jobs with any text body: give it an id, push &quot;&lt;id&gt; &lt;text&gt;&quot; on the list.
+	http.HandleFunc(&quot;POST /jobs&quot;, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		id := newID()
+		n, err := redis(addr, &quot;LPUSH&quot;, &quot;jobs&quot;, id+&quot; &quot;+string(body))
+		if err != nil {
+			http.Error(w, err.Error(), 502)
+			return
+		}
+		log.Printf(&quot;queued %s (%s waiting)&quot;, id, n)
+		fmt.Fprintf(w, &quot;{\&quot;id\&quot;:%q}\n&quot;, id)
+	})
+
+	// GET /jobs/&lt;id&gt;: the worker leaves the answer in the key result:&lt;id&gt;.
+	http.HandleFunc(&quot;GET /jobs/{id}&quot;, func(w http.ResponseWriter, r *http.Request) {
+		result, err := redis(addr, &quot;GET&quot;, &quot;result:&quot;+r.PathValue(&quot;id&quot;))
+		if err != nil {
+			http.Error(w, err.Error(), 502)
+			return
+		}
+		if result == &quot;&quot; {
+			http.Error(w, &quot;not done yet&quot;, 404)
+			return
+		}
+		fmt.Fprintln(w, result)
+	})
+
+	log.Println(&quot;api listening on :8080, redis at&quot;, addr)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}
+
+// redis sends one command in RESP, the Redis wire protocol, and returns the reply.
+// A command is an array of bulk strings: &quot;*2\r\n$3\r\nGET\r\n$5\r\nhello\r\n&quot;.
+func redis(addr string, args ...string) (string, error) {
+	c, err := net.Dial(&quot;tcp&quot;, addr)
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	defer c.Close()
+	fmt.Fprintf(c, &quot;*%d\r\n&quot;, len(args))
+	for _, a := range args {
+		fmt.Fprintf(c, &quot;$%d\r\n%s\r\n&quot;, len(a), a)
+	}
+	rd := bufio.NewReader(c)
+	line, err := rd.ReadString(&#x27;\n&#x27;)
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	line = strings.TrimRight(line, &quot;\r\n&quot;)
+	switch line[0] {
+	case &#x27;+&#x27;, &#x27;:&#x27;: // simple string or integer: &quot;+OK&quot;, &quot;:3&quot;
+		return line[1:], nil
+	case &#x27;-&#x27;: // error: &quot;-ERR unknown command&quot;
+		return &quot;&quot;, fmt.Errorf(&quot;redis: %s&quot;, line[1:])
+	case &#x27;$&#x27;: // bulk string: &quot;$5\r\nhello\r\n&quot;; &quot;$-1&quot; means no such key
+		n, _ := strconv.Atoi(line[1:])
+		if n &lt; 0 {
+			return &quot;&quot;, nil
+		}
+		buf := make([]byte, n+2)
+		_, err = io.ReadFull(rd, buf)
+		return string(buf[:n]), err
+	}
+	return &quot;&quot;, fmt.Errorf(&quot;redis: unexpected reply %q&quot;, line)
+}
+
+func newID() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}</code></pre></details>
+  <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module api
+
+go 1.24</code></pre></details>
+  <details class="sol"><summary>Dockerfile.api<a class="dl" href="code/Dockerfile.api" download>download</a></summary><pre><code># Same recipe as workshop 1: build in the Go image, ship one file in an empty image.
+FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+FROM scratch
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD [&quot;/server&quot;]</code></pre></details>
+  <details class="sol"><summary>worker.ts<a class="dl" href="code/worker.ts" download>download</a></summary><pre><code>import { createClient } from &quot;npm:redis@4&quot;;
+
+const redis = createClient({ url: Deno.env.get(&quot;REDIS_URL&quot;) });
+await redis.connect();
+const me = Deno.hostname();
+console.log(me, &quot;waiting for jobs&quot;);
+
+while (true) {
+  const job = await redis.brPop(&quot;jobs&quot;, 0);
+  const [id, ...words] = job!.element.split(&quot; &quot;);
+  const text = words.join(&quot; &quot;);
+  console.log(me, &quot;got&quot;, id, text);
+  await new Promise((r) =&gt; setTimeout(r, 1000));
+  const result = [...text].reverse().join(&quot;&quot;);
+  await redis.set(`result:${id}`, result);
+  console.log(me, &quot;done&quot;, id, result);
+}</code></pre></details>
+  <details class="sol"><summary>Dockerfile.worker<a class="dl" href="code/Dockerfile.worker" download>download</a></summary><pre><code># Deno ships its own image; the runtime stays in, so this is one stage.
+FROM denoland/deno:2.9.7
+WORKDIR /app
+COPY worker.ts .
+RUN deno cache worker.ts
+CMD [&quot;deno&quot;, &quot;run&quot;, &quot;--allow-net&quot;, &quot;--allow-env&quot;, &quot;--allow-sys&quot;, &quot;worker.ts&quot;]</code></pre></details>
+  <details class="sol"><summary>worker-reliable.ts<a class="dl" href="code/worker-reliable.ts" download>download</a></summary><pre><code>// Stretch goal: the reliable-queue pattern from the Redis LMOVE docs.
+// A job is MOVED to a &quot;working&quot; list instead of popped, and removed from
+// there only when finished. A job a dead worker was holding is still in
+// &quot;working&quot;, so a restarted worker puts it back on the queue first.
+import { createClient } from &quot;npm:redis@4&quot;;
+
+const redis = createClient({ url: Deno.env.get(&quot;REDIS_URL&quot;) });
+await redis.connect();
+const me = Deno.hostname();
+
+while (await redis.lMove(&quot;working&quot;, &quot;jobs&quot;, &quot;RIGHT&quot;, &quot;RIGHT&quot;)) {
+  console.log(me, &quot;re-queued a job somebody was holding when they died&quot;);
+}
+console.log(me, &quot;waiting for jobs&quot;);
+
+while (true) {
+  const job = await redis.blMove(&quot;jobs&quot;, &quot;working&quot;, &quot;RIGHT&quot;, &quot;LEFT&quot;, 0);
+  const [id, ...words] = job!.split(&quot; &quot;);
+  const text = words.join(&quot; &quot;);
+  console.log(me, &quot;got&quot;, id, text);
+  await new Promise((r) =&gt; setTimeout(r, 1000));
+  const result = [...text].reverse().join(&quot;&quot;);
+  await redis.set(`result:${id}`, result);
+  await redis.lRem(&quot;working&quot;, 1, job!);
+  console.log(me, &quot;done&quot;, id, result);
+}</code></pre></details>
+  <details class="sol"><summary>compose-healthy.yaml<a class="dl" href="code/compose-healthy.yaml" download>download</a></summary><pre><code>services:
+  redis:
+    image: redis:7
+    ports: [&quot;6379:6379&quot;]
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;redis-cli&quot;, &quot;ping&quot;]
+      interval: 2s
+    volumes: [redis-data:/data]
+  api:
+    build: ./api
+    ports: [&quot;8080:8080&quot;]
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on:
+      redis: { condition: service_healthy }
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis: { condition: service_healthy }
+volumes:
+  redis-data:</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>Step 4 is the slow moment: the first <code>docker compose up --build</code> compiles the Go program inside <code>golang:1.27</code> and downloads <code>npm:redis</code> inside the Deno image, a minute or two per laptop, and it is where any laptop that skipped the prep discovers it. Step 1 runs long if the two-terminal <code>BRPOP</code> demo is done carelessly; do it once on the projector first. Steps 5 and 6 are short and must not be cut: they are the payoff. If you are behind after step 3, skip the <code>LRANGE</code> in step 2 and the "talk about it" in step 4. Step 7's stretch goals absorb any time left over. Nothing about this afternoon was run in a containerised form in the authoring environment beyond stand-in images; the first time you run step 4 on your own laptop, write down how long the build takes and say that number in the room.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Why does the API open a new TCP connection per request?"</em> Because it keeps the protocol code to one readable function. A real service keeps a connection (or a pool) open; the Deno worker does, via the client library. Offer it as a small refactor for anyone bored.</li>
+    <li><em>"Why is the worker's error a crash and not a retry?"</em> If Redis is unreachable when the worker starts it exits with <code>ECONNREFUSED</code>, and if Redis restarts under it the client throws <code>Socket closed unexpectedly</code>. That is deliberate for the lab: a container that exits is visible in <code>docker compose ps</code>. In production you add <code>restart: unless-stopped</code> to the service and the healthcheck from stretch goal 2, and Compose restarts it.</li>
+    <li><em>"Is Redis a database?"</em> It can be, but here it is a shared data structure on the network. The same list would work as a queue with any Redis client in any language, which is the point of the two languages.</li>
+    <li><em>"Why not RabbitMQ / Kafka / SQS?"</em> Same concepts, more machinery: acknowledgements, consumer groups, retention. Redis Streams (<code>XADD</code>/<code>XREADGROUP</code>) are the next step up and give at-least-once with acknowledgements built in. Everything in step 6 applies to all of them.</li>
+    <li><em>"Can two people share one Redis?"</em> Yes, and it is a good demo: one student's worker consuming another's jobs over the room Wi-Fi shows that the queue is the shared thing, not the code.</li>
+    <li><em>"<code>npm:redis@4</code> or the newest?"</em> The current release of node-redis is 6.2.1 and <code>worker.ts</code> runs unchanged against it (tested). The page pins 4 so that every laptop in the room resolves the same code; change it when you re-run the lab.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://redis.io/docs/latest/develop/reference/protocol-spec/">Redis serialization protocol (RESP)</a>: the array-of-bulk-strings framing and reply types the API's <code>redis()</code> function implements; the bytes on slide 5 were also checked against a live <code>redis-server</code> 7.0.</li>
+    <li><a href="https://redis.io/docs/latest/commands/lpush/">LPUSH</a>, <a href="https://redis.io/docs/latest/commands/brpop/">BRPOP</a> (timeout 0 blocks forever; clients are served in the order they blocked) and <a href="https://redis.io/docs/latest/commands/lmove/">LMOVE</a> / <a href="https://redis.io/docs/latest/commands/blmove/">BLMOVE</a>: the reliable-queue pattern in stretch goal 1; BLMOVE replaces the deprecated BRPOPLPUSH.</li>
+    <li><a href="https://docs.docker.com/reference/compose-file/services/">Compose file reference: services</a> (<code>build</code>, <code>image</code>, <code>ports</code>, <code>environment</code>, <code>depends_on</code> with <code>condition: service_healthy</code>, <code>healthcheck</code>) and <a href="https://docs.docker.com/compose/how-tos/networking/">Networking in Compose</a>: "reachable by other containers on that network, and discoverable by its service name"; service-to-service traffic uses the container port.</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/up/">docker compose up</a> (<code>--build</code>, <code>--scale SERVICE=NUM</code>, starting one service and its dependencies), <a href="https://docs.docker.com/reference/cli/docker/compose/logs/">logs</a> (<code>-f</code>), <a href="https://docs.docker.com/reference/cli/docker/compose/exec/">exec</a> (a TTY by default, <code>--index</code> for scaled services) and <a href="https://docs.docker.com/reference/cli/docker/compose/">the command list</a> (<code>kill</code>, <code>config</code>, <code>down</code>).</li>
+    <li><a href="https://docs.docker.com/compose/install/">Install Compose</a>: bundled with Docker Desktop; the <code>docker-compose-plugin</code> package on Linux.</li>
+    <li><a href="https://hub.docker.com/r/denoland/deno">denoland/deno on Docker Hub</a> and <a href="https://docs.deno.com/runtime/reference/docker/">Deno's Docker guide</a>: tags are full versions only (<code>2.9.7</code> at the time of writing; there is no floating <code>2</code> or <code>2.9</code> tag), <code>deno run --allow-net</code> as the CMD. The guide's newer <code>deno ci</code> step needs a lockfile; <code>deno cache</code> is still a supported command in Deno 2.9 and is what the worker's Dockerfile uses.</li>
+    <li><a href="https://github.com/docker-library/redis/blob/master/7.4/debian/Dockerfile">The official redis image's Dockerfile</a>: builds Redis 7.4 with protected mode disabled, which is why a container can connect to it without a password; and <a href="https://hub.docker.com/_/redis">redis on Docker Hub</a> for the <code>7</code> tag.</li>
+    <li><a href="https://go.dev/dl/">Go downloads</a> (1.27.1 is current, hence <code>golang:1.27</code>) and <a href="https://docs.deno.com/runtime/getting_started/installation/">Deno installation</a>: the prep pack's install lines.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/06-compose-hero.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

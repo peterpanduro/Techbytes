@@ -1,0 +1,12 @@
+# Same recipe as workshop 1: build in the Go image, ship one file in an empty image.
+FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+FROM scratch
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD ["/server"]

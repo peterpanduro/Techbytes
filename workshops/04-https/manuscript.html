@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HTTPS: Be Your Own Certificate Authority · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 4</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 4 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">HTTPS: Be Your Own Certificate Authority</h1>
+  <p class="muted">Word for word, in first person. 1768 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  
+  <article class="ms">
+    <header><span class="num">1</span><h3>What does the padlock promise?</h3><span class="time">0:00 → 1:00 · 1 min · 127 words</span></header>
+    <p>Hands up if you have ever clicked &quot;Accept the risk and continue&quot; on a certificate warning. Most of you. Now hands up if you have ever made a certificate on purpose, with your own hands, and understood every flag. That is the gap we close this afternoon.</p><p>There is a padlock in the address bar of almost every page you open. Everybody agrees it is good. Almost nobody can say precisely what it promises, and the answer is narrower and more interesting than people think. In two hours you will each be a certificate authority, you will have signed a certificate, your browser will have refused it and then accepted it, and you will have broken it three different ways on purpose. Fifteen minutes of talking first.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>Two problems, not one</h3><span class="time">1:00 → 3:00 · 2 min · 233 words</span></header>
+    <p>Plain HTTP is a postcard. Every router between you and the server can read it, and can change it. Your Wi-Fi at the café, your ISP, whoever runs the hotel network. Problem one is eavesdropping, and encryption fixes it: agree on a key, scramble everything, done. That part has been solved for decades and it is not what today is about.</p><p>Here is the second problem, and it is the one people forget. Suppose you encrypt beautifully. Who did you encrypt to? If someone in the middle can say &quot;hello, I am your bank, here is my key&quot;, you will encrypt everything to them, they will read it, re-encrypt it to the real bank, and you will see a perfectly working website. Encryption to a stranger is worth nothing.</p><p>So the question TLS really has to answer is: am I talking to the server whose name I typed in the address bar? That is identity, and identity is what certificates are for. Everything on the next slides, every file you make this afternoon, exists to answer that one question: encrypted, yes, but to whom.</p><p>Keep the two problems apart in your head, because the tools keep them apart too. When curl or a browser complains this afternoon, the encryption will be working perfectly every single time. What failed is the identity check. That distinction is most of what people get wrong about HTTPS.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>Keys that sign and keys that verify</h3><span class="time">3:00 → 4:00 · 1 min · 116 words</span></header>
+    <p>One piece of cryptography, and then it is all bookkeeping. A key pair. The private key can sign: take any bytes, produce a signature. The public key can verify that signature, and only that signature, and you can hand the public key to the whole world without weakening anything.</p><p>So a signature proves one sentence: whoever holds the private key approved these exact bytes. Change one bit, and the signature is wrong. That sentence is the only thing we build on today. We will not implement it; openssl and Go&#x27;s standard library do it. What we will do is decide what bytes get signed and by whom, and that turns out to be the whole story.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>A certificate is a signed statement</h3><span class="time">4:00 → 6:00 · 2 min · 223 words</span></header>
+    <p>This is a real certificate, printed with openssl x509 dash text, the one you will make in step 2. Read it top to bottom. Subject: who this is about; here, localhost. Issuer: who is making the statement; here, My Lab CA, which is you. Validity: two dates, and the statement means nothing outside them. Then the public key, two thousand forty-eight bits of RSA, which belongs to the server.</p><p>Then the extensions, which are the fine print. Not a CA. For a TLS web server. And the line that matters most: Subject Alternative Name, DNS localhost. Browsers stopped reading the Common Name years ago; the name has to be here, and one of the most common mistakes in the world is a certificate without it.</p><p>And at the bottom, the signature: the issuer&#x27;s private key over everything above. So a certificate is a statement: &quot;this public key belongs to this name, between these dates&quot;, signed by someone. It contains no secrets at all. You could print it on a poster, and in fact the server hands it to every stranger who connects. The private key that matches it is a different file, and that one never leaves the server. Two files, always: one you show everyone, one you never show anyone. Half the certificate mistakes in the world come from mixing those up.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>The chain of vouching</h3><span class="time">6:00 → 8:00 · 2 min · 226 words</span></header>
+    <p>Now the obvious question. The server&#x27;s certificate is signed by My Lab CA. Fine. Who signed My Lab CA&#x27;s certificate? Look at the file: issuer and subject are the same. It signed itself. Anybody can make a self-signed certificate; you will do it in step 1 in two commands, and so could anyone in this room, with any name they like. So why would anyone believe it?</p><p>Here is the answer, and it is less mystical than people expect. Your browser, or your operating system, ships with a list. About a hundred and fifty root certificates, from companies and organisations that somebody at Mozilla or Apple or Microsoft decided to include. Those are axioms. A certificate signed by one of them, or by something they signed, is accepted. Anything else is not.</p><p>So the chain reads right to left. The trust store vouches for the CA. The CA vouches for the server. The browser walks that chain and, if it ends at something on the list, draws the padlock. In step 4 you add yourself to Firefox&#x27;s list, and the warning disappears without touching the server. Trusted does not mean good. It means on the list. Corporate laptops have an extra entry on that list, and that is how the company proxy reads your traffic. Nothing was broken to make that possible; somebody edited a list.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>The handshake in five lines</h3><span class="time">8:00 → 10:00 · 2 min · 218 words</span></header>
+    <p>Here is what actually goes over the wire, in five lines. The client speaks first: I speak TLS 1.3, here is my half of a fresh key. The server answers: here is my half, and here is my certificate, the signed statement from the last slide. Then the server sends one more thing: a signature over the handshake so far, made with the private key that matches the certificate. That is the proof. Anyone can copy a certificate off the wire; only the holder of the private key can produce that signature.</p><p>Now the client does the work that today is about. It checks the chain: does the signature on this certificate lead to something on my list? It checks the name: is this certificate for the host I typed? It checks the dates. If all three pass, both sides now share a key nobody else has, and from here on everything is encrypted, with HTTP riding inside. On a TLS connection it is usually HTTP/2, which you will see curl announce.</p><p>In step 5 you will run openssl s_client and watch it narrate exactly this: the chain it received, the depth lines as it walks up to your CA, the protocol and cipher it agreed on, and at the bottom the verdict, verify return code zero, ok.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>What the padlock checks</h3><span class="time">10:00 → 12:00 · 2 min · 243 words</span></header>
+    <p>Three checks, and the widget behind me has one button for each way they fail; you will produce all three this afternoon. First button: step 3. The certificate is perfect, but the browser has never heard of My Lab CA. The chain check fails, Firefox says unknown issuer, curl says unable to get local issuer certificate. Nothing is wrong with the server.</p><p>Second button: step 4. Same server, same certificate, not restarted. We imported the CA into Firefox&#x27;s list. All three checks pass, padlock. The only thing that changed was on your side: the list.</p><p>Third button: step 6. Still trusted, still valid, but you visit one two seven dot zero dot zero dot one instead of localhost. Same machine, same key, same CA, and the browser refuses, because the certificate says localhost and the address bar does not. Trust is per name, and the name comes from what you typed.</p><p>Fourth button: an expired certificate, signed by your own CA, valid until yesterday. Chain fine, name fine, dates fail. Three checks, three error codes, and when you meet a TLS error in the wild for the rest of your life, the first question is: which of the three? Unknown issuer means a list problem, on the client. Wrong name means the certificate is for a different host than the one in the address bar. Expired means somebody forgot to renew. Different causes, different fixes, and none of them is &quot;turn verification off&quot;.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>What it does not promise</h3><span class="time">12:00 → 13:00 · 1 min · 123 words</span></header>
+    <p>Now the sentence to take home. A valid certificate says that whoever controls this name holds the private key for this public key, according to a CA on my list, until this date. That is all. It does not say the site is honest. It does not say it is the site you meant to visit; a lookalike name gets a perfectly valid certificate in minutes, for free. It does not say the code behind it is any good.</p><p>The padlock is about the pipe, not about the person at the other end. That is not a weakness; it is the design. Identity of names is a solvable problem. Honesty is not. Keep those separate and most of the confusion around HTTPS disappears.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>How real sites get certificates</h3><span class="time">13:00 → 14:00 · 1 min · 128 words</span></header>
+    <p>One last piece so you can connect today to the real world. Nobody emails a signing request to a company any more. The protocol is called ACME, and Let&#x27;s Encrypt runs it for free. Your server asks for a certificate for example dot com. The CA says: prove you control that name; put this token at this URL, or in this DNS record. Your server does. The CA checks from several places on the internet and signs. Ninety days, then renew, automatically.</p><p>Notice what the CA verified: control of the name. Not who you are, not whether you are nice. In Go it is one line with the autocert package, a stretch goal if you own a domain. Same chain, same three checks; only the vouching got automated.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 131 words</span></header>
+    <p>Here is the afternoon. A ten-line Go server over plain HTTP first, so we know the tools work. Two openssl commands and you are a certificate authority. Then a key, a request, a six-line file that says &quot;this is a server called localhost&quot;, and a signature from your CA. One word changes in the server and it speaks HTTPS, and curl and Firefox both refuse it, which is correct. Then trust: a flag for curl, an import for Firefox, a certificate pool in Go, and openssl s_client narrating the handshake. Finally you break it three ways on purpose.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

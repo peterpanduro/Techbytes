@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Storing Passwords Properly · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 3 · Storing Passwords Properly</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 3</span>
+      <h1>Storing Passwords Properly</h1>
+      <p class="lede">Store a password so that a leaked database is useless. Start in plaintext, write the dictionary attack that breaks it, then salt, slow and self-describe the hash until the same attack would take centuries — in about fifty lines of Go, standard library only.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~15 min</b> student prep, one week before</li>
+        <li>No prior crypto knowledge</li>
+        <li>Go · standard library only</li>
+        <li>Any OS</li>
+      </ul>
+    </div>
+    <div class="demo w3-calc" id="w3-calc">
+      <span class="eyebrow">Interactive · what a leak is worth</span>
+      <p class="note" style="margin:.3rem 0 .6rem">Three things decide how long a stolen hash survives: who is guessing, how the password was stored, and what the password looks like. Drag each one.</p>
+
+      <div class="w3-slab"><span class="w3-lbl">Cracking hardware</span><b id="w3-rate-v"></b>
+        <input id="w3-rate" type="range" min="6.6" max="21" step="0.02" value="10.34" aria-label="Cracking hardware, hashes per second">
+        <div class="w3-scale" id="w3-rate-scale"></div>
+        <span class="w3-why" id="w3-rate-why"></span>
+      </div>
+
+      <div class="w3-slab"><span class="w3-lbl">Password storage</span><b id="w3-iter-v"></b>
+        <input id="w3-iter" type="range" min="0" max="7" step="0.02" value="0" aria-label="Hashing rounds per guess">
+        <div class="w3-scale" id="w3-iter-scale"></div>
+        <span class="w3-why" id="w3-iter-why"></span>
+      </div>
+
+      <div class="w3-slab"><span class="w3-lbl">The password</span><b id="w3-pw-v"></b>
+        <input id="w3-len" type="range" min="4" max="20" step="1" value="8" aria-label="Password length">
+        <div class="seg w3-seg" role="group" aria-label="Characters used">
+          <button type="button" data-set="26" data-name="lowercase letters" aria-pressed="true">a–z</button>
+          <button type="button" data-set="62" data-name="letters and digits" aria-pressed="false">a–z A–Z 0–9</button>
+          <button type="button" data-set="95" data-name="anything on the keyboard" aria-pressed="false">all 95 keys</button>
+        </div>
+        <span class="w3-why" id="w3-pw-why"></span>
+      </div>
+
+      <dl class="w3-out">
+        <dt>guesses the attacker can test per second</dt><dd id="w3-eff">–</dd>
+        <dt>the lab's 300-word list, one salted user</dt><dd id="w3-word">–</dd>
+        <dt>every password of that shape, one user</dt><dd id="w3-brute">–</dd>
+      </dl>
+      <p class="note" id="w3-note"></p>
+      <p class="note w3-fine">Guesses per second = hashes per second ÷ hashes per guess (PBKDF2 does two SHA-256 per round). Brute-force time is the worst case; on average an attacker needs half of it. Real tools land within a factor of two.</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Ready</a></li>
+        <li><a href="#s1">1 · Plaintext</a></li>
+        <li><a href="#s2">2 · Crack it</a></li>
+        <li><a href="#s3">3 · Salt</a></li>
+        <li><a href="#s4">4 · Slow it down</a></li>
+        <li><a href="#s5">5 · Constant time</a></li>
+        <li><a href="#s6">6 · Verify &amp; upgrade</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 3</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves having broken a password store with their own dictionary attack and then rebuilt it correctly: a per-user salt, PBKDF2-HMAC-SHA256 at the OWASP-recommended work factor, a constant-time comparison, and a self-describing hash string with a <code>Verify</code> that transparently upgrades old accounts on login. They can say, from having measured it, why a fast hash is a liability and how slow is slow enough.</td></tr>
+    <tr><th>Why this topic</th><td>Password storage is done wrong constantly, and the wrong versions look like they work: a plaintext or plain-SHA-256 store passes every test and every login. The failure only shows up in a breach, when it is everyone's problem at once. The one way to make the lesson stick is to be the attacker for twenty minutes, which is exactly what step 2 is.</td></tr>
+    <tr><th>Concepts</th><td>One-way hashing vs encryption, dictionary and rainbow-table attacks, per-user salts, the meaning of a "work factor", key-derivation functions (PBKDF2, and Argon2id / bcrypt by name), constant-time comparison and timing side-channels, self-describing hash encodings and upgrade-on-login. On the side: <code>crypto/sha256</code>, <code>crypto/rand</code>, <code>crypto/pbkdf2</code> (Go 1.24+), <code>crypto/subtle</code>, <code>encoding/base64</code>, and reading a wall-clock time in Go.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Can open a terminal and run a command. Can read a short program in any language. No Go and no cryptography assumed: the topic code is short and typed a line at a time, and the one hashing call comes straight from the standard library.</td></tr>
+    <tr><th>Language</th><td>Go, standard library only. Go because password hashing is where its <code>crypto</code> packages are the natural home, because a single static binary needs nothing installed but Go, and because <code>crypto/pbkdf2</code> landing in the standard library in Go 1.24 means the whole lab runs with no dependencies and no network. Argon2id, the production choice, lives in <code>golang.org/x/crypto</code> and appears as a stretch goal.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Go 1.24 or newer (the prep installs 1.27), a terminal, a text editor. No phone, no Docker, no network during the lab.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Wi-Fi only for students who skipped the prep and still need to download Go; nothing in the lab itself touches the network.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (eight steps 0–7, each with a checkpoint that must pass before moving on).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 15 minutes)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. Install Go</h4>
+  <p>Go is a single toolchain that compiles and runs programs with one command. Install <strong>Go 1.24 or newer</strong> — the lab uses a package (<code>crypto/pbkdf2</code>) that was added to the standard library in Go 1.24. The current release is 1.27.1.</p>
+  <p>On macOS and Windows, download the installer from <a href="https://go.dev/dl/">go.dev/dl</a> (the <code>.pkg</code> for macOS, the <code>.msi</code> for Windows) and accept the defaults. On Linux, follow <a href="https://go.dev/doc/install">go.dev/doc/install</a>:</p>
+<pre><code># Linux (amd64): remove any old Go, then unpack the new one
+rm -rf /usr/local/go &amp;&amp; tar -C /usr/local -xzf go1.27.1.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin      # add this line to ~/.profile too</code></pre>
+  <p><strong>Open a new terminal</strong> so the tool is on your path, then check the version. Anything 1.24 or higher is fine:</p>
+<pre><code>go version</code></pre>
+
+  <h4>2. The readiness check</h4>
+  <p>Make a folder called <code>passwords-lab</code> and open a terminal in it (Terminal on macOS, PowerShell on Windows). Create a file <code>ready.go</code> with exactly this content:</p>
+<pre><code>package main
+
+import (
+	&quot;crypto/pbkdf2&quot;
+	&quot;crypto/sha256&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+)
+
+func main() {
+	key, _ := pbkdf2.Key(sha256.New, &quot;techbytes&quot;, []byte(&quot;salt&quot;), 1000, 16)
+	fmt.Println(&quot;ready&quot;, hex.EncodeToString(key))
+}</code></pre>
+  <p>Then initialise the folder as a Go module and run the file:</p>
+<pre><code>go mod init passwords
+go run ready.go</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>ready 0ac710aaeba8701f0d15781032369385</code></p><p>If you see exactly that, your Go is new enough and the standard-library crypto the lab needs is present. If instead you see <code>package crypto/pbkdf2 is not in std</code>, your Go is older than 1.24 — install a newer one. Any other error: bring it to the workshop and arrive ten minutes early.</p></div>
+
+  <div class="call inst"><p class="lbl">Why this exact check</p><p><code>crypto/pbkdf2</code> only exists in Go 1.24+, so a student on an old Go fails this line during prep instead of in the room at step 4. The printed value is a fixed PBKDF2 output, so a wrong number means a broken install, not a wrong guess.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run the whole lab yourself on each OS you expect in the room, with the exact commands on this page. Note your own timing for step 4 (one PBKDF2 hash at 600,000 iterations) so you can say it out loud; it depends on the laptop and ranges from about a tenth of a second to half a second.</li>
+    <li>The data files — <code>users.txt</code>, <code>hashes.txt</code> and the 300-word <code>words.txt</code> — are pasted from this page (or downloaded from the <a href="#solution">full solution</a>). Have them on a USB stick too; the lab needs no network, so a student who skipped the prep only needs Go and these files.</li>
+    <li>The attack-cost widget at the top of this page is your slide for step 4. With the hardware slider on "gaming GPU" and the password at 8 lowercase letters, drag the storage slider from "SHA-256 once" to "600,000 · OWASP" while talking and let "10 seconds → 130 days" land. Then — this order matters — first set the password to 20 characters and "all 95 keys", and only then drag the hardware slider all the way up to every Bitcoin miner on Earth: watch that long random password still hold for longer than the universe has existed. Drag the password back down to 6 characters and watch it fall in an instant. Three sliders, three lessons: slow hashing, then hardware, then the password itself.</li>
+    <li>The tenth target hash never cracks: it is judy's long random password, not in the wordlist. Point this out — it is the one honest defence a user can mount, and the reason your side still has to do the work.</li>
+    <li>Step 2's <code>attack.go</code> prints its own hashing time, so the same <code>go run attack.go</code> shows both the cracked passwords and the elapsed time on every OS — no <code>time</code> or PowerShell <code>Measure-Command</code> needed (and <code>Measure-Command</code> would in any case swallow the <code>cracked</code> lines the checkpoint asks students to see).</li>
+    <li>Have the <a href="#solution">full solution</a> open. Every file is short enough to paste for anyone who falls behind.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 10 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: make the leak worthless</h2>
+  <p>The single idea to land: <strong>a stored password must be useless to whoever steals the database; everything we do is raising the cost of turning a stolen hash back into a password from microseconds to centuries.</strong> The lab is the mechanics of that sentence, attacked from both sides.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">Assume the database will leak</span><span class="d">1 min</span>
+      <span class="say">Title slide. State the assumption we never drop: your database will leak one day. The job of password storage is to make that leak worthless, not less likely. We build the failure and the fix, and attack both.</span></li>
+    <li><span class="n">2</span><span class="t">A leak is the whole file</span><span class="d">1 min</span>
+      <span class="say">Show a plaintext <code>user:password</code> file. If it leaks, the attacker just reads it and logs in as anyone, then reuses those passwords elsewhere. First rule: never store the password; store something you can check against but cannot reverse — a hash.</span></li>
+    <li><span class="n">3</span><span class="t">Don't store it, hash it</span><span class="d">2 min</span>
+      <span class="say">A hash is one-way and deterministic. Store the hash, check a login by re-hashing and comparing fingerprints. But deterministic means the attacker can guess: same password, same hash, every time. And they guess fast.</span></li>
+    <li><span class="n">4</span><span class="t">The dictionary attack</span><span class="d">2 min</span>
+      <span class="say">The ~15-line attack from step 2: hash each word in a list, check against the stolen hashes. Nine of ten cracked in well under a millisecond on a laptop; one gaming GPU does 22 billion SHA-256/s (hashcat, RTX 4090). SHA-256 is fast, and fast is wrong for passwords. The uncracked tenth is a random password not in any list.</span></li>
+    <li><span class="n">5</span><span class="t">Salt</span><span class="d">1 min</span>
+      <span class="say">Two users, same password, identical hash — that leaks reuse and lets one precomputed (rainbow) table crack everyone. A random per-user salt mixed in before hashing makes them differ, killing precomputation. But the salt leaks with the file, so a targeted per-user guess still works (step 3 does it). Salt beats bulk, not one guess.</span></li>
+    <li><span class="n">6</span><span class="t">Slow it down</span><span class="d">2 min</span>
+      <span class="say">Use a deliberately slow hash: PBKDF2 repeats HMAC-SHA256 a chosen number of times. OWASP recommends 600,000 for SHA-256 (verified for this workshop). One line of stdlib Go. Play the widget: the same GPU that tried every 8-letter lowercase password in ~10 s now needs ~130 days. Invisible to one login, ruinous to billions.</span></li>
+    <li><span class="n">7</span><span class="t">Compare in constant time</span><span class="d">2 min</span>
+      <span class="say"><code>==</code> stops at the first differing byte, so a failed compare's time leaks how many leading bytes were right — 3 ns vs 1.3 µs in step 5's measurement. Fix with <code>crypto/subtle.ConstantTimeCompare</code>, which always reads every byte. Same rule as the TOTP workshop: secrets compare in constant time, always.</span></li>
+    <li><span class="n">8</span><span class="t">A hash that describes itself</span><span class="d">2 min</span>
+      <span class="say">Store <code>$pbkdf2-sha256$iterations$salt$hash</code> (salt and hash Base64): the recipe travels with the hash. To verify, parse it and read the parameters out. Upgrade-on-login: if the stored iteration count is below today's policy and the password was correct, re-hash at the new cost and save — storage heals itself one login at a time. Step 6 writes this.</span></li>
+    <li><span class="n">9</span><span class="t">The production answer</span><span class="d">1 min</span>
+      <span class="say">PBKDF2 is real and FIPS-approved; the modern default is Argon2id, which costs the attacker memory as well as time and so blunts GPUs. bcrypt is the older, solid middle ground (72-byte limit). Argon2id is in <code>golang.org/x/crypto</code>, not stdlib, so it is a stretch goal here — but the shape (salt, cost, self-describing string, constant-time compare) is what you built.</span></li>
+    <li><span class="n">10</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Walk the eight steps: plaintext and logging in as anyone, the dictionary attack, salt, PBKDF2, constant-time compare, verify-and-upgrade, wrap-up. Go and the standard library only. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 8 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in a <code>passwords-lab</code> folder with one terminal open in it. Each step is one small self-contained Go program, run with <code>go run &lt;file&gt;.go</code>; there is no shared build, so a broken step never blocks the next one. Every step ends in a checkpoint. Nobody moves on until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the security code that is the point of the afternoon — 54 lines of Go across the lab, plus about a dozen commands — written by hand at follow-along pace. <strong>Paste this</strong> is everything else: the pasted <code>users.txt</code>, the ten target hashes, the (downloaded) 300-word list, and the plumbing around each program (imports, file reading, the little demo <code>main</code> functions). Typing three hundred passwords or a file-reading loop teaches nothing; typing the hash, the salt, the compare and the parser is the whole skill.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Ready: the project and a readiness check</span></div>
+    <div class="row" data-from="5" data-to="15"><span class="k">0:05–0:15</span><span>Step 1 · Plaintext, and logging in as anyone</span></div>
+    <div class="row" data-from="15" data-to="35"><span class="k">0:15–0:35</span><span>Step 2 · Crack it: the dictionary attack</span></div>
+    <div class="row" data-from="35" data-to="50"><span class="k">0:35–0:50</span><span>Step 3 · A per-user salt</span></div>
+    <div class="row" data-from="50" data-to="65"><span class="k">0:50–1:05</span><span>Step 4 · Slow it down with PBKDF2</span></div>
+    <div class="row" data-from="65" data-to="75"><span class="k">1:05–1:15</span><span>Step 5 · Constant-time compare</span></div>
+    <div class="row" data-from="75" data-to="85"><span class="k">1:15–1:25</span><span>Step 6 · Verify, and upgrade on login</span></div>
+    <div class="row" data-from="85" data-to="90"><span class="k">1:25–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Ready: the project and a readiness check</h3><span class="time">5 min</span></header>
+    <p>In the <code>passwords-lab</code> folder, confirm the toolchain and make the module. If you did the prep, <code>ready.go</code> and the module already exist; run the loader below either way.</p>
+<pre data-mode="type this"><code>go mod init passwords    # skip if go.mod already exists from the prep</code></pre>
+    <p>Save the ten-line users file as <code>users.txt</code> — this is the "database" the whole lab attacks — and a small loader as <code>load.go</code>. Both are pasted; a file-reading loop is not the topic.</p>
+    <h4>users.txt</h4>
+<pre data-mode="paste this"><code>alice:password
+bob:123456
+carol:qwerty
+dave:letmein
+erin:dragon
+frank:monkey
+grace:sunshine
+heidi:trustno1
+ivan:football
+judy:Tr0ub4dour&amp;3-xq7</code></pre>
+    <h4>load.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strings&quot;
+)
+
+func loadUsers(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	users := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), &quot;\n&quot;) {
+		name, secret, _ := strings.Cut(line, &quot;:&quot;)
+		users[name] = secret
+	}
+	return users, nil
+}
+
+func main() {
+	users, err := loadUsers(&quot;users.txt&quot;)
+	if err != nil {
+		fmt.Println(&quot;error:&quot;, err)
+		os.Exit(1)
+	}
+	fmt.Printf(&quot;ready: %d users loaded\n&quot;, len(users))
+}</code></pre>
+<pre data-mode="type this"><code>go run load.go</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>go run load.go</code> prints <code>ready: 10 users loaded</code>. If it does, Go runs, the module is set up, and the users file is where the program expects it.</p></div>
+    <p>Every step is one small file with its own <code>func main</code>, and we run them one at a time with <code>go run &lt;file&gt;.go</code>. Your editor (or <code>go build ./...</code>) will underline <code>main</code> in red with "main redeclared in this block" once there is more than one file — ignore it; each file compiles and runs fine on its own.</p>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room now, while there is slack. This catches a missing <code>go.mod</code>, a Go older than 1.24, and a <code>users.txt</code> saved in the wrong folder — the three things that would otherwise surface mid-lab.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Plaintext, and logging in as anyone</h3><span class="time">10 min</span></header>
+    <p>Here is the naive password store: the file <em>is</em> the passwords, and a login is a string comparison. Save it as <code>login1.go</code> (pasted — the point is a concept, not the code) and log in as yourself:</p>
+    <h4>login1.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strings&quot;
+)
+
+func main() {
+	data, _ := os.ReadFile(&quot;users.txt&quot;)
+	users := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), &quot;\n&quot;) {
+		name, stored, _ := strings.Cut(line, &quot;:&quot;)
+		users[name] = stored
+	}
+	name, password := os.Args[1], os.Args[2]
+	if users[name] == password {
+		fmt.Printf(&quot;welcome, %s\n&quot;, name)
+	} else {
+		fmt.Println(&quot;no&quot;)
+	}
+}</code></pre>
+<pre data-mode="type this"><code>go run login1.go alice password    # correct -&gt; welcome; a wrong password -&gt; no</code></pre>
+    <p>Now play the attacker. The database has leaked — which means you are holding <code>users.txt</code>. Read it, pick any account, and log in as them:</p>
+<pre data-mode="type this"><code>cat users.txt                       # PowerShell: type users.txt
+go run login1.go grace sunshine     # someone else&#x27;s account</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p>You logged in as <code>grace</code> without ever being grace, using only what a leaked file handed you. That is the failure mode the rest of the lab removes.</p></div>
+    <p><strong>Talk about it:</strong> nothing was "hacked" here — the login code is correct. The bug is entirely in <em>what</em> was stored. Where else has grace probably used <code>sunshine</code>? That is why a leak of your site becomes a problem for sites you have never heard of.</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>Crack it: the dictionary attack</h3><span class="time">20 min</span></header>
+    <p>The obvious fix is to store a hash instead of the password: one-way, so the file no longer <em>is</em> the passwords. But a hash is deterministic — the same password always hashes the same — so an attacker can guess. This is the step where you are the attacker, and you write the guesser yourself.</p>
+    <p>You have stolen the whole leaked table — one SHA-256 hash per user, all ten of them — and you have a wordlist of common passwords. Save the ten target hashes as <code>hashes.txt</code>:</p>
+    <h4>hashes.txt</h4>
+<pre data-mode="paste this"><code>5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+65e84be33532fb784c48129675f9eff3a682b27168c0ea744b2cf58ee02337c5
+1c8bfe8f801d79745c4631d09fff36c82aa37fc4cce4fc946683d7b336b63032
+a9c43be948c5cabd56ef2bacffb77cdaa5eec49dd5eb0cc4129cf3eda5f0e74c
+000c285457fc971f862a79b786476c78812c8897063c6fa9c045f579a3b2d63f
+a941a4c4fd0c01cddef61b8be963bf4c1e2b0811c037ce3f1835fddf6ef6c223
+203b70b5ae883932161bbd0bded9357e763e63afce98b16230be33f0b94c2cc5
+6382deaf1f5dc6e792b76db4a4a7bf2ba468884e000b25e7928e621e27fb23cb
+278b120fc3ab705063fb45d12edb179e2313beace04b831b9a21f12dbf8db133</code></pre>
+    <p>You also need the 300-word list as <code>words.txt</code>. It is 300 lines, so <strong>download it</strong> from the <a href="#solution">full solution</a> rather than typing or part-pasting it — these are the passwords real breaches have taught attackers to try first. The first two dozen, so you know what it looks like:</p>
+    <h4>words.txt <span class="note" style="font-weight:400">— sample only; download the full 300-line file</span></h4>
+<pre><code>password
+123456
+123456789
+qwerty
+abc123
+111111
+letmein
+dragon
+monkey
+sunshine
+football
+iloveyou
+admin
+welcome
+login
+princess
+solo
+master
+hello
+freedom
+whatever
+qazwsx
+trustno1
+batman
+… 276 more …</code></pre>
+    <p>Now the attack. Create <code>attack.go</code>. Paste the imports, then <strong>type the loop</strong> — it is the whole idea, about fifteen lines: hash each word, and if its fingerprint is one you stole, you have cracked that account.</p>
+    <h4>attack.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;bufio&quot;
+	&quot;crypto/sha256&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strings&quot;
+	&quot;time&quot;
+)</code></pre>
+<pre data-mode="type this"><code>func main() {
+	data, _ := os.ReadFile(&quot;hashes.txt&quot;)
+	want := map[string]bool{}
+	for _, h := range strings.Fields(string(data)) {
+		want[h] = true
+	}
+	f, _ := os.Open(&quot;words.txt&quot;)
+	sc := bufio.NewScanner(f)
+	start := time.Now()
+	for sc.Scan() {
+		sum := sha256.Sum256([]byte(sc.Text()))
+		if want[hex.EncodeToString(sum[:])] {
+			fmt.Printf(&quot;cracked  %q\n&quot;, sc.Text())
+		}
+	}
+	fmt.Printf(&quot;hashed the whole list in %v\n&quot;, time.Since(start))
+}</code></pre>
+    <p>Run it — the program prints each cracked password and how long the whole list took to hash, so you feel how cheap guessing is:</p>
+<pre data-mode="type this"><code>go run attack.go</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>Nine of the ten hashes are cracked and printed as their plaintext passwords — <code>password</code>, <code>123456</code>, <code>qwerty</code>, <code>letmein</code>, <code>dragon</code>, <code>monkey</code>, <code>sunshine</code>, <code>football</code>, <code>trustno1</code> — followed by a line like <code>hashed the whole list in 250µs</code>. Hashing all 300 words took well under a millisecond; there was no salt, so one pass over the list cracked every reused password at once. One hash (judy's) is not cracked.</p></div>
+    <p><strong>Talk about it:</strong> which hash survived, and why? (A long random password that is in no wordlist — the one defence a user can mount.) SHA-256 did its job perfectly and it did not help at all: the problem is that it is <em>fast</em>. A real wordlist is hundreds of millions of entries, and one gaming GPU does 22 billion SHA-256 a second, about five thousand times your laptop core. Try the widget at the top of the page: hardware on "gaming GPU", storage on "SHA-256 once".</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>A per-user salt</h3><span class="time">15 min</span></header>
+    <p>Two problems remain with a plain hash. Identical passwords produce identical hashes, which leaks who shares a password; and an attacker can precompute one giant word-to-hash table (a "rainbow table") once and look everyone up. A per-user <em>salt</em> — a few random bytes, stored with the hash and mixed in before hashing — fixes both. Create <code>salt.go</code>; <strong>type the <code>saltedHash</code> function</strong>, which is the whole new idea, then paste the demo below it.</p>
+    <h4>salt.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;bufio&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/sha256&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+)</code></pre>
+<pre data-mode="type this"><code>func saltedHash(salt []byte, password string) string {
+	sum := sha256.Sum256(append(salt, []byte(password)...))
+	return hex.EncodeToString(sum[:])
+}</code></pre>
+<pre data-mode="paste this"><code>func main() {
+	// alice and erin both chose the SAME password:
+	pw := &quot;dragon&quot;
+	aSalt, eSalt := make([]byte, 16), make([]byte, 16)
+	rand.Read(aSalt)
+	rand.Read(eSalt)
+	fmt.Println(&quot;alice:&quot;, saltedHash(aSalt, pw))
+	fmt.Println(&quot;erin :&quot;, saltedHash(eSalt, pw))
+	fmt.Println(&quot;same password, different hashes -&gt; rainbow tables are dead&quot;)
+
+	// but if the DB leaks, the salt leaks with it. Attack erin, per user:
+	target := saltedHash(eSalt, pw)
+	f, _ := os.Open(&quot;words.txt&quot;)
+	defer f.Close()
+	for sc := bufio.NewScanner(f); sc.Scan(); {
+		if saltedHash(eSalt, sc.Text()) == target {
+			fmt.Printf(&quot;erin&#x27;s password is still %q\n&quot;, sc.Text())
+			break
+		}
+	}
+}</code></pre>
+<pre data-mode="type this"><code>go run salt.go       # run it a second time: the salts, and so the hashes, change</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p>alice and erin have the <em>same</em> password (<code>dragon</code>) but two different hashes, and both change every run as the salt changes — so rainbow tables and dedup are dead. And yet the last line still prints <code>erin's password is still "dragon"</code>: a per-user dictionary attack, using the salt that leaked alongside the hash, cracks her anyway.</p></div>
+    <p><strong>Talk about it:</strong> the salt is not a secret and does not need to be — it is stored in the clear next to the hash. So what did salting actually buy us? (It stops one precomputed table from cracking the whole file at once; the attacker must now redo the work per user.) What did it <em>not</em> buy us? (Any slowdown of a single targeted guess.) That is the next step's job.</p>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>Slow it down with PBKDF2</h3><span class="time">15 min</span></header>
+    <p>The reason step 2 was instant is that SHA-256 is fast. A password hash should be deliberately slow. PBKDF2 does this by running HMAC-SHA256 many times over — you pick how many. The current <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP recommendation</a> is <strong>600,000 iterations</strong> for PBKDF2-HMAC-SHA256. Create <code>slow.go</code> and <strong>type the body</strong>: one hash, timed, and the arithmetic for what the step-2 attack would now cost.</p>
+    <h4>slow.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;crypto/pbkdf2&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/sha256&quot;
+	&quot;fmt&quot;
+	&quot;time&quot;
+)
+
+const iterations = 600_000 // OWASP-recommended work factor for PBKDF2-HMAC-SHA256</code></pre>
+<pre data-mode="type this"><code>func main() {
+	salt := make([]byte, 16)
+	rand.Read(salt)
+	start := time.Now()
+	pbkdf2.Key(sha256.New, &quot;dragon&quot;, salt, iterations, 32)
+	per := time.Since(start)
+	fmt.Printf(&quot;one hash: %v  (%.0f hashes/second)\n&quot;, per, 1/per.Seconds())
+
+	words := 300.0
+	fmt.Printf(&quot;step-2 wordlist (300 words): %v\n&quot;, time.Duration(words*float64(per)))
+	space := 26.0 * 26 * 26 * 26 * 26 * 26 * 26 * 26 // 8 lowercase letters
+	secs := space * per.Seconds()
+	fmt.Printf(&quot;all 8-char lowercase (%.2e): %.0f years\n&quot;, space, secs/(3600*24*365))
+}</code></pre>
+<pre data-mode="type this"><code>go run slow.go</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>One hash now takes a fraction of a second (roughly 0.1–0.5 s depending on your laptop) instead of the microseconds of step 2. The program prints how long the 300-word attack would now take — over a minute, not the fraction of a millisecond of step 2 — and that brute-forcing all 8-character lowercase passwords would take thousands of years. Same laptop, same code, one constant changed.</p></div>
+    <p><strong>Talk about it:</strong> a single login now costs you a fraction of a second — imperceptible. The attacker pays that cost on <em>every one</em> of billions of guesses. Open the widget at the top of the page, keep the hardware on "gaming GPU", and drag storage from "SHA-256 once" to "600,000 · OWASP": watch ten seconds for the whole 8-letter lowercase space become months. Then drag hardware to the top of the scale and see what only a longer password can fix. Why is a hash you can tune better than a hash that is merely "strong"? (Because you can raise the cost as hardware gets faster — which step 6 does automatically.)</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Constant-time compare</h3><span class="time">10 min</span></header>
+    <p>One leak is left, and it is in the comparison. Go's <code>==</code> on byte strings stops the instant it finds a difference, so a comparison that fails on the first byte returns sooner than one that fails on the last. Response time then spells out how many leading bytes were right, one guess at a time. Measure it. Create <code>timing.go</code>; paste the harness, then <strong>type the six comparisons</strong>.</p>
+    <h4>timing.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;crypto/subtle&quot;
+	&quot;fmt&quot;
+	&quot;strings&quot;
+	&quot;time&quot;
+)
+
+func avg(compare func() bool, reps int) time.Duration {
+	hits := 0
+	start := time.Now()
+	for i := 0; i &lt; reps; i++ {
+		if compare() {
+			hits++
+		}
+	}
+	_ = hits
+	return time.Since(start) / time.Duration(reps)
+}
+
+func main() {
+	const n, reps = 65536, 50000
+	secret := strings.Repeat(&quot;a&quot;, n)
+	first := &quot;b&quot; + secret[1:]  // differs at the FIRST byte
+	last := secret[:n-1] + &quot;b&quot; // differs at the LAST byte
+	sec, fb, lb := []byte(secret), []byte(first), []byte(last)</code></pre>
+<pre data-mode="type this"><code>	fmt.Println(&quot;plain ==&quot;)
+	fmt.Println(&quot;  differs at first byte:&quot;, avg(func() bool { return secret == first }, reps))
+	fmt.Println(&quot;  differs at last byte :&quot;, avg(func() bool { return secret == last }, reps))
+	fmt.Println(&quot;subtle.ConstantTimeCompare&quot;)
+	fmt.Println(&quot;  differs at first byte:&quot;, avg(func() bool { return subtle.ConstantTimeCompare(sec, fb) == 1 }, reps))
+	fmt.Println(&quot;  differs at last byte :&quot;, avg(func() bool { return subtle.ConstantTimeCompare(sec, lb) == 1 }, reps))
+}</code></pre>
+<pre data-mode="type this"><code>go run timing.go</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>For plain <code>==</code>, "differs at first byte" is a few nanoseconds while "differs at last byte" is hundreds of times slower (roughly 3 ns versus 1.3 µs) — the short-circuit is visible. For <code>subtle.ConstantTimeCompare</code>, the two are close to equal (both tens of microseconds, varying run to run): it always reads every byte, so its timing tells an attacker nothing about which byte was wrong. Note that it is slower in absolute terms than even the worst <code>==</code> — the secret here is 64 KiB to make the effect large enough to see, and <code>ConstantTimeCompare</code> cannot use the wide SIMD shortcut that <code>==</code> uses. On a real 32-byte hash the leak is a handful of nanoseconds rather than a microsecond, but it is the same leak, and the rule is the same.</p></div>
+    <p><strong>Talk about it:</strong> this is the same rule you met comparing TOTP codes in workshop 2 — any comparison of secret material is constant-time, always. Why does the length check that a real verifier puts in front of <code>ConstantTimeCompare</code> not itself leak? (It only reveals the length, which for a fixed-size hash the attacker already knows.) Over a network the nanoseconds are buried in noise; why build the habit anyway? (Because the leak is real on a shared machine, and the correct call is no harder to write.)</p>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>Verify, and upgrade on login</h3><span class="time">10 min</span></header>
+    <p>Put it together into what a server actually stores: one self-describing string, <code>$pbkdf2-sha256$iterations$salt$hash</code>, with the salt and hash in Base64. The recipe travels with the hash, so a verifier reads the parameters straight out of it — and can notice when they are out of date. Create <code>verify.go</code>; paste the imports and the <code>hashPassword</code> helper, then <strong>type the <code>verify</code> function</strong>, the parser and the constant-time check.</p>
+    <h4>verify.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;crypto/pbkdf2&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/sha256&quot;
+	&quot;crypto/subtle&quot;
+	&quot;encoding/base64&quot;
+	&quot;fmt&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+)
+
+const policy = 600_000
+
+var b64 = base64.RawStdEncoding
+
+func hashPassword(password string, iter int) string {
+	salt := make([]byte, 16)
+	rand.Read(salt)
+	sum, _ := pbkdf2.Key(sha256.New, password, salt, iter, 32)
+	return fmt.Sprintf(&quot;$pbkdf2-sha256$%d$%s$%s&quot;, iter, b64.EncodeToString(salt), b64.EncodeToString(sum))
+}</code></pre>
+<pre data-mode="type this"><code>// verify reports whether password matches stored, and whether stored should be replaced.
+func verify(stored, password string) (ok, stale bool) {
+	p := strings.Split(stored, &quot;$&quot;)
+	if len(p) != 5 || p[1] != &quot;pbkdf2-sha256&quot; {
+		return false, false
+	}
+	iter, _ := strconv.Atoi(p[2])
+	salt, _ := b64.DecodeString(p[3])
+	want, _ := b64.DecodeString(p[4])
+	got, _ := pbkdf2.Key(sha256.New, password, salt, iter, len(want))
+	ok = subtle.ConstantTimeCompare(got, want) == 1
+	return ok, ok &amp;&amp; iter &lt; policy
+}</code></pre>
+<pre data-mode="paste this"><code>func main() {
+	old := hashPassword(&quot;dragon&quot;, 100_000) // an account hashed years ago
+	fmt.Println(&quot;stored:&quot;, old)
+
+	ok, stale := verify(old, &quot;dragon&quot;)
+	fmt.Printf(&quot;correct password: ok=%v stale=%v\n&quot;, ok, stale)
+	if ok &amp;&amp; stale {
+		old = hashPassword(&quot;dragon&quot;, policy)
+		fmt.Println(&quot;upgraded:&quot;, old)
+	}
+	ok, stale = verify(old, &quot;dragon&quot;)
+	fmt.Printf(&quot;after upgrade   : ok=%v stale=%v\n&quot;, ok, stale)
+
+	ok, _ = verify(old, &quot;wrong&quot;)
+	fmt.Printf(&quot;wrong password  : ok=%v\n&quot;, ok)
+}</code></pre>
+<pre data-mode="type this"><code>go run verify.go</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p>An account stored at the old cost of 100,000 iterations verifies with the correct password and is reported <code>stale</code>; the program re-hashes it at today's 600,000 and prints the upgraded string; a second verify reports it no longer stale; and a wrong password is rejected. The stored string carries its own algorithm, cost and salt, so nothing external has to remember them.</p></div>
+    <p><strong>Talk about it:</strong> you never stored anyone's password, so how can you raise the iteration count on old accounts? (Only on a successful login, when the plaintext is briefly in hand — the store heals one login at a time.) Why is the algorithm name inside the string, not assumed? (So you can migrate to Argon2id later without a flag day: the same <code>verify</code> dispatches on what each record says.)</p>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">5 min</span></header>
+    <p>Bring the room back together for a few minutes, then let the fast typists pick a stretch goal.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>You never store the password. You store a salted, slow, self-describing hash, and you compare it in constant time. Everything today was one of those four words.</li>
+      <li>Salt defeats bulk precomputation; it does not slow a single guess. The <em>work factor</em> is what does that, and it is the only knob that matters against a serious attacker.</li>
+      <li>"Slow enough" is not a fixed number — it is OWASP's number today (600,000 for PBKDF2-HMAC-SHA256) and a bigger one next year, which is why the hash describes itself and upgrades on login.</li>
+      <li>A fast, "strong" hash like SHA-256 is the wrong tool for passwords precisely because it is fast. Use a password hash: PBKDF2 at minimum, Argon2id by preference.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>Argon2id — the production choice.</strong> Swap PBKDF2 for <code>golang.org/x/crypto/argon2</code>'s <code>IDKey</code> with the OWASP parameters (m=19456 KiB, t=2, p=1) and a <code>$argon2id$v=19$m=19456,t=2,p=1$salt$hash</code> string. It costs the attacker <em>memory</em> as well as time, which is what beats GPUs. (This needs one module download — <code>go get golang.org/x/crypto/argon2</code> — so it could not be run in this workshop's sealed environment; the code and parameters are in the instructor notes' sources.)</li>
+      <li><strong>bcrypt.</strong> Do the same with <code>golang.org/x/crypto/bcrypt</code>, whose output is already self-describing. Discover its 72-byte input limit by hashing a 100-character password and a variant that differs only after byte 72.</li>
+      <li><strong>Add a pepper.</strong> Mix a single secret value — kept out of the database, in an environment variable — into every hash. Why does a pepper help when the database leaks but the config does not, and why is it no substitute for a slow hash?</li>
+      <li><strong>Breach check with k-anonymity.</strong> Using the wordlist, reproduce how <a href="https://haveibeenpwned.com/API/v3#PwnedPasswords">Have I Been Pwned</a> lets you check a password without sending it: SHA-1 the password, send only the first 5 hex characters to the range API, and match the suffix locally. (Needs network, so it is a home exercise.)</li>
+      <li><strong>Rate limit and lock out.</strong> Wrap <code>verify</code> in a per-account failed-attempt counter that locks after five tries. Slow hashing and rate limiting are the two halves of a safe login; you built one, add the other.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The final state of the <code>passwords-lab</code> folder, every file exactly as tested. All of it was run with Go 1.24.7 (<code>crypto/pbkdf2</code> requires Go 1.24+): <code>attack.go</code> cracks 9 of the 10 target hashes and hashes all 300 words in well under a millisecond; one PBKDF2 hash at 600,000 iterations took about a third of a second on the authoring machine; <code>timing.go</code> showed <code>==</code> returning in ~3 ns when the first byte differs versus ~1.3 µs at the last, while <code>ConstantTimeCompare</code> took ~38 µs either way; <code>verify.go</code> upgrades a 100,000-iteration hash to 600,000 on a correct login. <strong>Argon2id (stretch goal 1) could not be run here</strong> — it needs a module download and the authoring environment has no package registry — so it is verified only against its documentation, cited in the instructor notes. The 300-word <code>words.txt</code> is a download below.</p>
+  <div class="dlrow"><a href="code/go.mod" download>go.mod</a><a href="code/users.txt" download>users.txt</a><a href="code/hashes.txt" download>hashes.txt</a><a href="code/words.txt" download>words.txt</a><a href="code/ready.go" download>ready.go</a><a href="code/load.go" download>load.go</a><a href="code/login1.go" download>login1.go</a><a href="code/attack.go" download>attack.go</a><a href="code/salt.go" download>salt.go</a><a href="code/slow.go" download>slow.go</a><a href="code/timing.go" download>timing.go</a><a href="code/verify.go" download>verify.go</a></div>
+  <div class="dlrow"><a href="code/words.txt" download>words.txt (300 words)</a><a href="code/hashes.txt" download>hashes.txt</a><a href="code/users.txt" download>users.txt</a></div>
+  <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module passwords
+
+go 1.24</code></pre></details>
+  <details class="sol"><summary>users.txt<a class="dl" href="code/users.txt" download>download</a></summary><pre><code>alice:password
+bob:123456
+carol:qwerty
+dave:letmein
+erin:dragon
+frank:monkey
+grace:sunshine
+heidi:trustno1
+ivan:football
+judy:Tr0ub4dour&amp;3-xq7</code></pre></details>
+  <details class="sol"><summary>hashes.txt<a class="dl" href="code/hashes.txt" download>download</a></summary><pre><code>5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+65e84be33532fb784c48129675f9eff3a682b27168c0ea744b2cf58ee02337c5
+1c8bfe8f801d79745c4631d09fff36c82aa37fc4cce4fc946683d7b336b63032
+a9c43be948c5cabd56ef2bacffb77cdaa5eec49dd5eb0cc4129cf3eda5f0e74c
+000c285457fc971f862a79b786476c78812c8897063c6fa9c045f579a3b2d63f
+a941a4c4fd0c01cddef61b8be963bf4c1e2b0811c037ce3f1835fddf6ef6c223
+203b70b5ae883932161bbd0bded9357e763e63afce98b16230be33f0b94c2cc5
+6382deaf1f5dc6e792b76db4a4a7bf2ba468884e000b25e7928e621e27fb23cb
+278b120fc3ab705063fb45d12edb179e2313beace04b831b9a21f12dbf8db133</code></pre></details>
+  <details class="sol"><summary>ready.go<a class="dl" href="code/ready.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;crypto/pbkdf2&quot;
+	&quot;crypto/sha256&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+)
+
+func main() {
+	key, _ := pbkdf2.Key(sha256.New, &quot;techbytes&quot;, []byte(&quot;salt&quot;), 1000, 16)
+	fmt.Println(&quot;ready&quot;, hex.EncodeToString(key))
+}</code></pre></details>
+  <details class="sol"><summary>load.go<a class="dl" href="code/load.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strings&quot;
+)
+
+func loadUsers(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	users := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), &quot;\n&quot;) {
+		name, secret, _ := strings.Cut(line, &quot;:&quot;)
+		users[name] = secret
+	}
+	return users, nil
+}
+
+func main() {
+	users, err := loadUsers(&quot;users.txt&quot;)
+	if err != nil {
+		fmt.Println(&quot;error:&quot;, err)
+		os.Exit(1)
+	}
+	fmt.Printf(&quot;ready: %d users loaded\n&quot;, len(users))
+}</code></pre></details>
+  <details class="sol"><summary>login1.go<a class="dl" href="code/login1.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strings&quot;
+)
+
+func main() {
+	data, _ := os.ReadFile(&quot;users.txt&quot;)
+	users := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), &quot;\n&quot;) {
+		name, stored, _ := strings.Cut(line, &quot;:&quot;)
+		users[name] = stored
+	}
+	name, password := os.Args[1], os.Args[2]
+	if users[name] == password {
+		fmt.Printf(&quot;welcome, %s\n&quot;, name)
+	} else {
+		fmt.Println(&quot;no&quot;)
+	}
+}</code></pre></details>
+  <details class="sol"><summary>attack.go<a class="dl" href="code/attack.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;bufio&quot;
+	&quot;crypto/sha256&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strings&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	data, _ := os.ReadFile(&quot;hashes.txt&quot;)
+	want := map[string]bool{}
+	for _, h := range strings.Fields(string(data)) {
+		want[h] = true
+	}
+	f, _ := os.Open(&quot;words.txt&quot;)
+	sc := bufio.NewScanner(f)
+	start := time.Now()
+	for sc.Scan() {
+		sum := sha256.Sum256([]byte(sc.Text()))
+		if want[hex.EncodeToString(sum[:])] {
+			fmt.Printf(&quot;cracked  %q\n&quot;, sc.Text())
+		}
+	}
+	fmt.Printf(&quot;hashed the whole list in %v\n&quot;, time.Since(start))
+}</code></pre></details>
+  <details class="sol"><summary>salt.go<a class="dl" href="code/salt.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;bufio&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/sha256&quot;
+	&quot;encoding/hex&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+)
+
+func saltedHash(salt []byte, password string) string {
+	sum := sha256.Sum256(append(salt, []byte(password)...))
+	return hex.EncodeToString(sum[:])
+}
+
+func main() {
+	// alice and erin both chose the SAME password:
+	pw := &quot;dragon&quot;
+	aSalt, eSalt := make([]byte, 16), make([]byte, 16)
+	rand.Read(aSalt)
+	rand.Read(eSalt)
+	fmt.Println(&quot;alice:&quot;, saltedHash(aSalt, pw))
+	fmt.Println(&quot;erin :&quot;, saltedHash(eSalt, pw))
+	fmt.Println(&quot;same password, different hashes -&gt; rainbow tables are dead&quot;)
+
+	// but if the DB leaks, the salt leaks with it. Attack erin, per user:
+	target := saltedHash(eSalt, pw)
+	f, _ := os.Open(&quot;words.txt&quot;)
+	defer f.Close()
+	for sc := bufio.NewScanner(f); sc.Scan(); {
+		if saltedHash(eSalt, sc.Text()) == target {
+			fmt.Printf(&quot;erin&#x27;s password is still %q\n&quot;, sc.Text())
+			break
+		}
+	}
+}</code></pre></details>
+  <details class="sol"><summary>slow.go<a class="dl" href="code/slow.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;crypto/pbkdf2&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/sha256&quot;
+	&quot;fmt&quot;
+	&quot;time&quot;
+)
+
+const iterations = 600_000 // OWASP-recommended work factor for PBKDF2-HMAC-SHA256
+
+func main() {
+	salt := make([]byte, 16)
+	rand.Read(salt)
+	start := time.Now()
+	pbkdf2.Key(sha256.New, &quot;dragon&quot;, salt, iterations, 32)
+	per := time.Since(start)
+	fmt.Printf(&quot;one hash: %v  (%.0f hashes/second)\n&quot;, per, 1/per.Seconds())
+
+	words := 300.0
+	fmt.Printf(&quot;step-2 wordlist (300 words): %v\n&quot;, time.Duration(words*float64(per)))
+	space := 26.0 * 26 * 26 * 26 * 26 * 26 * 26 * 26 // 8 lowercase letters
+	secs := space * per.Seconds()
+	fmt.Printf(&quot;all 8-char lowercase (%.2e): %.0f years\n&quot;, space, secs/(3600*24*365))
+}</code></pre></details>
+  <details class="sol"><summary>timing.go<a class="dl" href="code/timing.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;crypto/subtle&quot;
+	&quot;fmt&quot;
+	&quot;strings&quot;
+	&quot;time&quot;
+)
+
+func avg(compare func() bool, reps int) time.Duration {
+	hits := 0
+	start := time.Now()
+	for i := 0; i &lt; reps; i++ {
+		if compare() {
+			hits++
+		}
+	}
+	_ = hits
+	return time.Since(start) / time.Duration(reps)
+}
+
+func main() {
+	const n, reps = 65536, 50000
+	secret := strings.Repeat(&quot;a&quot;, n)
+	first := &quot;b&quot; + secret[1:]  // differs at the FIRST byte
+	last := secret[:n-1] + &quot;b&quot; // differs at the LAST byte
+	sec, fb, lb := []byte(secret), []byte(first), []byte(last)
+
+	fmt.Println(&quot;plain ==&quot;)
+	fmt.Println(&quot;  differs at first byte:&quot;, avg(func() bool { return secret == first }, reps))
+	fmt.Println(&quot;  differs at last byte :&quot;, avg(func() bool { return secret == last }, reps))
+	fmt.Println(&quot;subtle.ConstantTimeCompare&quot;)
+	fmt.Println(&quot;  differs at first byte:&quot;, avg(func() bool { return subtle.ConstantTimeCompare(sec, fb) == 1 }, reps))
+	fmt.Println(&quot;  differs at last byte :&quot;, avg(func() bool { return subtle.ConstantTimeCompare(sec, lb) == 1 }, reps))
+}</code></pre></details>
+  <details class="sol"><summary>verify.go<a class="dl" href="code/verify.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;crypto/pbkdf2&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/sha256&quot;
+	&quot;crypto/subtle&quot;
+	&quot;encoding/base64&quot;
+	&quot;fmt&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+)
+
+const policy = 600_000
+
+var b64 = base64.RawStdEncoding
+
+func hashPassword(password string, iter int) string {
+	salt := make([]byte, 16)
+	rand.Read(salt)
+	sum, _ := pbkdf2.Key(sha256.New, password, salt, iter, 32)
+	return fmt.Sprintf(&quot;$pbkdf2-sha256$%d$%s$%s&quot;, iter, b64.EncodeToString(salt), b64.EncodeToString(sum))
+}
+
+// verify reports whether password matches stored, and whether stored should be replaced.
+func verify(stored, password string) (ok, stale bool) {
+	p := strings.Split(stored, &quot;$&quot;)
+	if len(p) != 5 || p[1] != &quot;pbkdf2-sha256&quot; {
+		return false, false
+	}
+	iter, _ := strconv.Atoi(p[2])
+	salt, _ := b64.DecodeString(p[3])
+	want, _ := b64.DecodeString(p[4])
+	got, _ := pbkdf2.Key(sha256.New, password, salt, iter, len(want))
+	ok = subtle.ConstantTimeCompare(got, want) == 1
+	return ok, ok &amp;&amp; iter &lt; policy
+}
+
+func main() {
+	old := hashPassword(&quot;dragon&quot;, 100_000) // an account hashed years ago
+	fmt.Println(&quot;stored:&quot;, old)
+
+	ok, stale := verify(old, &quot;dragon&quot;)
+	fmt.Printf(&quot;correct password: ok=%v stale=%v\n&quot;, ok, stale)
+	if ok &amp;&amp; stale {
+		old = hashPassword(&quot;dragon&quot;, policy)
+		fmt.Println(&quot;upgraded:&quot;, old)
+	}
+	ok, stale = verify(old, &quot;dragon&quot;)
+	fmt.Printf(&quot;after upgrade   : ok=%v stale=%v\n&quot;, ok, stale)
+
+	ok, _ = verify(old, &quot;wrong&quot;)
+	fmt.Printf(&quot;wrong password  : ok=%v\n&quot;, ok)
+}</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>The two moments to protect are step 2 and step 4, because they are where the point lands. Step 2 is the longest step (20 minutes) on purpose: students are writing code, not pasting it, and the ~15-line loop is the one piece of real programming in the afternoon. Step 4's one number — how long <em>your</em> laptop takes for a single 600,000-iteration hash — is worth saying out loud; it ranges from about a tenth of a second on a fast machine to half a second on a modest one, and either way the contrast with step 2's microseconds is the whole lesson. If you are behind after step 4, cut the "talk about it" discussions in steps 3 and 5 and keep the code; steps 5 and 6 are short and must not be rushed.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Isn't SHA-256 secure? Why is it wrong here?"</em> It is secure and it is wrong here for the same reason: it is fast and collision-resistant. Password hashing wants a function that is deliberately, tunably slow. "Strong hash" and "password hash" are different jobs.</li>
+    <li><em>"Why not just encrypt the passwords?"</em> Encryption is reversible by design; whoever holds the key can get every password back, and in a breach they often get the key too. Hashing is one-way on purpose — you never need the password back, only to check one.</li>
+    <li><em>"Is the salt secret?"</em> No. It is stored in the clear next to the hash and leaks with it. Its only job is to make each hash unique so one precomputed table cannot crack the whole file. Secrecy is the pepper's job (stretch goal).</li>
+    <li><em>"Should I write this in real life?"</em> Use a vetted library and a password hash — Argon2id via <code>golang.org/x/crypto/argon2</code>, or bcrypt — plus rate limiting. The point of writing PBKDF2 by hand is to be able to read those libraries and judge a stored-hash format, not to ship your own.</li>
+    <li><em>"How do I pick the iteration count?"</em> Take OWASP's current number as the floor, then raise it until one hash takes as long as your login endpoint can tolerate (a common target is around a quarter-second), and store it in the hash so you can raise it again later.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP Password Storage Cheat Sheet</a>: the work factors used throughout — PBKDF2-HMAC-SHA256 <strong>600,000</strong> iterations (step 4), and Argon2id <strong>m=19456 (19 MiB), t=2, p=1</strong> and bcrypt's minimum work factor 10 and 72-byte limit (stretch goals). Fetched 2026-09-22.</li>
+    <li><a href="https://gist.github.com/Chick3nman/32e662a5bb63bc4f51b847bb422222fd">hashcat 6.2.6 benchmark on an RTX 4090</a>: the widget's "one gaming GPU" figure, 21,975.5 MH/s for SHA2-256 (hash-mode 1400); the "rig of 8" is eight of those. The "laptop, one core" figure, 4.2 million SHA-256 per second, was measured on the authoring machine with a five-million-hash Go loop (<code>crypto/sha256</code>, short inputs); expect 3–8 million depending on the CPU. PBKDF2 cost is taken as two SHA-256 per round.</li>
+    <li><a href="https://www.coinwarz.com/bitcoin-hashrate">Bitcoin network hashrate</a>: about 1.08 ZH/s on 22 September 2026 (peak 1.43 ZH/s in February 2026), the top of the widget's hardware slider, rounded to 10²¹ SHA-256 per second. It is the largest SHA-256 computer in existence by a wide margin, so it stands in for "all the hashing power in the world".</li>
+    <li><a href="https://go.dev/dl/">Go downloads</a> and <a href="https://go.dev/doc/install">install instructions</a>: the prep pack's version (1.27.1 is current) and the Linux install lines.</li>
+    <li><a href="https://pkg.go.dev/crypto/pbkdf2">crypto/pbkdf2</a>: added to the standard library in Go 1.24, which is why the whole lab is dependency-free and the readiness check gates on it; <code>Key(sha256.New, password, salt, iter, keyLen)</code> is the exact signature step 4 uses.</li>
+    <li><a href="https://pkg.go.dev/crypto/subtle#ConstantTimeCompare">crypto/subtle.ConstantTimeCompare</a>: the constant-time comparison in steps 5 and 6.</li>
+    <li><a href="https://pkg.go.dev/golang.org/x/crypto/argon2">golang.org/x/crypto/argon2</a>: the <code>IDKey</code> function and parameters for stretch goal 1, which could not be run in the sealed authoring environment (no module registry) and is verified against this documentation only.</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8018">RFC 8018 (PKCS #5)</a>: the PBKDF2 definition behind the standard-library implementation.</li>
+    <li><a href="https://haveibeenpwned.com/API/v3#PwnedPasswords">Have I Been Pwned Pwned Passwords API</a>: the k-anonymity range query (5-character SHA-1 prefix) for the breach-check stretch goal.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/w3-calc.js"></script>
+
+<script src="../../assets/03-passwords-hero.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

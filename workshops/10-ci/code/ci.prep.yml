@@ -1,0 +1,7 @@
+name: ci
+on: push
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    steps:
+      - run: uname -sr

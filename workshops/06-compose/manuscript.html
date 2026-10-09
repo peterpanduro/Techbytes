@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Two Services and a Queue · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 6</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 6 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">Two Services and a Queue</h1>
+  <p class="muted">Word for word, in first person. 1781 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  
+  <article class="ms">
+    <header><span class="num">1</span><h3>Two services and a queue</h3><span class="time">0:00 → 1:00 · 1 min · 128 words</span></header>
+    <p>Hands up if you have ever run a program that was really three programs. A web app, a database, and something in the middle: a cache, a queue, a second service. Three terminals, started in the right order, or the first one crashes and you start again. Every morning, and the README said which order.</p><p>Today we write that order down. By the end you will have an API in Go, a worker in TypeScript and a Redis queue between them, and one file that starts all three with one command. Then we scale the worker to three, kill one while it is working, and go looking for the job it was holding. Fifteen minutes of talking, then ninety of typing, with two terminals open the whole time.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>A service is a process with an address</h3><span class="time">1:00 → 3:00 · 2 min · 223 words</span></header>
+    <p>Here is the whole afternoon in one picture. Three boxes on one network. Each box is an ordinary process, exactly the kind of process workshop one put in a container. And the only thing any of them knows about the others is a name and a port.</p><p>Look at what they do not share. Not memory: the API cannot see the worker&#x27;s variables. Not files: they have separate filesystems. Not even a language: the API is Go, the worker is TypeScript, and Redis is a C program none of us wrote. The only way any of them can affect another is to open a connection and send bytes. A socket is one program&#x27;s open connection to another over the network. They meet on a socket, or they do not meet.</p><p>That sounds like a limitation, and it is also the point. Because they only touch over the network, you can write each one in whatever language fits, run them on one laptop or on three machines, restart one without the others noticing, and run three copies of one of them. Every word people use for this, microservices, distributed systems, service-oriented, means this picture with more boxes.</p><p>And it means the network is the first thing to get right, which is why one slide later in this talk is entirely about one word: localhost.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>Why a queue</h3><span class="time">3:00 → 5:00 · 2 min · 225 words</span></header>
+    <p>Why is there a list in the middle at all? Why does the API not just do the work?</p><p>Because the API answers in about a millisecond, and the work takes a second. In our lab the work is fake, a one-second sleep and reversing a string, but stand in for it anything real: making a thumbnail, sending an email, running a report. If the API did that itself, every request would take a second, and a hundred requests at once would take a hundred seconds or crash it.</p><p>So the API does the smallest thing it can. It gives the job a number, writes it on the list, and says: accepted, here is your number. That is all. Somewhere else, a worker is waiting on that list, takes the job, spends its second, and writes the answer down under that number. Whoever asked comes back later and reads the answer.</p><p>Three things fall out of this. The API is fast no matter how slow the work is. A burst of a thousand jobs does not break anything; the list just gets long, and it drains. And if the list is draining too slowly, you add workers, without touching the API. The cost is that the answer arrives later, so there are two requests: post the job, then fetch the result. You will type both.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>A queue is a list</h3><span class="time">5:00 → 6:00 · 1 min · 135 words</span></header>
+    <p>Redis is a server that keeps data structures in memory and lets you talk to them over the network. One of them is a list, and a list is all a queue is. Two commands. L push jobs hello: put hello on the left end of the list called jobs. B R pop jobs zero: take one element from the right end. Push left, pop right: oldest out first.</p><p>The letter that matters is the B, for blocking. If the list is empty, B R pop does not return empty-handed. It waits. Redis holds the connection open, and the moment somebody pushes, the waiting client gets it. The zero means wait forever. So a worker never polls; it asks once and Redis wakes it. Step one is this by hand: one terminal wakes the other.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>What is on the wire</h3><span class="time">6:00 → 7:00 · 1 min · 133 words</span></header>
+    <p>Since these programs only meet as bytes on a socket, look at the bytes. This is what the API sends to push hello. A star and a three: three words follow. Each word as a dollar, its length, a line break, the word, a line break. Redis does the push and answers with a colon and a number: the length of the list.</p><p>That is the whole protocol we need, and it is so small that the Go API speaks it itself, in one function, no library: open a TCP connection, write those bytes, read one line back. You will paste that function and read it aloud. The Deno worker uses the official client instead, as you would in real life. A protocol is not magic; it is bytes two programs agreed on.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>compose.yaml</h3><span class="time">7:00 → 8:00 · 1 min · 124 words</span></header>
+    <p>Here is the file. Read it as three docker run commands from workshop one, with the flags turned into keys. Image, or build a folder. Ports, which was dash p. Environment, which was dash e. Depends on, which says start Redis first. Three services, and docker compose up starts all three on a private network of their own. You will type it in two instalments this afternoon.</p><p>See it as a description of the system, not as configuration. Which processes exist. Which one is reachable from outside, and on which port: only the API. What each one is told: where Redis is. Hand someone a compose file for a system they have never seen and they know the architecture before they read any code.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>Names, not localhost</h3><span class="time">8:00 → 10:00 · 2 min · 230 words</span></header>
+    <p>This is the slide that saves you an hour, because everybody gets bitten by it exactly once, and I would rather it was today.</p><p>In steps two and three you run the API and the worker natively on your laptop, and Redis is at localhost port 6379, because Compose published that port onto your laptop. It works, and your fingers learn it.</p><p>Then in step four the API moves into a container, and localhost means something different. Inside a container, localhost is that container. The API&#x27;s localhost is the API. Nothing there listens on 6379. So the same address that worked a minute ago now says connection refused, and the log line looks like Redis is down. It is not down; you are knocking on your own door.</p><p>The address of another service, from inside the network, is its service name and its container port. Redis, colon, 6379. Compose runs a small DNS server on that network and answers for every service name, so the word redis in the compose file is literally the hostname. It does not matter whether the port is published; publishing is only for the laptop, and the containers would still find each other with the ports line deleted. Service name, container port, every time. Write it on your hand, because in step four the log line that says connection refused is not Redis being down.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>Scaling is a number</h3><span class="time">10:00 → 12:00 · 2 min · 204 words</span></header>
+    <p>Here is the system from slide six, live. I post eight jobs: they land on the list, and one worker takes them off one a second. Watch the queue length. Now I switch to three workers: same list, same jobs, and it drains three times as fast.</p><p>That is what scaling is here. One flag: scale worker equals three. Compose starts three containers from the same image, and all three block on the same list. When a job arrives, Redis wakes the one that has been waiting longest, so the jobs go round-robin: one, two, three, then whoever finished first. In the lab, ten jobs took about four seconds with three workers instead of ten with one.</p><p>Notice what did not change: the code, the compose file, the API. A worker that takes one job at a time from a shared list is scalable by construction. You cannot do the same to the API, because three containers cannot all publish port 8080; that needs a load balancer, and that is workshop seven. And one more button, the red one. I press it once, a job turns orange and falls off the picture, and the counter says lost. Hold that thought for the next slide.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>What gets lost</h3><span class="time">12:00 → 14:00 · 2 min · 256 words</span></header>
+    <p>Now the red button. A worker is holding a job, halfway through its second of work, and I kill it. Not politely: the way a crash, an out-of-memory or a rebooted machine kills it. Where is the job? It is not on the list; B R pop removed it. It is not in a result; the worker died first. It is gone, and nobody will ever notice unless they ask for that number and get &quot;not done yet&quot; forever.</p><p>That is called at-most-once delivery, and it is what a plain B R pop gives you. Sometimes it is fine: a lost thumbnail gets regenerated when someone looks. Sometimes it is not: a lost payment is a lost payment.</p><p>The alternative is at-least-once. Instead of popping, you move the job to a second list called working, do the work, and only then remove it. If the worker dies, the job is still in working, and a restarted worker puts it back on the queue. That is one Redis command, B L move, and a stretch goal with the code written for you.</p><p>But at-least-once has its own price: a job can run twice, if the worker died after doing the work and before removing it. So the work must be safe to repeat: run it twice, same result. The word is idempotent. Setting a result under an id is idempotent; charging a card is not. Every queue makes you choose one of these two, and in step six you will watch the loss with your own eyes.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 123 words</span></header>
+    <p>Here is the afternoon. Redis alone first, the queue by hand in two terminals. Then the Go API, pasted and read aloud, running natively against that Redis. Then the worker, fifteen lines of TypeScript, which you type. Then the compose file, and the same two curl commands work with nothing running on your laptop. Then scale to three workers and watch the jobs dealt out, kill one mid-job and go looking for what it was holding. Stretch goals include the version that does not lose jobs.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Two terminals, open now. Five-minute break. Then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Logs and Metrics You Can Actually Use · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 8</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 8 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">Logs and Metrics You Can Actually Use</h1>
+  <p class="muted">Word for word, in first person. 1831 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  
+  <article class="ms">
+    <header><span class="num">1</span><h3>It&#x27;s slow. Which part?</h3><span class="time">0:00 → 1:00 · 1 min · 115 words</span></header>
+    <p>A customer writes in: checkout is slow. You have twelve servers, a log file on each one, and a hunch. What do you do? Most of us, honestly, ssh into one of them and tail the log and hope the slow request comes past. That works for one server, on a good day.</p><p>This afternoon is about what works for twelve servers, or a thousand pods, at three in the morning. Two kinds of data, one small Go API, and by the end you will find a deliberately slow endpoint from a graph alone, and then find out why it is slow from one log line. Fifteen minutes of talking, then ninety minutes of typing.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>Two questions, two tools</h3><span class="time">1:00 → 3:00 · 2 min · 228 words</span></header>
+    <p>Here are the two questions, and they need two different kinds of data. The first question is: what happened to this request? That one, that customer, at that second. That is a log question. A log is one record per event, with everything you knew at the time: who, what, how long, what went wrong. It is wide, and it costs something per event, because you write and store every one of them.</p><p>The second question is: how is the system doing? Not one request; all of them. How many per second, how many failing, how slow is the slowest five percent. That is a metric question. A metric is a handful of numbers that are always up to date, and they are almost free, because they are the same size whether you serve one request or a million.</p><p>Notice that you cannot answer the second question with the first kind of data, not really. To get requests per second out of a log you have to read the whole log, every time. And you cannot answer the first question with the second: a counter cannot tell you what happened to Anna&#x27;s order. A system that has only one of these has a blind spot, and you find out which one during an incident. So today the API gets both, and the last step shows how they connect.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>A log line is data, not prose</h3><span class="time">3:00 → 5:00 · 2 min · 248 words</span></header>
+    <p>Here is the same event twice. On top, the way most programs log it: a timestamp and a sentence. A human can read that. Now try to answer, from a million of those lines, how many 504s happened in the last minute. You are writing a regular expression, and it will be wrong the first three times.</p><p>Underneath, the same event as a record. One JSON object per line, every field with a name: method, path, status as a number, the duration as a number of milliseconds, and a request id. Now the question is one filter: status greater than or equal to five hundred. No parsing. That is what structured logging means, and it is the difference between a log you read and a log you query.</p><p>Go has this in the standard library since 1.21, in the package log slash slog. One line of setup makes every log call in the program write JSON, including the old-style calls you forgot to change. You will do that in step one; it is seven lines.</p><p>The request id deserves a sentence of its own. It is eight random hex digits, made up at the door when the request arrives, and stamped onto the request so that everything deeper in the program can put it on its own log lines. Later, when you have one slow line in your hand, that id is how you find every other line about the same request. Hold that thought until slide nine.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>A metric is a number with labels</h3><span class="time">5:00 → 6:00 · 1 min · 131 words</span></header>
+    <p>A metric is smaller than you think. A name, some labels, and a number. This one says: checkout has answered five-oh-four seventeen times since the program started. It is a counter, so it only ever goes up; you never store requests per second, you store the total and ask for the rate later, which turns out to be far more robust.</p><p>The labels are how you slice: by path, by status code, later by server. But every distinct combination of label values is a separate time series that has to be stored, so never put an unbounded value in a label. A user id, a request id, an email address: each would be a new series, and you would make millions. Labels are for things you can count on your hands.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>Histograms, and why p95 is not the average</h3><span class="time">6:00 → 8:00 · 2 min · 270 words</span></header>
+    <p>Now the number that matters most, latency, and it is not a counter, because every request has its own. So we keep a histogram, and a histogram is just a row of counters with an upper bound each: how many requests took at most a tenth of a second, at most a quarter, at most a half, one, two and a half, and anything at all. Six counters per endpoint, and that last one, plus infinity, is required, because it is also the total.</p><p>Watch the widget. This is a fake checkout: three hundred milliseconds every time, except one call in ten, which takes two seconds longer. Look at the average. It settles at about half a second, and half a second sounds fine. Now look at p95, the time that ninety-five percent of requests beat. It sits above two seconds, because one customer in ten is standing there waiting, and the average has quietly spread their two seconds across everybody else.</p><p>Averages hide tails. Percentiles show them. That is the single most useful thing to know about latency, and it is why every dashboard you will ever see has p95 or p99 on it and almost none have the mean.</p><p>One more thing, and the lab will make you notice it: a percentile computed from buckets is an estimate. Prometheus knows that seventeen requests fell between one and two and a half seconds; it does not know where. It assumes they are spread evenly, and answers about one point nine, where the truth is two point three. Buckets are chosen by you. Put a bound where you need precision.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>Pull, not push</h3><span class="time">8:00 → 9:00 · 1 min · 140 words</span></header>
+    <p>How do the numbers get out of the program? They do not. The program does not send anything anywhere. It serves one more page, at slash metrics, plain text, with the current value of every counter. And Prometheus, a separate program, fetches that page every few seconds, five in our lab, and stores each number with a timestamp. Grafana, a third program, asks Prometheus questions and draws the answers.</p><p>Three boxes, two arrows, and the arrows point towards the API. That is the whole architecture, and it has a consequence you will feel in step two: because the metrics page is just text, you can write it by hand. Thirty lines of Go with a couple of maps and f m t dot print f. You will, once, and after that no metrics library will ever be magic to you.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>PromQL in three lines</h3><span class="time">9:00 → 11:00 · 2 min · 242 words</span></header>
+    <p>Prometheus has a query language, and the lab is built on three lines of it, so here they are. Line one. Rate of h t t p requests total over one minute. The counter only goes up; rate asks: over the last minute, how fast was it climbing, per second? That is requests per second, one line per label combination. Four of them, for us: three paths, and checkout twice, once for two hundred and once for five-oh-four.</p><p>Line two wraps the first in sum by path. Add everything up, but keep the path label. Now the two checkout series merge into one, and you have requests per second per endpoint. Sum by is how you collapse the labels you do not care about right now.</p><p>Line three is the one people copy for years without reading, so read it inside out with me. Innermost: rate of the bucket counters. Each of the six buckets per path is a counter, so this gives six rates per path. Then sum by path and l e: add up, keeping the path and the bucket bound. L e is the label that says less than or equal, and histogram quantile needs it. Then histogram quantile of point nine five: from those six rates, read off where the ninety-fifth percentile falls. Three ideas you already have: rate, sum by, and the histogram from the previous slide. Every latency graph you will ever see is this line.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>The graph finds the where</h3><span class="time">11:00 → 12:00 · 1 min · 100 words</span></header>
+    <p>In step five you build a dashboard with two panels: requests per second by path, and p95 latency by path. The second panel looks like this. Two lines sit on the floor. One sits at two seconds. You have found the slow endpoint without reading a single log line and without knowing what the code does. And a graph like this is cheap enough to have on a screen all day, so you notice before the customer writes in.</p><p>That is what a metric is for. It answers where. It cannot answer why, and the next slide is about that.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>The log finds the why</h3><span class="time">12:00 → 13:00 · 1 min · 125 words</span></header>
+    <p>The graph says checkout. Why is checkout slow? The graph has no idea. So you take one slow log line, copy its request id, and filter the log for that id. And now a second line comes back, from inside the handler: warning, payment provider timed out, same id. There is your why. Metrics found where to look; the log said what was there; the id joined them. That is the whole method, and it scales to a thousand pods because both halves are queries, not eyes.</p><p>And once you know the question, you write it down as an alert, so that next time nobody has to be watching the graph. Same expression as the dashboard, a threshold, and a duration. That is step six.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>What we are not doing</h3><span class="time">13:00 → 14:00 · 1 min · 102 words</span></header>
+    <p>Three things we skip, so you know they exist. Traces are the third pillar: one record per request that follows it across every service it touches, with a timing for each hop. OpenTelemetry plus a collector plus a UI is an afternoon by itself, and it is on the stretch list. The Prometheus client library does what our thirty lines do, plus forty runtime metrics for free; we write it by hand once so the library is never magic, and you can swap it in at home. And log levels, sampling, and service level objectives: all stretch goals, all on the page.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">11</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 130 words</span></header>
+    <p>Here is the afternoon. We run a small Go API and a load generator that hammers it. We switch its log to JSON and filter it for failures. We write the metrics page by hand: a counter, a histogram, thirty lines. Then Prometheus and Grafana come up next to it in Compose, we ask the three PromQL questions from slide seven, build the two-panel dashboard, and find the slow endpoint from the graph. Then we take a request id from a slow line, find the why, and write the alert rule so it never needs finding again.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the RFC test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

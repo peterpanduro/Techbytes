@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Git for the Things That Go Wrong · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 5</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 5 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">Git for the Things That Go Wrong</h1>
+  <p class="muted">Word for word, in first person. 1868 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  
+  <article class="ms">
+    <header><span class="num">1</span><h3>Nothing committed is ever lost</h3><span class="time">0:00 → 1:00 · 1 min · 141 words</span></header>
+    <p>Hands up if you have ever typed git reset dash dash hard and then felt your stomach drop. Or deleted a branch and realised a second later that it was the only copy. Or spent an afternoon reading diffs to find out which commit broke the build. Everybody has, and most people fix it by deleting the folder and cloning again.</p><p>Here is the sentence this afternoon hangs on: nothing you have committed is ever lost. Not after a reset, not after a rebase, not after deleting the branch. Every git disaster you will ever have is a label pointing at the wrong place, and labels can be moved. In fifteen minutes I will show you why that is true, and in the ninety after that you will break a repository on purpose, six different ways, and repair it every time.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>A commit is a snapshot that names its parent</h3><span class="time">1:00 → 3:00 · 2 min · 254 words</span></header>
+    <p>Let us start with what a commit actually is, because most people carry a wrong picture. A commit is not a diff. It is a snapshot of every file in the project, plus a small header: who made it, when, a message, and, this is the important part, the hash of the commit that came before it. The parent.</p><p>The hash of a commit is computed from all of that content, including the parent&#x27;s hash. So a hash names a snapshot and the entire history behind it. Change anything, anywhere in that history, and you get a different hash.</p><p>Here is a consequence you will see with your own eyes. In step zero everyone runs the same script, with fixed names and fixed dates, and everyone in the room gets the same hashes. Your top commit will be f zero six three a three five, and so will your neighbour&#x27;s. Same content, same history, same name. That is not a coincidence, that is the design.</p><p>The other consequence is the one the whole afternoon rests on. Commits are stored in a database inside the dot-git folder, keyed by hash. Making a commit adds an object. Nothing you type in the lab today removes one. Reset does not delete commits. Rebase does not delete commits. Deleting a branch does not delete commits. They all move labels, and the objects sit there, unlabelled, for thirty days at the very least before git even considers cleaning them up. Once you believe that sentence, git stops being frightening.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>Branches are sticky notes; HEAD is a note on a note</h3><span class="time">3:00 → 5:00 · 2 min · 246 words</span></header>
+    <p>So what is a branch? Open dot-git, refs, heads, main in a text editor. It is a file with forty hex characters and a newline. Forty-one bytes. That is the whole branch: a sticky note with a hash on it. When you commit, git makes a new commit whose parent is the hash on the note, and then rewrites the note to the new hash. That is all commit does to a branch.</p><p>And HEAD is another file. It says: ref, refs, heads, main. HEAD points at a branch, the branch points at a commit. A pointer to a pointer.</p><p>Every command people fear is now easy to read. Git switch rewrites HEAD. Git reset moves the branch that HEAD points to, and the dash dash hard part additionally rewrites your working files to match. Git branch dash capital D deletes the sticky note; the commits it named are untouched. Git rebase makes new commits, one by one, and at the end moves the note to the new ones; the old ones stay in the database.</p><p>Look at the picture. Main points at ninety-five d seven. The two commits to its right, the hollow ones, are still in the database, but no note leads to them. That is what unreachable means. Unreachable is not deleted. It is unlabelled. The lab is largely about putting labels back, and for that you need the hash, and the next slide is where git writes them all down for you.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>The reflog</h3><span class="time">5:00 → 7:00 · 2 min · 260 words</span></header>
+    <p>This is the reflog, and it is the safety net under everything. Every time HEAD moves, for any reason, git appends one line to a log: the hash it moved to, and why. Commit, checkout, reset, rebase, merge, all of them.</p><p>Watch the widget. Six commits on main, the real ones from the lab. I press reset dash dash hard HEAD tilde two, and the main label jumps back two commits, to the same commit you will land on in step three. The two newest commits are now unreachable; they are drawn hollow. But they are still there. Now git reflog: the top line says reset, moving to HEAD tilde two, and the line under it, HEAD at one, is where HEAD was before, with its hash. That hash is the rescue. Git branch rescue, that hash, and the label is back and everything is reachable again. Or git reset dash dash hard HEAD at one, which means: where HEAD was one move ago.</p><p>Three things to know. The reflog is per repository, on your machine, not pushed anywhere: it saves you from your own mistakes, not from a colleague&#x27;s. Entries for unreachable commits, which is exactly what a rescue needs, are kept for thirty days by default, and ninety for the rest, so the net is wide but not infinite. And the reflog only records moves, so a change you never committed is not in it. Uncommitted work is the only thing git can actually lose. So commit early, commit ugly, and tidy later. The tidying is slide six.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>Bisect: binary search over history</h3><span class="time">7:00 → 8:00 · 1 min · 129 words</span></header>
+    <p>A test fails on main and passed a month ago. Somewhere in between, one commit broke it. You could read them all. Or you tell git one good commit and one bad commit, and git checks out the one in the middle. You run the test and say good or bad, and it halves the range again.</p><p>Ten commits between good and bad takes three runs. A thousand commits takes ten. And if you have a script that exits zero on pass and non-zero on fail, git bisect run does the saying for you and walks off to find the culprit alone. Step one is exactly this, with our test script, and it will name the commit: zero eight e one four b one, a dropped pair of parentheses.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>Rewriting history: interactive rebase and the one rule</h3><span class="time">8:00 → 10:00 · 2 min · 234 words</span></header>
+    <p>Now the tidying. Interactive rebase takes a range of commits and opens a to-do list: one line per commit, oldest first, each starting with pick. You edit the verbs. Reword changes a message. Squash melds a commit into the one above it and combines the messages. Fixup melds and throws the message away. Drop removes it. Reorder the lines and you reorder the commits. Save, close, and git replays the commits according to the list.</p><p>Here is the honest picture of what that does. Rebase does not edit commits, because commits cannot be edited; the hash is the content. It makes new commits and moves the branch label to the new ones. The four WIP commits you squash in step two are not gone afterwards. They are unreachable, and you can still git show them by hash.</p><p>Which brings us to the one rule. Rewriting history is fine, healthy even, on commits nobody else has. The moment a commit has been pushed and someone may have built on it, rewriting it means their history and yours disagree about what happened, and the fix for that is far worse than an ugly log. So: rebase your own branch before the pull request, as much as you like. Never rebase main. If your team has a rule about squash-merges versus merge commits, that rule decides who tidies and when; the mechanism is the same either way.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>A conflict is a question, not an error</h3><span class="time">10:00 → 12:00 · 2 min · 221 words</span></header>
+    <p>A merge conflict is not an error. It is git saying: these two branches changed the same line, and I am not going to guess. The file you are shown has three markers. Between the seven less-thans and the equals signs is the version on your side, HEAD. Between the equals signs and the seven greater-thans is the other branch&#x27;s version. Everything outside the markers merged cleanly and is already done.</p><p>Your job is to edit that region into the line you actually want, which is often neither side and sometimes both. Delete the marker lines. Then git add the file, which is how you tell git resolved, and git commit finishes the merge. If you panic, git merge dash dash abort puts everything back exactly as it was; the reflog slide tells you why that is possible.</p><p>The one you will meet in the lab is this README tagline. One branch fixed a spelling mistake in it, the other made the sentence longer. Git cannot pick. You can, and the right answer uses both: temperature, spelt correctly, for the shell.</p><p>One more thing, for the stretch goal: git rerere, reuse recorded resolution. Turn it on and git remembers how you resolved a conflict, and if the same conflict comes back, on a rebase, say, it applies your answer for you.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>Hooks: a script that says no</h3><span class="time">12:00 → 13:00 · 1 min · 132 words</span></header>
+    <p>A hook is a script git runs at a moment you choose. Pre-commit runs before a commit is made, and if the script exits non-zero, there is no commit. That is the whole mechanism: a shell script in dot-git slash hooks with the right name and the executable bit. In step five yours will run the tests and refuse anything that adds a TODO.</p><p>Two things to know. Hooks live in dot-git, so they are not committed and not shared; teams use a tool or a config setting to install the same hooks everywhere. And dash dash no-verify skips them. The hook is a seatbelt, not a lock: it stops you committing broken code by accident, not on purpose, and the day you type no-verify, you should be able to say why.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>The small tools: stash, worktree, -S, blame -L</h3><span class="time">13:00 → 14:00 · 1 min · 121 words</span></header>
+    <p>Four small tools, one slide. Git stash puts your uncommitted changes on a shelf so you can switch branches, and stash pop brings them back. Git worktree add checks out a second branch into a second folder, sharing the same repository, so you can look at main while you are mid-change without shelving anything.</p><p>Git log dash capital S, with a string, finds the commits that added or removed that exact text, which is how you find where a line came from when blame points at a refactor. And git blame dash L with a line range shows who last touched just those lines. None of these is a disaster tool. They are the tools that stop you getting into one.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>The next 90 minutes</h3><span class="time">14:00 → 15:00 · 1 min · 130 words</span></header>
+    <p>Here is the afternoon. Step zero, a script builds the same repository for everyone, and I mean the same: same hashes. Step one, bisect finds the commit that broke the test, and you undo it with revert. Step two, you squash four WIP commits into one with a real message. Step three, two accidents: a hard reset and a deleted branch, both repaired from the reflog. Step four, a merge conflict, resolved by hand. Step five, a pre-commit hook that says no. Step six, stash, worktree, and finding where a line came from.</p><p>Every step ends in a checkpoint, and nobody moves on until theirs passes. Stuck for five minutes, wave; every step can be restarted from a hash, because your hashes are my hashes. Five-minute break. Then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

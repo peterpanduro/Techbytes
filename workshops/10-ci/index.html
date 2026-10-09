@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>A CI Pipeline That Builds Your Image · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 10 · A CI Pipeline That Builds Your Image</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 10</span>
+      <h1>A CI Pipeline That Builds Your Image</h1>
+      <p class="lede">Workshop 1's Go server goes on GitHub, and a fifteen-line workflow tests it on every push. A second job builds its image and pushes it to ghcr.io with a token that lives for one job. govulncheck turns a vulnerable dependency into a red build, a ruleset turns the red build into a merge button that will not press, and the fixed image ends the afternoon running on your laptop. Five runs; every wait has a job to do.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~25 min</b> student prep, one week before</li>
+        <li>Needs workshops 1 and 3–5</li>
+        <li>21 lines of YAML, 13 of Go and Dockerfile, 26 commands</li>
+        <li>Any OS (Git Bash on Windows)</li>
+      </ul>
+    </div>
+    <div class="demo w10-demo" id="w10-demo">
+      <span class="eyebrow">Interactive · push and wait</span>
+      <p class="note" style="margin:.3rem 0 .7rem">The lab's workflow: a <code>test</code> job, then a <code>build</code> job that <code>needs</code> it. Pick a branch, the x/text version in <code>go.mod</code> and the Go the runner uses, then push. The findings are the real govulncheck output from the lab; the seconds are not.</p>
+      <div class="w10-app"></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Workshop 1's server, with a test</a></li>
+        <li><a href="#s1">1 · A workflow that runs the tests</a></li>
+        <li><a href="#s2">2 · Build and push the image</a></li>
+        <li><a href="#s3">3 · A feature with a vulnerable dependency</a></li>
+        <li><a href="#s4">4 · Reproduce, fix, merge</a></li>
+        <li><a href="#s5">5 · Wrap-up, then run what main built</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 10</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves with a public GitHub repository, <code>ci-lab</code>, whose workflow tests workshop 1's server on every push, scans it with govulncheck, builds its image on every branch and publishes it to ghcr.io from <code>main</code> only; a ruleset that makes a red check a blocked merge; and the fixed image running on their laptop, pulled from the registry the pipeline pushed it to. They can read a workflow file, a run log and a govulncheck report, and say what the job's token was allowed to do.</td></tr>
+    <tr><th>Why this topic</th><td>Workshop 5's pre-commit hook is a "no" that one person can skip with <code>--no-verify</code>. CI is the same "no" for the whole team, run on a machine nobody's laptop can talk out of it. Everyone has seen a red cross on a pull request; few have written the file that puts it there, or know why the token that pushed the image is harmless in a log an hour later. As the last workshop of the year it ties the others together: workshop 1's image, built, scanned and published by a machine on every push.</td></tr>
+    <tr><th>Concepts</th><td>Workflows, events, jobs, steps and runners (a fresh VM per job); <code>needs</code> and <code>concurrency</code>; <code>GITHUB_TOKEN</code> and least-privilege <code>permissions</code>; a container registry, package linking and default-private visibility; tags versus digests; <code>go.sum</code> as the lock file, the Go vulnerability database and govulncheck's three levels (called, imported, required); the toolchain as a dependency; rulesets and required status checks; pinning the actions you run.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Workshop 1: a Dockerfile, <code>docker run</code>, <code>--platform</code>. Workshops 3–4: a little Go and <code>go test</code>. Workshop 5: branches, push, the pre-commit hook. No GitHub Actions, YAML or registry knowledge is assumed.</td></tr>
+    <tr><th>Language</th><td>YAML for the workflow (21 typed lines), Go for one small feature (12 typed lines), one Dockerfile line. govulncheck runs with <code>go run</code>, so there is nothing new to install.</td></tr>
+    <tr><th>Students need</th><td>Laptop with git, the newest Go 1.27 patch release (go1.27.2, released 2026-10-08, when this page was written), Docker running (workshop 1), a terminal (Git Bash on Windows), a browser, and a personal GitHub account with a public repository <code>ci-lab</code> cloned over SSH or Git Credential Manager. The readiness run in the prep proves all of it.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Wi-Fi that reaches github.com, ghcr.io, proxy.golang.org and vuln.go.dev; the traffic is small (pushes are kilobytes, the final image is a few megabytes). The instructor brings a phone hotspot and the fallback in the instructor notes.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (six steps, each with a checkpoint that must pass before moving on, and a task for every wait).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 25 minutes)</h3>
+  <p>This is written to be pasted into an email or course page as-is. Windows users: use Git Bash for everything in this workshop, as in workshop 5.</p>
+
+  <h4>1. A GitHub account, and a public repository</h4>
+  <p>Use a personal account, not one owned by an organisation (organisation policies can stop you creating packages). If GitHub asks you to turn on two-factor authentication, do it now rather than in the workshop. Then, on github.com, create a new repository called <code>ci-lab</code>: <strong>Public</strong>, with <strong>Add a README</strong> ticked. Create it fresh; do not fork someone else's, because Actions are switched off on forks until you switch them on. It has to be public: on the free plan, rulesets (step 2 of the lab) only work on public repositories, and public repositories get Actions minutes and package storage free.</p>
+
+  <h4>2. Clone it with SSH or Git Credential Manager</h4>
+  <p>Clone it into the same folder that holds your <code>docker-lab</code> folder from workshop 1, so the two sit side by side:</p>
+<pre><code>git clone git@github.com:YOUR-USERNAME/ci-lab.git</code></pre>
+  <p>That is the SSH address (needs an SSH key on your GitHub account). The HTTPS address works too if Git Credential Manager handles your login (Git for Windows and GitHub Desktop install it). What does not work is an HTTPS token without the <code>workflow</code> scope: the push in item 4 below fails with "refusing to allow an OAuth App to create or update workflow … without <code>workflow</code> scope". If you see that and use the GitHub CLI, run <code>gh auth refresh -h github.com -s workflow</code>; otherwise switch to SSH.</p>
+
+  <h4>3. The newest Go 1.27</h4>
+<pre><code>go version</code></pre>
+  <p>It must print the newest 1.27 patch release on the day of the workshop. When this page was written that was <code>go1.27.2</code> (released 2026-10-08, with security fixes in <code>net/http</code> and <code>crypto/tls</code>); check <a href="https://go.dev/dl/">go.dev/dl</a> again the day before. Not a formality: an older patch makes the vulnerability scan in item 5 below fail on the standard library, and that is the scanner being right.</p>
+
+  <h4>4. The readiness run</h4>
+  <p>In <code>ci-lab</code>, create the folders <code>.github/workflows</code> and save <a href="code/ci.prep.yml" download>ci.prep.yml</a> in it as <code>ci.yml</code>. It is seven lines:</p>
+<pre data-mode="paste this"><code>name: ci
+on: push
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    steps:
+      - run: uname -sr</code></pre>
+<pre><code>git add .github
+git commit -m "Readiness run"
+git push</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p>The push succeeds, and the repository's <strong>Actions</strong> tab shows a run called "Readiness run" that turns green within a minute or two; open it, then the <code>ready</code> job, and the <code>Run uname -sr</code> step prints a line starting with <code>Linux</code>. That one green tick proves your account, your login (including the <code>workflow</code> scope) and that Actions is switched on. A push refused with "workflow scope" is item 2. A red run titled with "Invalid workflow file" is a typo in the file: GitHub accepts the push and fails the run at once. (Not executed in the authoring environment; verified against docs.)</p></div>
+
+  <h4>5. A local vulnerability scan</h4>
+  <p>In your <code>docker-lab</code> folder from workshop 1:</p>
+<pre><code>go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...</code></pre>
+  <p>After a few <code>go: downloading</code> lines it must print <code>No vulnerabilities found.</code> If instead it lists findings in the <code>Standard library</code> with "Found in: net/http@go1.27.1" or similar, your Go is out of date: go back to item 3. This is what go1.27.1 printed for workshop 1's server after go1.27.2 came out, shortened:</p>
+<pre data-mode="you should not see"><code>Vulnerability #1: GO-2026-6617
+    HTTP/2 server crash due to HPACK encoder race in net/http
+  More info: https://pkg.go.dev/vuln/GO-2026-6617
+  Standard library
+    Found in: net/http/internal/http2@go1.27.1
+    Fixed in: net/http/internal/http2@go1.27.2
+  ...
+Your code is affected by 5 vulnerabilities from the Go standard library.</code></pre>
+
+  <h4>6. Download the one dependency in advance</h4>
+  <p>From your home folder, outside any Go project, so that nothing is written into one:</p>
+<pre><code>cd ~
+go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
+  <p>It prints nothing when it works. This saves the venue Wi-Fi a download per laptop.</p>
+
+  <h4>7. Docker</h4>
+  <p>Docker Desktop (or Docker Engine on Linux) from workshop 1, running. <code>docker run --rm hello-world</code> must print "Hello from Docker!".</p>
+
+  <div class="call inst"><p class="lbl">If a student cannot use GitHub</p><p>Some employers block github.com or Actions. Such a student pairs with a neighbour for steps 1–5: they still type the YAML and the Go and run <code>go test</code> and govulncheck locally, which is half the lesson, and they watch the runs on the neighbour's screen.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Rehearse the whole lab in a fresh public repository of your own, with exactly the commands on this page, and replace every excerpt marked "Not executed in the authoring environment" with what your runs printed. Keep that repository public and its runs undeleted: its logs are the pre-recorded fallback (public logs are kept 90 days by default), so rehearse within that window.</li>
+    <li>Re-check on the day, because this page states versions and dates, not "latest": the newest Go 1.27 patch (<a href="https://go.dev/dl/">go.dev/dl</a>); the newest govulncheck (<code>golang.org/x/vuln</code> v1.8.0 here); the action majors (checkout v7, setup-go v7, login v4, metadata v6, build-push v7); and the advisories for <code>golang.org/x/text</code> (<a href="https://pkg.go.dev/vuln/list">pkg.go.dev/vuln</a>). A newer Go patch with security fixes means the prep's "newest 1.27" rule is what keeps laptops green, and <code>check-latest</code> is what keeps runners green.</li>
+    <li>Re-run your rehearsal workflow the morning of the workshop (Actions → the last run on <code>main</code> → Re-run all jobs). Green means the runner images, the actions and the Go download all still work together.</li>
+    <li>The widget at the top of this page is slides 4 and 7. On slide 4 push with the defaults, then switch to <code>main</code> and push again; on slide 7 the deck starts it on v0.3.7 and cached Go 1.27.1, for two red reasons at once.</li>
+    <li>Carry five screenshots from your rehearsal for a dead network: the green <code>test</code> → <code>build</code> graph, the red govulncheck annotation, the blocked merge box, the package page with its tags, and the final <code>curl</code>.</li>
+    <li>Tell the room before step 2 that the Docker image name must be typed in lower case, whatever the capitals in their GitHub username.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 10 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: the hook nobody can skip</h2>
+  <p>The single idea to land: <strong>CI is a "no" that applies to everyone, and it is only worth what main requires.</strong> A workflow is a file that GitHub runs on a fresh machine for every push; the token it uses lives for one job; a vulnerable dependency is a failing test like any other; and none of it stops anything until a ruleset makes the check required.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">The same no, for the whole team</span><span class="d">1 min</span>
+      <span class="say">Title slide. Callback to workshop 5: the pre-commit hook lives in <code>.git</code>, is never pushed, and <code>--no-verify</code> skips it. CI is the hook nobody can skip, because it runs on a machine nobody's laptop controls. Today it builds workshop 1's image, the year's first workshop, on every push.</span></li>
+    <li><span class="n">2</span><span class="t">A workflow is a file GitHub runs</span><span class="d">2 min</span>
+      <span class="say">Push event → workflow → jobs → steps. Walk through today's <code>ci.yml</code> on the slide: <code>on: push</code>, two jobs, <code>runs-on</code>, steps that either <code>uses:</code> an action (someone else's code, at a version) or <code>run:</code> a command. The file lives in the repository, so the pipeline is reviewed and versioned like the code.</span></li>
+    <li><span class="n">3</span><span class="t">Every job is a fresh machine</span><span class="d">1 min</span>
+      <span class="say">A new VM per job, thrown away at the end. Nothing carries over except what you publish: that is why <code>checkout</code> appears in both jobs. <code>needs: test</code> orders them: the build never starts if the tests fail. Jobs without <code>needs</code> run in parallel.</span></li>
+    <li><span class="n">4</span><span class="t">The wait is the design constraint</span><span class="d">2 min</span>
+      <span class="say">Use the widget: push with the defaults, then on main. The run is a queue, a VM, a Go download and a build, a minute or three. So: the fast job first and the expensive one after it; <code>cancel-in-progress</code> so a second push kills the first run; and never let CI be the first place a failure is seen: today's commands are the same on the laptop and the runner. Every wait in the lab has a task.</span></li>
+    <li><span class="n">5</span><span class="t">Who is GITHUB_TOKEN?</span><span class="d">2 min</span>
+      <span class="say">A token GitHub mints for each job and revokes when the job ends. <code>permissions:</code> says what it may do: the build job gets <code>packages: write</code>, the test job only the read-only default. No personal access token is created or stored anywhere today. The package it pushes is linked to the repository, inherits its access, and starts private even in a public repository.</span></li>
+    <li><span class="n">6</span><span class="t">Tags are names, digests are facts</span><span class="d">1 min</span>
+      <span class="say">Every push to main publishes two tags: <code>main</code>, which moves, and <code>sha-</code> plus the commit, which does not. Both name a <code>sha256:</code> digest, the hash of the image itself, content addressing as in workshop 5. Branches build but do not publish. Workshop 7's rollout would use the <code>sha-</code> tag.</span></li>
+    <li><span class="n">7</span><span class="t">Your dependencies are your code</span><span class="d">2 min</span>
+      <span class="say"><code>go.sum</code> is the lock. The Go vulnerability database lists affected modules, packages and functions, so govulncheck can tell called from imported from merely required, and only fails on called. Use the widget again: v0.3.7 is red because <code>greet</code> calls <code>ParseAcceptLanguage</code>. The toolchain is a dependency too: Go 1.27.2 (2026-10-08) fixed five <code>net/http</code> issues this server reaches, so a runner on 1.27.1 goes red for a reason that has nothing to do with your change. <code>check-latest</code> fixes the runner; the image still builds with whatever <code>golang:1.27</code> means that day.</span></li>
+    <li><span class="n">8</span><span class="t">A check is only a no if main requires it</span><span class="d">2 min</span>
+      <span class="say">Without a rule, a red check is advice: anyone can merge, or push straight to main. A ruleset on the default branch requires a pull request and the <code>test</code> check, with an empty bypass list, so it applies to the repository owner too. Red means the merge button is blocked. This is the "no" from slide 1, made binding.</span></li>
+    <li><span class="n">9</span><span class="t">Pin what you run</span><span class="d">1 min</span>
+      <span class="say">Every <code>uses:</code> line runs someone else's code with your token. Tags can move: in March 2025 the <code>tj-actions/changed-files</code> tags were repointed at a commit that dumped secrets into logs (CVE-2025-30066). Today we type major tags for first-party actions, because a 40-character SHA is not typeable; the stretch file pins full SHAs and lets Dependabot move them.</span></li>
+    <li><span class="n">10</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Six steps, five runs: workshop 1's server with a test; a workflow that runs it; a build job that publishes the image, and the ruleset during the wait; a feature on a branch that pins a vulnerable x/text and goes red; reproduce, fix and merge; run what main built. Every wait has a task. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 6 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in the <code>ci-lab</code> folder from the prep, with a terminal (Git Bash on Windows), an editor, and the repository open in the browser. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes downloads the recovery file for that step from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is 60 lines over the afternoon: 21 lines of workflow YAML, 12 lines of Go, one Dockerfile line and 26 commands. Typing the workflow is how its indentation gets into your fingers. <strong>Paste this</strong> is the copy command in step 0, the two test files, and the body of the build job in step 2. Windows users run everything in Git Bash; in PowerShell, <code>curl</code> is a different program, so type <code>curl.exe</code> there.</p></div>
+  <div class="call inst"><p class="lbl">Five runs, five tasks</p><p>Run 1 (step 1, about 1 min): read the log. Run 2 (step 2, about 2–3 min): create the ruleset. Run 3 (step 3, about 1–1.5 min, red): open the pull request. Run 4 (step 4, about 1–1.5 min until <code>test</code> is green): read "Fixed in" and the informational findings, then merge. Run 5 (step 5, about 3 min): the wrap-up. The first govulncheck in a run compiles x/vuln on a cold runner, which is most of the <code>test</code> job from step 3 on. All timings are estimates. Not executed in the authoring environment; verified against docs.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="10"><span class="k">0:00–0:10</span><span>Step 0 · Workshop 1's server, with a test</span></div>
+    <div class="row" data-from="10" data-to="25"><span class="k">0:10–0:25</span><span>Step 1 · A workflow that runs the tests (run 1)</span></div>
+    <div class="row" data-from="25" data-to="45"><span class="k">0:25–0:45</span><span>Step 2 · Build the image and push it to ghcr.io (run 2, ruleset)</span></div>
+    <div class="row" data-from="45" data-to="65"><span class="k">0:45–1:05</span><span>Step 3 · A feature with a vulnerable dependency (run 3, red)</span></div>
+    <div class="row" data-from="65" data-to="80"><span class="k">1:05–1:20</span><span>Step 4 · Reproduce, fix, merge (run 4)</span></div>
+    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 5 · Wrap-up while main builds, then run it (run 5)</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Workshop 1's server, with a test</h3><span class="time">10 min</span></header>
+    <p>The project for the afternoon is workshop 1's server, unchanged. Copy exactly four files from <code>docker-lab</code> into <code>ci-lab</code>: not <code>visits.txt</code>, not <code>data/</code>, not the <code>Dockerfile.v1</code> and <code>Dockerfile.v2</code> experiments, because in a minute <code>git add .</code> commits whatever is in the folder. (No <code>docker-lab</code> any more? Download <a href="../01-docker/code/main.go" download>main.go</a>, <a href="../01-docker/code/go.mod" download>go.mod</a>, <a href="../01-docker/code/Dockerfile" download>Dockerfile</a> and <a href="../01-docker/code/.dockerignore" download>.dockerignore</a> from workshop 1 into <code>ci-lab</code> instead.)</p>
+<pre data-mode="paste this"><code>cd ci-lab
+cp ../docker-lab/main.go ../docker-lab/go.mod ../docker-lab/Dockerfile ../docker-lab/.dockerignore .</code></pre>
+    <p>Workshop 1 had no tests, and a pipeline needs something to run. Save this next to <code>main.go</code> as <code>main_test.go</code>. It calls <code>bump</code> three times on a file in a fresh folder that Go deletes afterwards, so it never touches your real <code>visits.txt</code>:</p>
+    <h4>main_test.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	"path/filepath"
+	"testing"
+)
+
+// TestBump counts three visits in a fresh, empty folder that Go deletes afterwards.
+func TestBump(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "visits.txt")
+	for want := 1; want &lt;= 3; want++ {
+		if got := bump(path); got != want {
+			t.Fatalf("visit %d: bump returned %d", want, got)
+		}
+	}
+}</code></pre>
+    <p>Run the tests, then the same vulnerability scan as in the prep, here, then commit. Do not push yet: the next push should be the one that runs the tests.</p>
+<pre data-mode="type this"><code>go test ./...
+go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+git add .
+git commit -m "Workshop 1's server, with a test"</code></pre>
+<pre data-mode="you should see"><code>ok  	hello	0.223s
+No vulnerabilities found.</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>go test</code> prints <code>ok</code> and <code>hello</code> (the module name from workshop 1's <code>go.mod</code>), govulncheck prints <code>No vulnerabilities found.</code>, and <code>git status</code> says <code>nothing to commit, working tree clean</code>. <code>git log --oneline</code> shows your commit above "Readiness run" and the README's "Initial commit".</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>This is the door check for the toolchain. Anyone whose govulncheck lists <code>Standard library</code> findings has an old Go and will be red all afternoon for the wrong reason. The fastest fix in the room is <code>export GOTOOLCHAIN=go1.27.2</code> (or the newest patch on the day) in that terminal: the <code>go</code> command downloads that toolchain once and uses it. A proper install from go.dev/dl can wait until home.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>A workflow that runs the tests</h3><span class="time">15 min</span></header>
+    <p>Open <code>.github/workflows/ci.yml</code>, the readiness file from the prep, delete its seven lines, and type this instead. Indent with spaces, two per level; YAML refuses tabs.</p>
+    <h4>.github/workflows/ci.yml</h4>
+<pre data-mode="type this"><code>name: ci
+on: push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27'
+          check-latest: true
+      - run: go test ./...</code></pre>
+    <p>Read it top to bottom. <code>on: push</code>: run on every push, to any branch. <code>concurrency</code>: runs with the same group (this workflow, this branch) take turns, and a new one cancels the one in progress, so two quick pushes cost one run. One job, <code>test</code>, on a fresh Ubuntu VM. Its steps: <code>actions/checkout</code> puts your commit on the VM, which starts empty; <code>actions/setup-go</code> installs Go, and <code>check-latest: true</code> makes it fetch the newest 1.27 patch instead of whatever the runner image has cached; then your own command, the one you just ran on the laptop. <code>'1.27'</code> is quoted because YAML would otherwise read it as the number 1.27, which is fine here but turns <code>1.30</code> into <code>1.3</code> one day.</p>
+<pre data-mode="type this"><code>git add .
+git commit -m "CI: run the tests"
+git push</code></pre>
+    <p><strong>While it runs (about a minute): read the log.</strong> Open the repository's <strong>Actions</strong> tab, click the run "CI: run the tests", then the <code>test</code> job. Each step is a line you can expand. <em>Set up job</em> names the runner image and its version, and lists the permissions of the job's <code>GITHUB_TOKEN</code>: all read, which is the default for a new repository. <em>Run actions/checkout@v7</em> is a <code>git fetch</code> of exactly your commit. <em>Run actions/setup-go@v7</em> says which Go it found and that it downloaded the newest one. <em>Run go test ./...</em> is your command. The <em>Post</em> steps clean up, and then the VM is deleted.</p>
+<pre data-mode="you should see"><code>Run go test ./...
+ok  	hello	0.004s</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p>A green tick next to the run and next to the <code>test</code> job. The <code>Run go test ./...</code> step prints <code>ok</code> and <code>hello</code>, and the setup-go step mentions go 1.27.2 (or the newest patch on the day). A yellow warning from setup-go that it cannot find <code>go.sum</code> for its cache is harmless: the project has no dependencies yet. (Not executed in the authoring environment; verified against docs.)</p></div>
+    <p><strong>Common mistakes:</strong> the file saved at <code>.github/workflow/ci.yml</code> (no s) or <code>.github/workflows/ci.yml.txt</code>, in which case nothing runs at all; a tab or a wrong indent, in which case the push succeeds and a red run appears at once, titled with "Invalid workflow file" and the line number; <code>go-version: 1.27</code> unquoted, which works today. Stuck: download <a href="code/ci.v1.yml" download>ci.v1.yml</a>, save it over <code>ci.yml</code>, commit and push.</p>
+    <p><strong>Talk about it:</strong> push twice within a few seconds (an empty commit will do: <code>git commit --allow-empty -m again</code>). The first run turns grey, "cancelled": that is <code>concurrency</code>. Why is the check that matters called <code>test</code> and not <code>ci</code>? (Checks are named after jobs. The ruleset in step 2 asks for <code>test</code> by name.)</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>Build the image and push it to ghcr.io</h3><span class="time">20 min</span></header>
+    <p>A second job: the same <code>docker build</code> as workshop 1, on a runner, pushed to GitHub's container registry. Paste this at the end of <code>ci.yml</code>. <code>build:</code> must line up with <code>test:</code>, two spaces in:</p>
+<pre data-mode="paste this"><code>  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # minted for this job, dead when it ends
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          provenance: false # one plain image per tag, no attestation index
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}</code></pre>
+    <p>Three actions do what you did by hand in workshop 1. <code>login-action</code> is <code>docker login ghcr.io</code>, with the job's own token as the password. <code>metadata-action</code> works out the image name (<code>ghcr.io/</code> plus your user and repository, lowercased) and two tags: the branch name, and <code>sha-</code> plus the first seven characters of the commit. <code>build-push-action</code> is <code>docker build</code> on the checked-out folder with those tags. <code>provenance: false</code> keeps it one plain amd64 image per tag, which a Mac can run with <code>--platform</code>; the default would wrap it in an index with an attestation entry.</p>
+    <p>Now the five lines that decide what this job may do and when. Type these four directly under <code>build:</code>, above <code>runs-on</code>:</p>
+<pre data-mode="type this"><code>    needs: test
+    permissions:
+      contents: read
+      packages: write</code></pre>
+    <p>and this one as the last line of the file, inside the build-push step's <code>with:</code>, lined up with <code>labels:</code>:</p>
+<pre data-mode="type this"><code>          push: ${{ github.ref == 'refs/heads/main' }}</code></pre>
+    <p><code>needs: test</code>: the build starts only after <code>test</code> is green. <code>permissions</code>: this job's token may read the code and write packages, and nothing else; the test job keeps the read-only default. <code>push</code>: true only on <code>main</code> (if your default branch has another name, use it here). Every branch builds, so a broken Dockerfile shows up before the merge, but only <code>main</code> publishes. Commit and push:</p>
+<pre data-mode="type this"><code>git commit -am "CI: build and push the image"
+git push</code></pre>
+    <p><strong>While it runs (two to three minutes): make <code>test</code> required.</strong> In the repository: <strong>Settings → Rules → Rulesets → New ruleset → New branch ruleset</strong>. Ruleset name <code>main</code>; Enforcement status <strong>Active</strong>; under Target branches, <strong>Add target → Include default branch</strong>. Leave the bypass list empty: the rules then apply to you too, which is the point. Under the rules, leave "Restrict deletions" and "Block force pushes" ticked; tick <strong>Require a pull request before merging</strong> and set required approvals to 0 (you are working alone); tick <strong>Require status checks to pass</strong>, press <strong>Add checks</strong>, type <code>test</code> and pick it (it is offered because run 1 reported it); leave "Require branches to be up to date before merging" unticked. Press <strong>Create</strong>. From now on, nobody pushes to <code>main</code>. If run 2 turns out red, fix it the new way: <code>git switch -c fix</code>, commit the fix, <code>git push -u origin fix</code>, open a pull request and merge it once <code>test</code> is green.</p>
+    <p>When the run is green, find the image: on the repository's front page, <strong>Packages</strong> in the right-hand column, then <code>ci-lab</code>. It is linked to the repository and private, even though the repository is public. To pull it you need one of these:</p>
+    <ul>
+      <li><strong>Make it public</strong> (cannot be undone): on the package page, <strong>Package settings → Danger Zone → Change visibility → Public</strong>, and type the package name to confirm. A public package can never be made private again.</li>
+      <li><strong>Log Docker in with the GitHub CLI</strong> (reversible, needs <code>gh</code>): the token <code>gh</code> already holds, given one more scope. <code>docker logout ghcr.io</code> logs Docker out; the <code>read:packages</code> scope stays on <code>gh</code>'s token until <code>gh auth refresh -h github.com -r read:packages</code> removes it.
+<pre data-mode="paste this"><code>gh auth refresh -h github.com -s read:packages
+gh auth token | docker login ghcr.io -u YOUR-USERNAME --password-stdin</code></pre></li>
+      <li><strong>Neither</strong>: skip the two commands below. The package page is your checkpoint.</li>
+    </ul>
+    <p>Then run what the pipeline built. Replace <code>YOUR-USERNAME</code> with yours, <strong>in lower case</strong>; image names cannot contain capitals. <code>--platform linux/amd64</code> is workshop 1's flag: the runner built for amd64 only, and on an Apple Silicon Mac Docker runs it under emulation.</p>
+<pre data-mode="type this"><code>docker run --rm --platform linux/amd64 -p 8080:8080 ghcr.io/YOUR-USERNAME/ci-lab:main</code></pre>
+    <p>The server stays in the foreground. In a second terminal:</p>
+<pre data-mode="type this"><code>curl localhost:8080</code></pre>
+<pre data-mode="you should see"><code>Hello from 3c1f0e7a9b2d! You are visit number 1.</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>The run shows two green jobs, <code>test</code> then <code>build</code>, joined by an arrow. The package page lists the tags <code>main</code> and <code>sha-</code> plus seven characters of your commit, both on the same digest. <code>curl</code> answers with workshop 1's greeting and a container id as the host name (or, without Docker, the package page is enough). The ruleset is listed as Active. (Not executed in the authoring environment; verified against docs.)</p></div>
+    <p>Stop the container with Ctrl-C in the first terminal. If Ctrl-C does not stop it (Git Bash on Windows sometimes leaves it running), <code>docker ps</code> shows its id, and <code>docker stop</code> followed by that id stops it.</p>
+    <div class="call inst"><p class="lbl">Instructor</p><p>"denied" from <code>docker run</code> means the package is still private, or the name has capitals. "unauthorized" or "permission_denied: write_package" in the build log means the <code>permissions</code> block is missing or mis-indented, or the student pushed an image of that name by hand once before. "no matching manifest for linux/arm64/v8" means <code>--platform linux/amd64</code> was left off on a Mac. Stuck: <a href="code/ci.v2.yml" download>ci.v2.yml</a> is this step's file; since the ruleset now blocks direct pushes, put it on a branch and merge it (the step-3 recipe).</p></div>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>A feature with a vulnerable dependency</h3><span class="time">20 min</span></header>
+    <p><code>main</code> is protected now, so features start on a branch:</p>
+<pre data-mode="type this"><code>git switch -c greeting</code></pre>
+    <p>The feature: greet visitors whose browser prefers Swedish with "Hej". Browsers say which languages they prefer in the <code>Accept-Language</code> header, for example <code>sv-SE,sv;q=0.9,en;q=0.8</code>, and parsing that properly is a job for the Go team's <code>golang.org/x/text/language</code> package. First the test; save it as <code>greet_test.go</code>:</p>
+    <h4>greet_test.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import "testing"
+
+// TestGreet checks that the first language in Accept-Language picks the greeting.
+func TestGreet(t *testing.T) {
+	cases := []struct{ header, want string }{
+		{"sv-SE,sv;q=0.9,en;q=0.8", "Hej"},
+		{"en-GB,en;q=0.9,sv;q=0.5", "Hello"},
+		{"", "Hello"},
+	}
+	for _, c := range cases {
+		if got := greet(c.header, "Hello"); got != c.want {
+			t.Errorf("greet(%q) = %q, want %q", c.header, got, c.want)
+		}
+	}
+}</code></pre>
+    <p>Then the function, at the end of <code>main.go</code>:</p>
+<pre data-mode="type this"><code>func greet(acceptLanguage, fallback string) string {
+	tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
+	if err != nil || len(tags) == 0 {
+		return fallback
+	}
+	if base, _ := tags[0].Base(); base.String() == "sv" {
+		return "Hej"
+	}
+	return fallback
+}</code></pre>
+    <p>Add the import at the end of the import block, after a blank line (gofmt keeps the standard library and everything else apart):</p>
+<pre data-mode="type this"><code>	"golang.org/x/text/language"</code></pre>
+    <p>and in the handler, change the line that writes the greeting so it reads:</p>
+<pre data-mode="type this"><code>		fmt.Fprintf(w, "%s from %s! You are visit number %d.\n", greet(r.Header.Get("Accept-Language"), greeting), host, n)</code></pre>
+    <p>Now the dependency, at a version a colleague found in an old project: v0.3.7. <code>go mod tidy</code> afterwards marks it as a direct dependency (<code>go get</code> leaves a misleading <code>// indirect</code>) and checks that <code>go.sum</code> is complete. Then the tests:</p>
+<pre data-mode="type this"><code>go get golang.org/x/text@v0.3.7
+go mod tidy
+go test ./...</code></pre>
+<pre data-mode="you should see"><code>go: added golang.org/x/text v0.3.7
+ok  	hello	0.255s</code></pre>
+    <p><code>go.mod</code> now has <code>require golang.org/x/text v0.3.7</code>, and there is a new file, <code>go.sum</code>, with the module's hashes: the lock file. Two more one-line changes so the pipeline knows about it. In the <code>Dockerfile</code>, the build stage now has a lock file to copy, so change the line <code>COPY go.mod ./</code> to:</p>
+<pre data-mode="type this"><code>COPY go.mod go.sum ./</code></pre>
+    <p>and in <code>ci.yml</code>, add a step to the <code>test</code> job, directly under <code>- run: go test ./...</code>:</p>
+<pre data-mode="type this"><code>      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...</code></pre>
+    <p>Tests pass on your laptop, so ship it:</p>
+<pre data-mode="type this"><code>git add .
+git commit -m "Greet Swedish visitors in Swedish"
+git push -u origin greeting</code></pre>
+    <p><strong>While it runs (a minute or so, then red): open the pull request.</strong> The repository page shows a yellow banner, "greeting had recent pushes", with <strong>Compare &amp; pull request</strong>. Press it, then <strong>Create pull request</strong>. Watch the box at the bottom of the pull request while the run finishes.</p>
+<pre data-mode="you should see"><code>=== Symbol Results ===
+
+Vulnerability #1: GO-2022-1059
+    Denial of service via crafted Accept-Language header in
+    golang.org/x/text/language
+  More info: https://pkg.go.dev/vuln/GO-2022-1059
+  Module: golang.org/x/text
+    Found in: golang.org/x/text@v0.3.7
+    Fixed in: golang.org/x/text@v0.3.8
+    Example traces found:
+      #1: main.go:50:46: hello.greet calls language.ParseAcceptLanguage
+
+Your code is affected by 1 vulnerability from 1 module.
+This scan also found 0 vulnerabilities in packages you import and 2
+vulnerabilities in modules you require, but your code doesn't appear to call
+these vulnerabilities.
+Use '-show verbose' for more details.
+exit status 3
+Error: Process completed with exit code 1.</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p>The run is red. The <code>test</code> job's govulncheck step shows GO-2022-1059 with the trace <code>hello.greet calls language.ParseAcceptLanguage</code> (your line and column numbers depend on where you typed <code>greet</code>), and the <code>build</code> job is grey, "skipped", because it <code>needs: test</code>. The pull request says the checks failed and that merging is blocked. (The govulncheck text above is real output from the authoring environment; the run, the last log line and the pull request are not executed in the authoring environment; verified against docs.)</p></div>
+    <p><strong>Common mistakes:</strong> running <code>go test</code> before <code>go get</code>, which prints <code>no required module provides package golang.org/x/text/language; to add it:</code> followed by a <code>go get</code> line without a version; do not run that one, it fetches the newest x/text, whose <code>go.mod</code> says <code>go 1.26.0</code> and would rewrite yours. The import typed inside the standard-library group, which works but gofmt moves it. <code>go get</code> run from the wrong folder: "go.mod file not found".</p>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>Reproduce, fix, merge</h3><span class="time">15 min</span></header>
+    <p>CI should never be the only place a failure can be seen. The workflow runs the same command you can, so run it:</p>
+<pre data-mode="type this"><code>go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+echo $?</code></pre>
+    <p>It prints exactly the report from the run log, ending in <code>exit status 3</code>, and <code>echo $?</code> prints <code>1</code>. govulncheck exits 3 when your code calls a known-vulnerable function; <code>go run</code> reports that and exits 1 itself; the runner sees "not zero" and stops the job. Read the report the way the pipeline does: <em>Found in</em> is what you have, <em>Fixed in</em> is what you need, and the trace says why it matters: your own <code>greet</code> calls the vulnerable function. So upgrade to exactly the version the report names, and scan again:</p>
+<pre data-mode="type this"><code>go get golang.org/x/text@v0.3.8
+go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...</code></pre>
+<pre data-mode="you should see"><code>go: upgraded golang.org/x/text v0.3.7 =&gt; v0.3.8
+=== Symbol Results ===
+
+No vulnerabilities found.
+
+Your code is affected by 0 vulnerabilities.
+This scan also found 0 vulnerabilities in packages you import and 2
+vulnerabilities in modules you require, but your code doesn't appear to call
+these vulnerabilities.
+Use '-show verbose' for more details.</code></pre>
+<pre data-mode="type this"><code>git commit -am "Fix GO-2022-1059: x/text v0.3.8"
+git push</code></pre>
+    <p><strong>While it runs (about a minute until <code>test</code> is green): the two that did not fail.</strong> "2 vulnerabilities in modules you require" are real, and v0.3.8 has both. The instructor runs the scan with <code>-show verbose</code> on the projector:</p>
+<pre data-mode="you should see"><code>=== Module Results ===
+
+Vulnerability #1: GO-2026-6629
+    Panic parsing crafted input in x/text/secure/precis in golang.org/x/text
+  More info: https://pkg.go.dev/vuln/GO-2026-6629
+  Module: golang.org/x/text
+    Found in: golang.org/x/text@v0.3.8
+    Fixed in: golang.org/x/text@v0.41.0
+
+Vulnerability #2: GO-2026-5970
+    Infinite loop on invalid input in golang.org/x/text
+  More info: https://pkg.go.dev/vuln/GO-2026-5970
+  Module: golang.org/x/text
+    Found in: golang.org/x/text@v0.3.8
+    Fixed in: golang.org/x/text@v0.39.0</code></pre>
+    <p>They are in <code>secure/precis</code> and <code>unicode/norm</code>, two packages of the same module that this server never imports, so govulncheck reports them and still exits 0. That is the difference between a scanner that reads <code>go.mod</code> and one that reads your code: the first would have been red for both and the second is red only for what can hurt you. Upgrading further is still the right thing to do, in its own pull request; not today, because x/text v0.39.0 and later need a newer <code>go</code> line than workshop 1's.</p>
+    <p>When the pull request's <code>test</code> check turns green, the merge box changes. Press <strong>Merge pull request</strong>, then <strong>Confirm merge</strong>. The merge is a push to <code>main</code>, and it starts run 5. (Run 4's <code>build</code> job may still be running; the ruleset only waits for <code>test</code>.)</p>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>Locally, govulncheck says <code>No vulnerabilities found.</code> and <code>go.mod</code> says <code>require golang.org/x/text v0.3.8</code>. On GitHub, the pull request shows a green <code>test</code>, it is merged, and the Actions tab shows a new run on <code>main</code>. Run 4's <code>build</code> job ends green too, and nothing new appears on the package page: <code>push</code> was false on the branch. (Not executed in the authoring environment; verified against docs.)</p></div>
+    <p><strong>Talk about it:</strong> why not <code>go get golang.org/x/text@latest</code>? (It fixes this and the other two, and it rewrites <code>go.mod</code>'s <code>go</code> line to 1.26.0, a second change hiding in a security fix. One change per pull request.) If a new advisory for <code>x/text/language</code> appears before your workshop, the report prints a newer "Fixed in": use that one.</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Wrap-up while main builds, then run it</h3><span class="time">10 min</span></header>
+    <p>Run 5 tests, scans, builds and publishes <code>main</code>: about three minutes. The wrap-up is those three minutes.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>A workflow is a file in the repository: reviewed, versioned and run on a fresh machine for every push. The same commands run on your laptop; CI is where they run for everyone.</li>
+      <li>The job's token lived for minutes and could only push packages. Nothing anyone could steal today outlives the run.</li>
+      <li>govulncheck failed on what your code calls, not on what <code>go.mod</code> mentions. "Fixed in" is the version to type.</li>
+      <li>The check became a "no" only when the ruleset required it. Without that, red is advice.</li>
+      <li>Tags move, digests do not. <code>main</code> now names a new digest; the old <code>sha-</code> tag still names the old one.</li>
+    </ul>
+    <p>When the run is green, open the package page again: a second <code>sha-</code> tag, and <code>main</code> has moved to it. Then pull the new <code>main</code> and ask in Swedish (skip this if you chose neither option in step 2). <code>--pull always</code> makes Docker check the registry instead of reusing the image it already has:</p>
+<pre data-mode="type this"><code>docker run --rm --pull always --platform linux/amd64 -p 8080:8080 ghcr.io/YOUR-USERNAME/ci-lab:main</code></pre>
+    <p>In a second terminal:</p>
+<pre data-mode="type this"><code>curl -H "Accept-Language: sv" localhost:8080</code></pre>
+<pre data-mode="you should see"><code>Hej from 9d2e4b7c1a05! You are visit number 1.</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>Run 5 is green with both jobs, the package page shows <code>main</code> on the newer of two <code>sha-</code> tags, and <code>curl</code> with the Swedish header says <code>Hej</code>. Without the header it still says <code>Hello</code>. (Not executed in the authoring environment; verified against docs.)</p></div>
+    <p>Stop the container with Ctrl-C in the first terminal. If Ctrl-C does not stop it (Git Bash on Windows sometimes leaves it running), <code>docker ps</code> shows its id, and <code>docker stop</code> followed by that id stops it.</p>
+    <p>Back on the laptop, bring <code>main</code> up to date before anything else: <code>git switch main</code>, then <code>git pull</code>.</p>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>Pin by SHA, and let Dependabot move the pins.</strong> Replace <code>ci.yml</code> with <a href="code/ci.stretch.yml" download>ci.stretch.yml</a>: every action at a full commit SHA, with the tag as a comment. Save <a href="code/dependabot.yml" download>dependabot.yml</a> as <code>.github/dependabot.yml</code>. The stretch file also sets <code>cancel-in-progress</code> to true everywhere except <code>main</code>, so a quick second merge can no longer cancel a publish halfway. Branch, push, merge. Dependabot now opens a pull request when an action or a Go module has a new version, and the pipeline tests it like any other.</li>
+      <li><strong>A layer cache.</strong> The stretch file also adds <code>docker/setup-buildx-action</code> and <code>cache-from: type=gha</code> / <code>cache-to: type=gha,mode=max</code>, so the second build reuses the module-download layer from the first, workshop 1's cache lesson on a runner. Compare the build step's time across two runs.</li>
+      <li><strong>The toolchain inside the image.</strong> govulncheck ran with Go 1.27.2, but the image was compiled by whatever <code>golang:1.27</code> pointed to when the runner pulled it. Pin <code>FROM golang:1.27.2 AS build</code> and add a <code>docker</code> entry to <code>dependabot.yml</code> so Dependabot moves it.</li>
+      <li><strong>Workshop 6's integration test as a third job.</strong> A job that <code>needs: build</code>, runs <code>docker compose up --build -d</code>, posts a job with <code>curl</code> and fails if the result never appears.</li>
+      <li><strong>Multi-platform.</strong> On top of <code>ci.stretch.yml</code> (it has buildx), add <code>docker/setup-qemu-action</code> and <code>platforms: linux/amd64,linux/arm64</code> to the build step; then a Mac runs the image without <code>--platform</code>. Note how much longer the build takes.</li>
+      <li><strong>Deploy the <code>sha-</code> tag.</strong> In workshop 7's kind cluster, <code>kubectl set image</code> a Deployment to <code>ghcr.io/YOUR-USERNAME/ci-lab:sha-…</code>. Why the <code>sha-</code> tag and not <code>main</code>? (Rolling back needs a name that still means the old image.)</li>
+      <li><strong>Releases.</strong> Change the trigger to <code>on: push: {branches: ['**'], tags: ['v*']}</code> (naming only <code>tags</code> would stop branch pushes from running at all), add a <code>type=semver,pattern={{version}}</code> line to the metadata tags, and widen the push condition to <code>push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}</code>. Then <code>git tag v1.0.0</code> and <code>git push origin v1.0.0</code>.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The final state of <code>ci-lab</code>: <code>ci.yml</code> belongs at <code>.github/workflows/ci.yml</code>, <code>dependabot.yml</code> at <code>.github/dependabot.yml</code>, everything else at the top. <code>ci.prep.yml</code>, <code>ci.v1.yml</code> and <code>ci.v2.yml</code> are the workflow after the prep, step 1 and step 2, for anyone who needs to catch up; <code>go.mod</code> and <code>go.sum</code> are what <code>go get</code> and <code>go mod tidy</code> wrote in steps 3 and 4.</p>
+  <p><strong>What was run in the authoring environment</strong> (macOS, Go 1.27.1 with the go1.27.2 toolchain fetched through <code>GOTOOLCHAIN</code>): <code>go vet</code> and <code>go test</code> on the step-0 and final code, with each test first seen failing (a mutated <code>bump</code>, and <code>greet</code> undefined); govulncheck v1.8.0 against workshop 1's code (exit 0, "No vulnerabilities found."), the v0.3.7 state (the GO-2022-1059 report above; the govulncheck binary exits 3, <code>go run</code> exits 1) and the v0.3.8 state (exit 0, with GO-2026-6629 and GO-2026-5970 under Module Results only); the same scan of workshop 1's code under go1.27.1 (five standard-library findings, the prep's example); <code>go mod download</code> of both x/text versions inside and outside a module, neither of which changed a file. Every workflow file was parsed with Deno's <code>@std/yaml</code> and checked with actionlint v1.7.12, which reported nothing (and did report a deliberately broken <code>needs</code>); every <code>with:</code> key was checked against the <code>action.yml</code> of the pinned release, and the SHAs in <code>ci.stretch.yml</code> were read from GitHub's API for those tags. <strong>Not executed in the authoring environment; verified against docs:</strong> every Actions run and its log text and timings, the push to ghcr.io and the package page, package visibility, the ruleset screens and the pull request's merge box, <code>docker build</code> with the new <code>COPY</code> line, and <code>docker run</code> on any machine. The authoring environment has no Docker and no GitHub account. Rehearse the lab in a public repository and correct anything that differs.</p>
+  <div class="dlrow"><!--DLROW--><a href="code/ci.yml" download>ci.yml</a><a href="code/main.go" download>main.go</a><a href="code/main_test.go" download>main_test.go</a><a href="code/greet_test.go" download>greet_test.go</a><a href="code/go.mod" download>go.mod</a><a href="code/go.sum" download>go.sum</a><a href="code/Dockerfile" download>Dockerfile</a><a href="code/.dockerignore" download>.dockerignore</a><a href="code/ci.prep.yml" download>ci.prep.yml</a><a href="code/ci.v1.yml" download>ci.v1.yml</a><a href="code/ci.v2.yml" download>ci.v2.yml</a><a href="code/ci.stretch.yml" download>ci.stretch.yml</a><a href="code/dependabot.yml" download>dependabot.yml</a><!--/DLROW--></div>
+<!--SOLUTION-->
+  <details class="sol"><summary>ci.yml<a class="dl" href="code/ci.yml" download>download</a></summary><pre><code>name: ci
+on: push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: &#x27;1.27&#x27;
+          check-latest: true
+      - run: go test ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+  build:
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # minted for this job, dead when it ends
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          provenance: false # one plain image per tag, no attestation index
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.ref == &#x27;refs/heads/main&#x27; }}</code></pre></details>
+  <details class="sol"><summary>main.go<a class="dl" href="code/main.go" download>download</a></summary><pre><code>// A tiny web server: says hello, tells you which machine it runs on,
+// and counts visits in a file so we can see what survives a restart.
+package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+
+	&quot;golang.org/x/text/language&quot;
+)
+
+func main() {
+	greeting := os.Getenv(&quot;GREETING&quot;) // configuration comes from the environment
+	if greeting == &quot;&quot; {
+		greeting = &quot;Hello&quot;
+	}
+	host, _ := os.Hostname() // inside a container this is the container id
+
+	http.HandleFunc(&quot;/&quot;, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != &quot;/&quot; { // browsers also ask for /favicon.ico; do not count that
+			http.NotFound(w, r)
+			return
+		}
+		n := bump(&quot;visits.txt&quot;)
+		log.Printf(&quot;%s %s -&gt; visit %d&quot;, r.Method, r.URL.Path, n)
+		fmt.Fprintf(w, &quot;%s from %s! You are visit number %d.\n&quot;, greet(r.Header.Get(&quot;Accept-Language&quot;), greeting), host, n)
+	})
+
+	log.Println(&quot;listening on http://localhost:8080&quot;)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}
+
+// bump reads a number from the file, adds one, writes it back.
+func bump(path string) int {
+	b, _ := os.ReadFile(path)
+	n, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+	n++
+	if err := os.WriteFile(path, []byte(strconv.Itoa(n)), 0o644); err != nil {
+		log.Println(&quot;could not save the counter:&quot;, err)
+	}
+	return n
+}
+
+// greet says Hej to visitors whose first choice of language is Swedish.
+func greet(acceptLanguage, fallback string) string {
+	tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
+	if err != nil || len(tags) == 0 {
+		return fallback
+	}
+	if base, _ := tags[0].Base(); base.String() == &quot;sv&quot; {
+		return &quot;Hej&quot;
+	}
+	return fallback
+}</code></pre></details>
+  <details class="sol"><summary>main_test.go<a class="dl" href="code/main_test.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;path/filepath&quot;
+	&quot;testing&quot;
+)
+
+// TestBump counts three visits in a fresh, empty folder that Go deletes afterwards.
+func TestBump(t *testing.T) {
+	path := filepath.Join(t.TempDir(), &quot;visits.txt&quot;)
+	for want := 1; want &lt;= 3; want++ {
+		if got := bump(path); got != want {
+			t.Fatalf(&quot;visit %d: bump returned %d&quot;, want, got)
+		}
+	}
+}</code></pre></details>
+  <details class="sol"><summary>greet_test.go<a class="dl" href="code/greet_test.go" download>download</a></summary><pre><code>package main
+
+import &quot;testing&quot;
+
+// TestGreet checks that the first language in Accept-Language picks the greeting.
+func TestGreet(t *testing.T) {
+	cases := []struct{ header, want string }{
+		{&quot;sv-SE,sv;q=0.9,en;q=0.8&quot;, &quot;Hej&quot;},
+		{&quot;en-GB,en;q=0.9,sv;q=0.5&quot;, &quot;Hello&quot;},
+		{&quot;&quot;, &quot;Hello&quot;},
+	}
+	for _, c := range cases {
+		if got := greet(c.header, &quot;Hello&quot;); got != c.want {
+			t.Errorf(&quot;greet(%q) = %q, want %q&quot;, c.header, got, c.want)
+		}
+	}
+}</code></pre></details>
+  <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module hello
+
+go 1.24
+
+require golang.org/x/text v0.3.8</code></pre></details>
+  <details class="sol"><summary>go.sum<a class="dl" href="code/go.sum" download>download</a></summary><pre><code>golang.org/x/text v0.3.7 h1:olpwvP2KacW1ZWvsR7uQhoyTYvKAupfQrRGBFM352Gk=
+golang.org/x/text v0.3.7/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
+golang.org/x/text v0.3.8 h1:nAL+RVCQ9uMn3vJZbV+MRnydTJFPf8qqY42YiA6MrqY=
+golang.org/x/text v0.3.8/go.mod h1:E6s5w1FMmriuDzIBO73fBruAKo1PCIq6d2Q6DHfQ8WQ=</code></pre></details>
+  <details class="sol"><summary>Dockerfile<a class="dl" href="code/Dockerfile" download>download</a></summary><pre><code># Stage 1: build, in an image that has the Go toolchain (about 800 MB)
+FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+# Stage 2: run, in an image that has nothing at all
+FROM scratch
+WORKDIR /data
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD [&quot;/server&quot;]</code></pre></details>
+  <details class="sol"><summary>.dockerignore<a class="dl" href="code/.dockerignore" download>download</a></summary><pre><code>visits.txt
+data/</code></pre></details>
+  <details class="sol"><summary>ci.prep.yml<a class="dl" href="code/ci.prep.yml" download>download</a></summary><pre><code>name: ci
+on: push
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    steps:
+      - run: uname -sr</code></pre></details>
+  <details class="sol"><summary>ci.v1.yml<a class="dl" href="code/ci.v1.yml" download>download</a></summary><pre><code>name: ci
+on: push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: &#x27;1.27&#x27;
+          check-latest: true
+      - run: go test ./...</code></pre></details>
+  <details class="sol"><summary>ci.v2.yml<a class="dl" href="code/ci.v2.yml" download>download</a></summary><pre><code>name: ci
+on: push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: &#x27;1.27&#x27;
+          check-latest: true
+      - run: go test ./...
+  build:
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # minted for this job, dead when it ends
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          provenance: false # one plain image per tag, no attestation index
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.ref == &#x27;refs/heads/main&#x27; }}</code></pre></details>
+  <details class="sol"><summary>ci.stretch.yml<a class="dl" href="code/ci.stretch.yml" download>download</a></summary><pre><code># Stretch: the final ci.yml with every action pinned to a full commit SHA
+# (the tag it pointed at is the comment), plus a layer cache in the Actions cache.
+# A push to main no longer cancels a publish that is still running.
+# dependabot.yml keeps the SHAs and the comments current.
+name: ci
+on: push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != &#x27;refs/heads/main&#x27; }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: &#x27;1.27&#x27;
+          check-latest: true
+      - run: go test ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+  build:
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.ref == &#x27;refs/heads/main&#x27; }}</code></pre></details>
+  <details class="sol"><summary>dependabot.yml<a class="dl" href="code/dependabot.yml" download>download</a></summary><pre><code># Save as .github/dependabot.yml. Once a week, Dependabot opens a pull request
+# for each Go module or action that has a newer version; CI runs on it like any other.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly</code></pre></details>
+<!--/SOLUTION-->
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>The lab has about ten minutes of runner time in five runs, and every one of them has a task, so the room should never be watching a spinner. Step 1 is where YAML indentation costs time: walk the room while people type, look at the left edge of the file, and send anyone stuck for five minutes to <code>ci.v1.yml</code>. Step 2's ruleset takes longer than its wait for people who have never seen the Settings page; do it once on the projector while run 2 is going. Step 3 has the most typing (21 lines); if the room is behind at 1:00, paste <code>greet</code> for those who need it and keep the <code>go get</code> line typed, because it is the lesson. In step 4 the merge has to wait for run 4's <code>test</code>, and step 5 waits for run 5: about four to five minutes of waiting in the last 25 minutes, which is why the wrap-up is spoken during run 5 rather than after it. If you are behind at 1:20, do the wrap-up and leave the Swedish <code>curl</code> for home.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Why did my push to main get refused?"</em> The ruleset from step 2, working as intended. Rescue the commit with workshop 5's tools: <code>git switch -c fix</code>, <code>git branch -f main origin/main</code>, push the branch and open a pull request.</li>
+    <li><em>"What are the grey cancelled runs?"</em> <code>concurrency</code>: a newer push to the same branch cancelled the older run. Nothing failed.</li>
+    <li><em>"Is the token in the log a leak?"</em> GitHub masks it in logs, and it expires when the job ends. A personal access token would be neither masked nor short-lived if it were ever printed some other way; that is why there is none today.</li>
+    <li><em>"Why not Trivy, or Dependabot alerts?"</em> Image scanners also report standard-library CVEs found in the binary and anything in the image, which is useful and noisy; Dependabot alerts read <code>go.mod</code>, so they would have flagged GO-2026-6629 and GO-2026-5970 too. govulncheck is the Go team's own tool, needs no third-party action, and fails only on what the code calls. Use both kinds in real projects.</li>
+    <li><em>"Why <code>go run …@v1.8.0</code> and not the govulncheck action?"</em> The same command runs on the laptop and the runner, it is pinned, and the official <code>golang/govulncheck-action</code> describes itself as experimental. The price is compiling govulncheck in every run, about half a minute.</li>
+    <li><em>"Does the image get scanned?"</em> No: the source was. The image's Go came from <code>golang:1.27</code> on the day the runner pulled it. The stretch goal pins it.</li>
+    <li><em>"My username has capitals."</em> <code>metadata-action</code> lowercases the image name for the push; <code>docker run</code> needs it typed in lower case.</li>
+    <li><em>"Can I make the package private again?"</em> No. That is why making it public is optional and the <code>gh</code> login is offered first.</li>
+  </ul>
+  <h4>If the Wi-Fi fails</h4>
+  <p>Pushes are kilobytes and x/text was downloaded in the prep, so a slow network is fine. With none, run the five runs from your own repository on a phone hotspot, on the projector. Students still type the YAML and the Go and run <code>go test</code> locally; govulncheck needs vuln.go.dev, so show its output from your screen. Students push at home; every checkpoint on this page can be checked later from the Actions tab. If even the hotspot fails, open your rehearsal repository's public run logs (kept 90 days by default) and the five screenshots from the instructor prep.</p>
+  <h4>Risks, and what to say</h4>
+  <ul>
+    <li><strong>The runner's cached Go is behind.</strong> <code>check-latest: true</code> handles it; it is why the line is there.</li>
+    <li><strong>A new advisory for <code>x/text/language</code> before the workshop.</strong> Step 3 then shows two findings and step 4's fix is the newest "Fixed in". Re-run the three scans from the solution statement the day before.</li>
+    <li><strong>"permission_denied" when pushing the image.</strong> A package of that name was once pushed by hand, or the account is an organisation's. Use a fresh personal <code>ci-lab</code>.</li>
+    <li><strong>Docker Hub rate limits</strong> on <code>golang:1.27</code>. GitHub's documentation for Enterprise Server 3.14 says hosted runners pulling public images are exempt; not confirmed for github.com. Re-run the job if it happens.</li>
+    <li><strong>Action majors released or retired before the workshop.</strong> Re-check the five tags on the day.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax">Workflow syntax</a>: <code>on</code>, <code>jobs</code>, <code>needs</code>, <code>runs-on</code>, <code>concurrency</code> and <code>cancel-in-progress</code>, <code>permissions</code>; <a href="https://docs.github.com/en/actions/reference/limits">Actions limits</a>.</li>
+    <li><a href="https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images">Publishing Docker images</a> (the <code>GITHUB_TOKEN</code> pattern with <code>packages: write</code>) and <a href="https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry">Working with the Container registry</a>.</li>
+    <li><a href="https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility">Configuring a package's access control and visibility</a>: a linked package inherits the repository's access permissions but not its visibility; changing a package to public cannot be undone.</li>
+    <li><a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets">Available rules for rulesets</a> and <a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets">About rulesets</a> (public repositories on GitHub Free).</li>
+    <li>The actions, at the versions checked: <a href="https://github.com/actions/checkout">actions/checkout</a> v7.0.1, <a href="https://github.com/actions/setup-go">actions/setup-go</a> v7.0.0 (<code>check-latest</code>, <code>cache</code>), <a href="https://github.com/docker/login-action">docker/login-action</a> v4.6.0, <a href="https://github.com/docker/metadata-action">docker/metadata-action</a> v6.2.0 (<code>type=ref</code>, <code>type=sha</code>; setting <code>tags</code> replaces the defaults; image name sanitisation), <a href="https://github.com/docker/build-push-action">docker/build-push-action</a> v7.4.0 (<code>context</code>, <code>push</code>, <code>provenance</code>), <a href="https://github.com/docker/setup-buildx-action">docker/setup-buildx-action</a> v4.4.1 and <a href="https://docs.docker.com/build/ci/github-actions/cache/">the GitHub Actions cache backend</a>.</li>
+    <li><a href="https://go.dev/doc/tutorial/govulncheck">Tutorial: govulncheck</a> and <a href="https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck">its reference</a> (exit codes, <code>-show verbose</code>); the advisories <a href="https://pkg.go.dev/vuln/GO-2022-1059">GO-2022-1059</a> (CVE-2022-32149; <code>MatchStrings</code> and <code>ParseAcceptLanguage</code>, fixed in 0.3.8), <a href="https://pkg.go.dev/vuln/GO-2026-5970">GO-2026-5970</a> and <a href="https://pkg.go.dev/vuln/GO-2026-6629">GO-2026-6629</a>; <a href="https://go.dev/doc/devel/release">Go release history</a> (go1.27.2, 2026-10-08).</li>
+    <li><a href="https://github.com/golang/govulncheck-action">golang/govulncheck-action</a> ("experimental") and <a href="https://github.com/rhysd/actionlint">actionlint</a> v1.7.12.</li>
+    <li><a href="https://cli.github.com/manual/gh_auth_refresh">gh auth refresh</a> and <a href="https://cli.github.com/manual/gh_auth_token">gh auth token</a> for the reversible registry login and the <code>workflow</code> scope.</li>
+    <li>The tj-actions/changed-files compromise, March 2025, <a href="https://www.cve.org/CVERecord?id=CVE-2025-30066">CVE-2025-30066</a>: slide 9.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/10-ci-hero.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

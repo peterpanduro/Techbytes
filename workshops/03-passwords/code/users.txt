@@ -1,0 +1,10 @@
+alice:password
+bob:123456
+carol:qwerty
+dave:letmein
+erin:dragon
+frank:monkey
+grace:sunshine
+heidi:trustno1
+ivan:football
+judy:Tr0ub4dour&3-xq7
