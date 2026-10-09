@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Two Services and a Queue · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="06-compose">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="Two services and a queue" data-notes="&lt;p&gt;Hands up if you have ever run a program that was really three programs. A web app, a database, and something in the middle: a cache, a queue, a second service. Three terminals, started in the right order, or the first one crashes and you start again. Every morning, and the README said which order.&lt;/p&gt;&lt;p&gt;Today we write that order down. By the end you will have an API in Go, a worker in TypeScript and a Redis queue between them, and one file that starts all three with one command. Then we scale the worker to three, kill one while it is working, and go looking for the job it was holding. Fifteen minutes of talking, then ninety of typing, with two terminals open the whole time.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 6</p>
+  <h1>Two Services and a Queue</h1>
+  <p class="s-big">Three terminals, started in the right order, every morning.</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="A service is a process with an address" data-notes="&lt;p&gt;Here is the whole afternoon in one picture. Three boxes on one network. Each box is an ordinary process, exactly the kind of process workshop one put in a container. And the only thing any of them knows about the others is a name and a port.&lt;/p&gt;&lt;p&gt;Look at what they do not share. Not memory: the API cannot see the worker&amp;#x27;s variables. Not files: they have separate filesystems. Not even a language: the API is Go, the worker is TypeScript, and Redis is a C program none of us wrote. The only way any of them can affect another is to open a connection and send bytes. A socket is one program&amp;#x27;s open connection to another over the network. They meet on a socket, or they do not meet.&lt;/p&gt;&lt;p&gt;That sounds like a limitation, and it is also the point. Because they only touch over the network, you can write each one in whatever language fits, run them on one laptop or on three machines, restart one without the others noticing, and run three copies of one of them. Every word people use for this, microservices, distributed systems, service-oriented, means this picture with more boxes.&lt;/p&gt;&lt;p&gt;And it means the network is the first thing to get right, which is why one slide later in this talk is entirely about one word: localhost.&lt;/p&gt;">
+<h2>A service is a process with an address</h2>
+<div class="s-one"><svg viewBox="0 0 640 300" class="s-fig" role="img" aria-label="api, redis and worker as three boxes joined by one network">
+  <rect x="10" y="240" width="620" height="44" rx="8" class="f-kernel"/><text x="320" y="267" class="f-lbl">one private network · found by name</text>
+  <g class="f-box"><rect x="20" y="60" width="150" height="140" rx="8"/><text x="95" y="98" class="f-t">api</text><text x="95" y="128" class="f-s">Go · :8080</text><text x="95" y="152" class="f-s">POST /jobs</text><text x="95" y="176" class="f-s">GET /jobs/id</text></g>
+  <path d="M170 118 H245" class="f-arrow"/><text x="207" y="100" class="f-cap">LPUSH</text>
+  <g class="f-box f-live"><rect x="245" y="40" width="150" height="160" rx="8"/><text x="320" y="80" class="f-t">redis</text><text x="320" y="110" class="f-s">a list called jobs</text><text x="320" y="140" class="f-s">C · :6379</text><text x="320" y="170" class="f-s">holds the queue</text></g>
+  <path d="M395 118 H470" class="f-arrow"/><text x="432" y="100" class="f-cap">BRPOP</text>
+  <g class="f-box"><rect x="470" y="60" width="150" height="140" rx="8"/><text x="545" y="98" class="f-t">worker</text><text x="545" y="128" class="f-s">Deno</text><text x="545" y="152" class="f-s">1 s per job</text><text x="545" y="176" class="f-s">SET result:id</text></g>
+  <path d="M95 200 V240" class="f-arrow f-dash" style="marker-end:none"/><path d="M320 200 V240" class="f-arrow f-dash" style="marker-end:none"/><path d="M545 200 V240" class="f-arrow f-dash" style="marker-end:none"/>
+</svg></div>
+<p class="s-line">No shared memory, no shared files, no shared language. <b>They meet on a socket or not at all.</b></p></section><section class="slide" id="s3" data-minutes="2" data-title="Why a queue" data-notes="&lt;p&gt;Why is there a list in the middle at all? Why does the API not just do the work?&lt;/p&gt;&lt;p&gt;Because the API answers in about a millisecond, and the work takes a second. In our lab the work is fake, a one-second sleep and reversing a string, but stand in for it anything real: making a thumbnail, sending an email, running a report. If the API did that itself, every request would take a second, and a hundred requests at once would take a hundred seconds or crash it.&lt;/p&gt;&lt;p&gt;So the API does the smallest thing it can. It gives the job a number, writes it on the list, and says: accepted, here is your number. That is all. Somewhere else, a worker is waiting on that list, takes the job, spends its second, and writes the answer down under that number. Whoever asked comes back later and reads the answer.&lt;/p&gt;&lt;p&gt;Three things fall out of this. The API is fast no matter how slow the work is. A burst of a thousand jobs does not break anything; the list just gets long, and it drains. And if the list is draining too slowly, you add workers, without touching the API. The cost is that the answer arrives later, so there are two requests: post the job, then fetch the result. You will type both.&lt;/p&gt;">
+<h2>Why a queue</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">api</p><p class="s-big">writes it down: “accepted”</p><p class="s-muted">about a millisecond</p></div>
+    <div class="s-plus">→ list →</div>
+    <div class="s-card s-card-accent"><p class="s-kicker">worker</p><p class="s-big">does the work</p><p class="s-muted">one second each</p></div>
+  </div>
+</div>
+<p class="s-line">A fast thing and a slow thing, cooperating without waiting for each other.</p></section><section class="slide" id="s4" data-minutes="1" data-title="A queue is a list" data-notes="&lt;p&gt;Redis is a server that keeps data structures in memory and lets you talk to them over the network. One of them is a list, and a list is all a queue is. Two commands. L push jobs hello: put hello on the left end of the list called jobs. B R pop jobs zero: take one element from the right end. Push left, pop right: oldest out first.&lt;/p&gt;&lt;p&gt;The letter that matters is the B, for blocking. If the list is empty, B R pop does not return empty-handed. It waits. Redis holds the connection open, and the moment somebody pushes, the waiting client gets it. The zero means wait forever. So a worker never polls; it asks once and Redis wakes it. Step one is this by hand: one terminal wakes the other.&lt;/p&gt;">
+<h2>A queue is a list. Two commands.</h2>
+<div class="s-one">
+  <p class="s-code-line s-code-huge"><code>LPUSH jobs hello</code></p>
+  <p class="s-code-line s-code-huge"><code>BRPOP jobs 0</code></p>
+</div>
+<p class="s-line">Push on the left. Pop from the right. The <b>B</b> means: if it is empty, <b>wait</b>.</p></section><section class="slide" id="s5" data-minutes="1" data-title="What is on the wire" data-notes="&lt;p&gt;Since these programs only meet as bytes on a socket, look at the bytes. This is what the API sends to push hello. A star and a three: three words follow. Each word as a dollar, its length, a line break, the word, a line break. Redis does the push and answers with a colon and a number: the length of the list.&lt;/p&gt;&lt;p&gt;That is the whole protocol we need, and it is so small that the Go API speaks it itself, in one function, no library: open a TCP connection, write those bytes, read one line back. You will paste that function and read it aloud. The Deno worker uses the official client instead, as you would in real life. A protocol is not magic; it is bytes two programs agreed on.&lt;/p&gt;">
+<h2>What is on the wire</h2>
+<div class="s-one">
+  <p class="s-code-line"><code>*3\r\n $5\r\nLPUSH\r\n</code></p>
+  <p class="s-code-line" style="margin-top:0"><code>$4\r\njobs\r\n $5\r\nhello\r\n</code></p>
+  <p class="s-big s-center">Redis answers <code>:1\r\n</code></p>
+</div>
+<p class="s-line">A protocol is bytes both sides agree on. The API speaks this one in a single function.</p></section><section class="slide" id="s6" data-minutes="1" data-title="compose.yaml" data-notes="&lt;p&gt;Here is the file. Read it as three docker run commands from workshop one, with the flags turned into keys. Image, or build a folder. Ports, which was dash p. Environment, which was dash e. Depends on, which says start Redis first. Three services, and docker compose up starts all three on a private network of their own. You will type it in two instalments this afternoon.&lt;/p&gt;&lt;p&gt;See it as a description of the system, not as configuration. Which processes exist. Which one is reachable from outside, and on which port: only the API. What each one is told: where Redis is. Hand someone a compose file for a system they have never seen and they know the architecture before they read any code.&lt;/p&gt;">
+<h2>compose.yaml: the architecture, written down</h2>
+<div class="s-one">
+  <div class="s-code"><pre style="font-size:20px;line-height:1.4">services:
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+  api:
+    build: ./api
+    ports: ["8080:8080"]
+    environment:
+      REDIS_ADDR: <b>redis</b>:6379
+    depends_on: [redis]
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: redis://<b>redis</b>:6379
+    depends_on: [redis]</pre></div>
+</div>
+<p class="s-line">Workshop 1's <code>docker run</code> flags, per service, in one file. <b>One command.</b></p></section><section class="slide" id="s7" data-minutes="2" data-title="Names, not localhost" data-notes="&lt;p&gt;This is the slide that saves you an hour, because everybody gets bitten by it exactly once, and I would rather it was today.&lt;/p&gt;&lt;p&gt;In steps two and three you run the API and the worker natively on your laptop, and Redis is at localhost port 6379, because Compose published that port onto your laptop. It works, and your fingers learn it.&lt;/p&gt;&lt;p&gt;Then in step four the API moves into a container, and localhost means something different. Inside a container, localhost is that container. The API&amp;#x27;s localhost is the API. Nothing there listens on 6379. So the same address that worked a minute ago now says connection refused, and the log line looks like Redis is down. It is not down; you are knocking on your own door.&lt;/p&gt;&lt;p&gt;The address of another service, from inside the network, is its service name and its container port. Redis, colon, 6379. Compose runs a small DNS server on that network and answers for every service name, so the word redis in the compose file is literally the hostname. It does not matter whether the port is published; publishing is only for the laptop, and the containers would still find each other with the ports line deleted. Service name, container port, every time. Write it on your hand, because in step four the log line that says connection refused is not Redis being down.&lt;/p&gt;">
+<h2>Names, not localhost</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">from your laptop</p><p class="s-big"><code>localhost:6379</code></p><p class="s-muted">the published port</p></div>
+    <div class="s-card s-card-accent"><p class="s-kicker">from another container</p><p class="s-big"><code>redis:6379</code></p><p class="s-muted">service name · container port</p></div>
+  </div>
+</div>
+<p class="s-line">Inside the network, <b>localhost is yourself</b>.</p></section><section class="slide" id="s8" data-minutes="2" data-title="Scaling is a number" data-notes="&lt;p&gt;Here is the system from slide six, live. I post eight jobs: they land on the list, and one worker takes them off one a second. Watch the queue length. Now I switch to three workers: same list, same jobs, and it drains three times as fast.&lt;/p&gt;&lt;p&gt;That is what scaling is here. One flag: scale worker equals three. Compose starts three containers from the same image, and all three block on the same list. When a job arrives, Redis wakes the one that has been waiting longest, so the jobs go round-robin: one, two, three, then whoever finished first. In the lab, ten jobs took about four seconds with three workers instead of ten with one.&lt;/p&gt;&lt;p&gt;Notice what did not change: the code, the compose file, the API. A worker that takes one job at a time from a shared list is scalable by construction. You cannot do the same to the API, because three containers cannot all publish port 8080; that needs a load balancer, and that is workshop seven. And one more button, the red one. I press it once, a job turns orange and falls off the picture, and the counter says lost. Hold that thought for the next slide.&lt;/p&gt;">
+<h2>Scaling is a number</h2>
+<div class="s-widget s-widget-center"><div class="demo" id="w6-demo">
+      <span class="eyebrow">Interactive · three services, one network, one list</span>
+      <p class="note" style="margin:.3rem 0 .7rem">The API pushes jobs on the left end of a Redis list; each worker blocks on the right end. Post jobs, add workers, then kill one while it is busy and see what a plain queue does with the job it was holding.</p>
+      <svg viewBox="0 0 560 262" class="w6-fig" role="img" aria-label="api, redis and worker boxes joined by one network; job dots travel from the api into the redis list and out to a worker">
+        <rect x="10" y="226" width="540" height="30" rx="7" class="w6-net"/>
+        <text x="280" y="245" class="w6-cap">one private network · api, redis and worker find each other by name</text>
+        <line x1="83" y1="170" x2="83" y2="226" class="w6-stub"/><line x1="280" y1="190" x2="280" y2="226" class="w6-stub"/><line x1="475" y1="205" x2="475" y2="226" class="w6-stub"/>
+        <g class="w6-box"><rect x="18" y="60" width="130" height="110" rx="8"/><text x="83" y="90" class="w6-t">api</text><text x="83" y="114" class="w6-s">Go · :8080</text><text x="83" y="136" class="w6-s">POST /jobs</text><text x="83" y="156" class="w6-s">GET /jobs/id</text></g>
+        <g class="w6-box"><rect x="205" y="40" width="150" height="150" rx="8"/><text x="280" y="68" class="w6-t">redis</text><text x="280" y="90" class="w6-s">list "jobs"</text><rect x="212" y="104" width="136" height="24" rx="5" class="w6-slots"/><text x="222" y="150" class="w6-tiny">LPUSH →</text><text x="338" y="150" class="w6-tiny" text-anchor="end">→ BRPOP</text><text x="280" y="176" class="w6-s" id="w6-qlen">0 waiting</text></g>
+        <g class="w6-box w6-wk" id="w6-wk0"><rect x="410" y="60" width="130" height="110" rx="8"/><text x="475" y="90" class="w6-t">worker</text><text x="475" y="114" class="w6-s">Deno</text><text x="475" y="136" class="w6-s w6-state">idle</text></g>
+        <g class="w6-box w6-wk" id="w6-wk1" hidden><rect x="410" y="60" width="130" height="110" rx="8"/><text x="475" y="90" class="w6-t">worker</text><text x="475" y="114" class="w6-s">Deno</text><text x="475" y="136" class="w6-s w6-state">idle</text></g>
+        <g class="w6-box w6-wk" id="w6-wk2" hidden><rect x="410" y="60" width="130" height="110" rx="8"/><text x="475" y="90" class="w6-t">worker</text><text x="475" y="114" class="w6-s">Deno</text><text x="475" y="136" class="w6-s w6-state">idle</text></g>
+        <g id="w6-dots"></g>
+      </svg>
+      <div class="w6-ctl">
+        <button type="button" class="w6-btn" id="w6-post">POST /jobs</button>
+        <button type="button" class="w6-btn" id="w6-burst">POST ×8</button>
+        <div class="seg" role="group" aria-label="Workers"><button type="button" data-w="1" aria-pressed="true">1 worker</button><button type="button" data-w="3" aria-pressed="false">3 workers</button></div>
+        <button type="button" class="w6-btn w6-warn" id="w6-kill">kill a busy worker</button>
+      </div>
+      <p class="note" id="w6-stat" aria-live="polite">queue 0 · working 0 · done 0 · lost 0</p>
+    </div></div>
+<p class="s-line"><code>--scale worker=3</code>: three copies, one list, and the code does not know.</p></section><section class="slide" id="s9" data-minutes="2" data-title="What gets lost" data-notes="&lt;p&gt;Now the red button. A worker is holding a job, halfway through its second of work, and I kill it. Not politely: the way a crash, an out-of-memory or a rebooted machine kills it. Where is the job? It is not on the list; B R pop removed it. It is not in a result; the worker died first. It is gone, and nobody will ever notice unless they ask for that number and get &amp;quot;not done yet&amp;quot; forever.&lt;/p&gt;&lt;p&gt;That is called at-most-once delivery, and it is what a plain B R pop gives you. Sometimes it is fine: a lost thumbnail gets regenerated when someone looks. Sometimes it is not: a lost payment is a lost payment.&lt;/p&gt;&lt;p&gt;The alternative is at-least-once. Instead of popping, you move the job to a second list called working, do the work, and only then remove it. If the worker dies, the job is still in working, and a restarted worker puts it back on the queue. That is one Redis command, B L move, and a stretch goal with the code written for you.&lt;/p&gt;&lt;p&gt;But at-least-once has its own price: a job can run twice, if the worker died after doing the work and before removing it. So the work must be safe to repeat: run it twice, same result. The word is idempotent. Setting a result under an id is idempotent; charging a card is not. Every queue makes you choose one of these two, and in step six you will watch the loss with your own eyes.&lt;/p&gt;">
+<h2>What gets lost</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">at most once</p><p class="s-big"><code>BRPOP</code></p><p class="s-muted">popped, then the worker dies: gone</p></div>
+    <div class="s-card s-card-accent"><p class="s-kicker">at least once</p><p class="s-big"><code>BLMOVE</code> + a working list</p><p class="s-muted">put back if the worker dies: may run twice</p></div>
+  </div>
+</div>
+<p class="s-line">Choose which mistake you can live with. Then make the work <b>idempotent</b>.</p></section><section class="slide" id="s10" data-minutes="1" data-title="What we build" data-notes="&lt;p&gt;Here is the afternoon. Redis alone first, the queue by hand in two terminals. Then the Go API, pasted and read aloud, running natively against that Redis. Then the worker, fifteen lines of TypeScript, which you type. Then the compose file, and the same two curl commands work with nothing running on your laptop. Then scale to three workers and watch the jobs dealt out, kill one mid-job and go looking for what it was holding. Stretch goals include the version that does not lose jobs.&lt;/p&gt;&lt;p&gt;Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Two terminals, open now. Five-minute break. Then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>Hello: Compose and the images</li>
+  <li><span>1</span>Redis alone: LPUSH, BRPOP by hand</li>
+  <li><span>2</span>The API, natively</li>
+  <li><span>3</span>The worker, typed</li>
+  <li><span>4</span>All three in compose.yaml</li>
+  <li><span>5</span>Scale the worker to 3</li>
+  <li><span>6</span>Kill a worker mid-job</li>
+  <li><span>7</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">Two terminals from step 1. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/06-compose-hero.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

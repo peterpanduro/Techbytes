@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HTTPS: Be Your Own Certificate Authority · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 4 · HTTPS: Be Your Own Certificate Authority</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 4</span>
+      <h1>HTTPS: Be Your Own Certificate Authority</h1>
+      <p class="lede">Make a certificate authority with openssl, sign a certificate for <code>localhost</code>, serve a page over TLS from a ten-line Go server, and watch the browser refuse it until you tell it whom to trust. Then trust as code, the handshake in plain text, and what a padlock does and does not promise.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~20 min</b> student prep, one week before</li>
+        <li>No prior TLS knowledge</li>
+        <li>Go standard library + openssl</li>
+        <li>Any OS</li>
+      </ul>
+    </div>
+    <div class="demo" id="w4-demo">
+      <span class="eyebrow">Interactive · what the padlock checks</span>
+      <p class="note" style="margin:.3rem 0 .7rem">Before a browser draws a padlock it asks three questions about the certificate the server just sent. Pick a moment from the lab and watch which answer changes.</p>
+      <div class="seg" role="group" aria-label="Moment in the lab" style="margin-bottom:.8rem">
+        <button type="button" data-case="untrusted" aria-pressed="true">Step 3 · CA unknown</button>
+        <button type="button" data-case="trusted" aria-pressed="false">Step 4 · CA imported</button>
+        <button type="button" data-case="ip" aria-pressed="false">Step 6 · 127.0.0.1</button>
+        <button type="button" data-case="expired" aria-pressed="false">Step 6 · expired</button>
+      </div>
+      <p class="w4-url" id="w4-url"></p>
+      <div class="w4-chain">
+        <div class="w4-node" id="w4-store"><span class="lt">Browser trust store</span><b id="w4-store-v"></b><span id="w4-store-s"></span></div>
+        <div class="w4-link" id="w4-l1">vouches for</div>
+        <div class="w4-node" id="w4-ca"><span class="lt">CA certificate</span><b>My Lab CA</b><span>self-signed · 10 years</span></div>
+        <div class="w4-link" id="w4-l2">signed</div>
+        <div class="w4-node" id="w4-leaf"><span class="lt">Server certificate</span><b id="w4-leaf-v"></b><span id="w4-leaf-s"></span></div>
+      </div>
+      <ol class="w4-checks" id="w4-checks"></ol>
+      <p class="note" id="w4-verdict"></p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Hello over HTTP</a></li>
+        <li><a href="#s1">1 · Be a certificate authority</a></li>
+        <li><a href="#s2">2 · A certificate for localhost</a></li>
+        <li><a href="#s3">3 · HTTPS, and nobody trusts you</a></li>
+        <li><a href="#s4">4 · Trust: curl, then Firefox</a></li>
+        <li><a href="#s5">5 · Trust as code</a></li>
+        <li><a href="#s6">6 · What the padlock promises</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 4</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves with a folder containing their own certificate authority, a server certificate it signed, a Go HTTPS server the browser shows a padlock for, a Go client that trusts exactly one CA, and a working answer to "what does the padlock mean?": a key I trust vouched for this name, for these dates, and nothing more.</td></tr>
+    <tr><th>Why this topic</th><td>Everyone has clicked through a certificate warning, and almost nobody has made one on purpose. Certificates are copied from Stack Overflow with flags nobody can explain, and "just disable verification" ends up in production code. An afternoon of being the CA yourself replaces the superstition with a mental model that transfers to Let's Encrypt, corporate proxies, mutual TLS and every "unable to get local issuer certificate" for the rest of a career.</td></tr>
+    <tr><th>Concepts</th><td>Public and private keys as sign/verify, what a certificate is (a signed statement about a public key and a name), certificate authorities and the chain of vouching, the browser and OS trust stores, subject alternative names, validity dates, the TLS 1.3 handshake as seen through <code>openssl s_client</code>, verification in code with <code>crypto/x509</code>, and the three failure modes: unknown issuer, wrong name, expired.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Can open a terminal and run a command. Wrote a little Go in workshop 3; no cryptography. Every openssl flag is explained on first use, and every flag is one the student will see again.</td></tr>
+    <tr><th>Language</th><td>Go, standard library only: <code>net/http</code> does HTTPS in one call, <code>crypto/x509</code> and <code>crypto/tls</code> make trust explicit in five lines. openssl is the other tool, because it is what every server, tutorial and colleague uses; on macOS it is LibreSSL, which accepts every command on this page but words some of its output differently (each checkpoint says how).</td></tr>
+    <tr><th>Students need</th><td>Laptop with Go 1.27, openssl on the PATH, curl, Firefox, a text editor. The readiness check in the prep confirms all of it in one command.</td></tr>
+    <tr><th>Room needs</th><td>Projector. No Wi-Fi needed after the prep: nothing in the lab leaves the laptop.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 20 minutes)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. Install Go 1.27</h4>
+  <p>If you did workshop 3 you already have it; check with <code>go version</code>, which should print <code>go1.27</code> followed by a patch number. Otherwise download the installer for your machine from <a href="https://go.dev/dl/">go.dev/dl</a> (the featured downloads are <code>go1.27.1.darwin-arm64.pkg</code> for Apple silicon Macs, <code>go1.27.1.windows-amd64.msi</code> for Windows, and <code>go1.27.1.linux-amd64.tar.gz</code> for Linux) and follow <a href="https://go.dev/doc/install">go.dev/doc/install</a>. On Linux that is:</p>
+<pre><code>rm -rf /usr/local/go &amp;&amp; sudo tar -C /usr/local -xzf go1.27.1.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin   # also add this line to ~/.profile</code></pre>
+  <p>Open a new terminal afterwards so the PATH change is picked up.</p>
+
+  <h4>2. Make sure you have openssl and curl</h4>
+  <p><strong>macOS and Linux:</strong> both are already installed. <code>openssl version</code> prints <code>LibreSSL 3.x</code> on a Mac and <code>OpenSSL 3.x</code> on Linux; either is fine.</p>
+  <p><strong>Windows:</strong> curl is part of Windows 10 and 11. openssl is not, so install it with winget in PowerShell:</p>
+<pre><code>winget install -e --id ShiningLight.OpenSSL.Light</code></pre>
+  <p>The installer puts it in <code>C:\Program Files\OpenSSL-Win64\bin</code> but does not add that folder to your PATH. Open Start, type "environment variables", choose "Edit environment variables for your account", select <code>Path</code>, Edit, New, and paste <code>C:\Program Files\OpenSSL-Win64\bin</code>. Open a new PowerShell window. (If you already have Git for Windows, it ships an openssl at <code>C:\Program Files\Git\usr\bin\openssl.exe</code>; adding that folder to the PATH instead works too.) Use PowerShell, not Git Bash, for this workshop: Git Bash rewrites arguments that start with a slash, and the certificate commands are full of those.</p>
+
+  <h4>3. Firefox</h4>
+  <p>Install Firefox from <a href="https://www.mozilla.org/firefox/">mozilla.org/firefox</a> if you do not have it. We use it because its certificate manager works the same way on every operating system and needs no administrator password. Chrome and Safari use the operating system's store, which is a different afternoon.</p>
+
+  <h4>4. The readiness check</h4>
+  <p>Make a folder called <code>https-lab</code>, open a terminal in it (Terminal on macOS, PowerShell on Windows), and turn it into a Go module:</p>
+<pre><code>go mod init httpslab</code></pre>
+  <p>Then make a subfolder <code>ready</code> inside it and save this as <code>ready/main.go</code>:</p>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;crypto/tls&quot;
+	&quot;fmt&quot;
+	&quot;os/exec&quot;
+)
+
+func main() {
+	for _, tool := range []string{&quot;openssl&quot;, &quot;curl&quot;} {
+		if _, err := exec.LookPath(tool); err != nil {
+			fmt.Println(&quot;not found on PATH:&quot;, tool)
+			return
+		}
+	}
+	fmt.Println(&quot;ready:&quot;, tls.VersionName(tls.VersionTLS13), &quot;in Go, openssl and curl on PATH&quot;)
+}</code></pre>
+  <p>Run it from the <code>https-lab</code> folder:</p>
+<pre><code>go run ./ready</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>ready: TLS 1.3 in Go, openssl and curl on PATH</code>. That one line proves Go compiles and runs, and that both tools are reachable from your terminal. If it prints <code>not found on PATH: openssl</code>, step 2 is not finished. If <code>go</code> itself is not found, step 1 is not finished. Bring any other error to the workshop and arrive ten minutes early.</p></div>
+
+  <div class="call inst"><p class="lbl">If a laptop cannot be fixed</p><p>The lab needs nothing from the network, so a student with a working neighbour can pair for the afternoon. The only per-person artefact is the CA, and two people can share one.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run the whole lab yourself on each OS you expect in the room, with the exact commands on this page, and note what your platform prints: curl's error wording differs between OpenSSL, LibreSSL and Windows, and LibreSSL (macOS) words several openssl outputs differently. Each checkpoint gives the macOS variant; the instructor notes list them together.</li>
+    <li>Have Firefox open with a fresh profile on the projector machine so the import in step 4 is shown live, including the "Trust this CA to identify websites" checkbox.</li>
+    <li>The widget at the top of this page is slide 7. Press its four buttons while talking about the three checks.</li>
+    <li>Have the <a href="#solution">full solution</a> ready. <code>sign.go</code> is pasted by design; <code>client.go</code> is typed but short enough to paste for anyone stuck.</li>
+    <li>Ask the room to close anything listening on 8080 or 8443 (a server from workshop 3, a container from workshop 1). "bind: address already in use" is the most common error of the day, right after a server that was not restarted.</li>
+    <li>Windows: the first <code>go run .</code> triggers a Windows Defender Firewall prompt; students click Allow. Windows PowerShell 5.1 aliases <code>curl</code> to <code>Invoke-WebRequest</code>; say <code>curl.exe</code> out loud every time.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 10 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: whom is this encrypted to?</h2>
+  <p>The single idea to land: <strong>the padlock means "a key I already trust vouched for this name", nothing more and nothing less.</strong> Encryption is the easy half; the whole apparatus of certificates exists to answer the question "encrypted to whom?", and every failure students will ever see is one of three checks failing.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">What does the padlock promise?</span><span class="d">1 min</span>
+      <span class="say">Title slide. Everyone has clicked "Accept the risk" on a certificate warning; almost nobody has made a certificate on purpose. Today everyone in the room becomes a certificate authority and finds out exactly what the padlock is and is not saying.</span></li>
+    <li><span class="n">2</span><span class="t">Two problems, not one</span><span class="d">2 min</span>
+      <span class="say">HTTP is a postcard: anyone on the path can read it and change it. Encryption fixes reading. But encrypting to a stranger is worthless: an attacker in the middle can offer you their key and read everything. So the second problem is identity: am I talking to the server I typed into the address bar? TLS solves both; certificates are the identity half.</span></li>
+    <li><span class="n">3</span><span class="t">Keys that sign and keys that verify</span><span class="d">1 min</span>
+      <span class="say">A key pair: the private key signs, the public key verifies, and the public key can be shown to everyone. A signature proves "whoever holds the private key approved these bytes". That is the only cryptography today; the rest is bookkeeping about names and dates.</span></li>
+    <li><span class="n">4</span><span class="t">A certificate is a signed statement</span><span class="d">2 min</span>
+      <span class="say">Show the real <code>openssl x509 -text</code> output. Subject: who this is about. Public key: theirs. Subject Alternative Name: the DNS names it is valid for. Validity: two dates. Issuer: who signed it. Signature: the issuer's private key over everything above. A certificate is a public key with a name, dates, and a signature. It contains no secrets.</span></li>
+    <li><span class="n">5</span><span class="t">The chain of vouching</span><span class="d">2 min</span>
+      <span class="say">Who signed the CA's certificate? The CA itself; a root is self-signed. So why believe it? Because your browser or OS ships with a list of about 150 root certificates and treats them as axioms. The chain: trust store vouches for the CA, the CA vouches for the server. In the lab we add ourselves to the list, and the browser stops complaining, because that is all "trusted" means.</span></li>
+    <li><span class="n">6</span><span class="t">The handshake in five lines</span><span class="d">2 min</span>
+      <span class="say">Client: I speak TLS 1.3, here is my half of a key. Server: here is mine, here is my certificate, and here is a signature made with the certificate's private key to prove I hold it. Client checks chain, name, dates. From then on everything is encrypted; HTTP/2 rides inside. <code>openssl s_client</code> shows every line of this in step 5.</span></li>
+    <li><span class="n">7</span><span class="t">What the padlock checks</span><span class="d">2 min</span>
+      <span class="say">Use the widget. Three checks: chain (signed by someone in my store), name (the certificate is for the host in the address bar), dates (valid today). Press the four buttons: unknown CA fails check one, importing the CA fixes it without touching the server, 127.0.0.1 fails the name check with the same certificate, and an expired certificate fails the dates. Each failure has its own error code, and the lab produces all three.</span></li>
+    <li><span class="n">8</span><span class="t">What it does not promise</span><span class="d">1 min</span>
+      <span class="say">A valid certificate says nothing about whether the site is honest, competent, or the one you meant. Phishing sites have padlocks; Let's Encrypt is free and automated. The padlock is about the pipe, not the person at the other end. This is the sentence to take home.</span></li>
+    <li><span class="n">9</span><span class="t">How real sites get certificates</span><span class="d">1 min</span>
+      <span class="say">Nobody emails a CSR any more. ACME: the CA says "put this token at this URL or in DNS", the server does, the CA checks from several places on the internet, and issues a 90-day certificate. Free, automated, renewed by a cron job or by <code>autocert</code> in Go. Same chain, same checks; only the vouching is automated.</span></li>
+    <li><span class="n">10</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Seven steps: a plain HTTP server, then a CA in two commands, a server certificate signed with a six-line extension file, HTTPS that nobody trusts, trust in curl and in Firefox, a Go client with its own root pool plus the handshake in plain text, and finally the three failures on purpose. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 7 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in the <code>https-lab</code> folder from the prep with one terminal open in it and Firefox beside it. The Go server runs in that terminal; students open a second terminal in the same folder for curl and openssl, and keep both visible. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is 55 lines over the afternoon: 31 lines of Go (the server and the client), the 6-line extension file, one edited line, and 17 commands. The openssl commands are typed slowly and deliberately, flag by flag; typing them is the skill. <strong>Paste this</strong> is <code>sign.go</code> in step 6, a program that is read aloud but not the topic. Windows users in Windows PowerShell type <code>curl.exe</code> wherever the page says <code>curl</code> (PowerShell 7 does not need this).</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="10"><span class="k">0:00–0:10</span><span>Step 0 · Hello over HTTP</span></div>
+    <div class="row" data-from="10" data-to="20"><span class="k">0:10–0:20</span><span>Step 1 · Be a certificate authority</span></div>
+    <div class="row" data-from="20" data-to="35"><span class="k">0:20–0:35</span><span>Step 2 · A certificate for localhost</span></div>
+    <div class="row" data-from="35" data-to="45"><span class="k">0:35–0:45</span><span>Step 3 · HTTPS, and nobody trusts you</span></div>
+    <div class="row" data-from="45" data-to="55"><span class="k">0:45–0:55</span><span>Step 4 · Trust: curl, then Firefox</span></div>
+    <div class="row" data-from="55" data-to="70"><span class="k">0:55–1:10</span><span>Step 5 · Trust as code, and the handshake in plain text</span></div>
+    <div class="row" data-from="70" data-to="80"><span class="k">1:10–1:20</span><span>Step 6 · What the padlock promises</span></div>
+    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Hello over HTTP</h3><span class="time">10 min</span></header>
+    <p>The server for the afternoon is ten lines of Go and stays that way; only one line changes in step 3. Create a second file also called <code>main.go</code>, in the top <code>https-lab</code> folder next to <code>go.mod</code>, not inside <code>ready/</code>:</p>
+<pre data-mode="type this"><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+)
+
+func main() {
+	http.HandleFunc(&quot;/&quot;, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, &quot;Hello over %s, encrypted: %v\n&quot;, r.Proto, r.TLS != nil)
+	})
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}</code></pre>
+    <p>It answers every request with the protocol it arrived on and whether the connection was encrypted (<code>r.TLS</code> is <code>nil</code> for plain HTTP). Run it in your first terminal, then ask for the page from the second:</p>
+<pre data-mode="type this"><code>go run .
+curl http://localhost:8080</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p>curl prints <code>Hello over HTTP/1.1, encrypted: false</code>, and Firefox shows the same text at <a href="http://localhost:8080">http://localhost:8080</a>, with no padlock in the address bar. Leave the server running.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. This step catches a missing Go, a wrong folder, a Windows firewall prompt and a busy port 8080, all while there is still slack. Windows: a firewall dialog appears on the first run; Allow.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Be a certificate authority</h3><span class="time">10 min</span></header>
+    <p>A certificate authority is a private key and a certificate that says "this public key belongs to me", signed with that same key. Two commands. First the key:</p>
+<pre data-mode="type this"><code>openssl genrsa -out ca-key.pem 2048</code></pre>
+    <p><code>genrsa</code> makes an RSA private key, 2048 bits long, and writes it to <code>ca-key.pem</code>. <code>.pem</code> is just the text format: base64 between <code>BEGIN</code> and <code>END</code> lines; open it in your editor. This file is the whole authority; anyone who has it can sign anything. Now the certificate:</p>
+<pre data-mode="type this"><code>openssl req -x509 -new -key ca-key.pem -days 3650 -subj &quot;/CN=My Lab CA&quot; -addext &quot;basicConstraints=critical,CA:TRUE&quot; -out ca.pem</code></pre>
+    <p>Flag by flag. <code>req</code> is the subcommand for certificate requests; <code>-x509</code> says "do not make a request, make a certificate directly", which is only possible when you sign it yourself. <code>-new -key ca-key.pem</code>: a fresh certificate for this key. <code>-days 3650</code>: valid ten years. <code>-subj "/CN=My Lab CA"</code>: the name inside it, a Common Name and nothing else. <code>-addext</code> adds one extension: this certificate may sign other certificates. Read the result back:</p>
+<pre data-mode="type this"><code>openssl x509 -in ca.pem -text -noout</code></pre>
+    <p><code>x509</code> is the subcommand for certificates, <code>-text</code> prints it as a human would want to read it, <code>-noout</code> suppresses the base64 blob at the end. Find these lines: <code>Issuer: CN = My Lab CA</code> and <code>Subject: CN = My Lab CA</code> are the same, which is what self-signed means. <code>Not After</code> is ten years from now. <code>Public-Key: (2048 bit)</code>. And under <code>X509v3 extensions</code>, <code>X509v3 Basic Constraints: critical</code> followed by <code>CA:TRUE</code>.</p>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>ca-key.pem</code> and <code>ca.pem</code> exist. The printout shows Issuer equal to Subject, a <code>Not After</code> in 2036, and <code>CA:TRUE</code>. (macOS prints the names without spaces, <code>Issuer: CN=My Lab CA</code>; same thing.)</p></div>
+    <p><strong>Talk about it:</strong> which of the two files would you put on a web page? (<code>ca.pem</code>: it contains only the public key and the name.) Which one goes in a safe? Who signed the CA's certificate, and why should anyone believe it? (Nobody yet. That is step 4.)</p>
+    <p><strong>Common mistakes:</strong> in Git Bash the <code>-subj</code> argument becomes a Windows path and openssl complains about the subject; use PowerShell. On macOS the key file starts with <code>BEGIN RSA PRIVATE KEY</code> instead of <code>BEGIN PRIVATE KEY</code>; both are fine.</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>A certificate for localhost</h3><span class="time">15 min</span></header>
+    <p>The server needs its own key, and a certificate for the name <code>localhost</code> signed by the CA. A server never signs its own certificate; it makes a <em>request</em>, and the CA signs that. Key and request in one command:</p>
+<pre data-mode="type this"><code>openssl req -new -newkey rsa:2048 -nodes -keyout server-key.pem -subj &quot;/CN=localhost&quot; -out server.csr</code></pre>
+    <p><code>-newkey rsa:2048</code> makes a new key and <code>-keyout</code> says where to put it; <code>-nodes</code> ("no DES") means do not encrypt the key file with a passphrase, because a server has to start without a human typing one. <code>-subj "/CN=localhost"</code> is the name, and <code>-out server.csr</code> is the certificate signing request: the public key plus the name, signed with the server's own key to prove it holds it. It is not a certificate yet; nobody the browser trusts has signed anything. The dots and pluses it prints are the key generation.</p>
+    <p>Before the CA signs it, write down what kind of certificate this should be. Browsers ignore the Common Name and look only at the Subject Alternative Name, so the name has to appear there; the rest says "not a CA, for a TLS server". Save this as <code>server.ext</code>:</p>
+<pre data-mode="type this"><code>basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:localhost</code></pre>
+    <p>Now sign. This is the one moment the CA's private key is used:</p>
+<pre data-mode="type this"><code>openssl x509 -req -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -days 365 -extfile server.ext -out server.pem</code></pre>
+    <p><code>x509 -req</code>: the input is a request, not a certificate. <code>-CA</code> and <code>-CAkey</code>: sign with this authority. <code>-CAcreateserial</code>: every certificate a CA issues needs a unique serial number, and this makes the file <code>ca.srl</code> that keeps track. <code>-days 365</code>: one year, which is more than public CAs give now: since March 2026 the CA/Browser Forum caps public certificates at 200 days, dropping to 100 in 2027 and 47 in 2029. <code>-extfile server.ext</code>: add those six extensions. Then ask openssl to check the chain, exactly as a browser would except for the name:</p>
+<pre data-mode="type this"><code>openssl verify -CAfile ca.pem server.pem</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>The sign command printed <code>Certificate request self-signature ok</code> and <code>subject=CN = localhost</code> (macOS: just <code>Signature ok</code> and <code>subject=/CN=localhost</code>); <code>openssl verify</code> prints <code>server.pem: OK</code>. The folder now has <code>server-key.pem</code>, <code>server.csr</code>, <code>server.ext</code>, <code>server.pem</code> and <code>ca.srl</code>.</p></div>
+    <p><strong>Talk about it:</strong> run <code>openssl x509 -in server.pem -text -noout</code> and compare with the CA's: Issuer is now <code>My Lab CA</code>, Subject is <code>localhost</code>, and the extensions block is your six lines, with <code>DNS:localhost</code> under Subject Alternative Name. Which file did the CA never see? (<code>server-key.pem</code>. A CA signs public keys; it never needs the private one.)</p>
+    <p><strong>Common mistakes:</strong> <code>server.ext</code> saved as <code>server.ext.txt</code> (Windows hides extensions); <code>-extfile</code> forgotten, which produces a certificate with no SAN that every browser rejects; running the sign command in a different folder from <code>ca.pem</code>.</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>HTTPS, and nobody trusts you</h3><span class="time">10 min</span></header>
+    <p>Stop the server with Ctrl-C and change the last line of <code>main.go</code> so it reads:</p>
+<pre data-mode="type this"><code>	log.Fatal(http.ListenAndServeTLS(&quot;:8443&quot;, &quot;server.pem&quot;, &quot;server-key.pem&quot;, nil))</code></pre>
+    <p>One word and two file names: <code>ListenAndServeTLS</code> takes the certificate and the private key and does everything else. Port 8443 is the usual "HTTPS while developing" port. Start it and ask curl for the page, this time with an <code>https://</code> address:</p>
+<pre data-mode="type this"><code>go run .
+curl https://localhost:8443</code></pre>
+    <p>curl refuses, with exit code 60 and a message that, on Linux, reads <code>curl: (60) SSL certificate problem: unable to get local issuer certificate</code>. (macOS says the same; Windows says <code>schannel: SEC_E_UNTRUSTED_ROOT (0x80090325) - The certificate chain was issued by an authority that is not trusted.</code>) curl received a certificate for <code>localhost</code>, signed by <code>My Lab CA</code>, and has never heard of My Lab CA. Now Firefox: open <a href="https://localhost:8443">https://localhost:8443</a>.</p>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p>curl fails with exit code 60 and a message naming an untrusted authority. Firefox shows "Warning: Potential Security Risk Ahead" and, under Advanced, the error code <code>SEC_ERROR_UNKNOWN_ISSUER</code>. In the server's terminal, a line like <code>http: TLS handshake error from 127.0.0.1:…</code> appeared for each attempt. Do not click "Accept the Risk"; the next step does it properly.</p></div>
+    <p><strong>Talk about it:</strong> try <code>curl http://localhost:8443</code> (plain http, TLS port). The server answers <code>Client sent an HTTP request to an HTTPS server.</code>: it noticed the first bytes were not a TLS handshake. Is anything wrong with the certificate? (No. Every check would pass except the first: the signer is unknown.)</p>
+    <div class="call warn"><p class="lbl">Do not</p><p>Do not "fix" this with <code>curl -k</code> or by clicking through the warning. Both mean "encrypt to whoever answers", which is the man-in-the-middle's favourite setting. The whole point of the next step is that trust is a decision you make once, about a CA, not per site.</p></div>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>Trust: curl, then Firefox</h3><span class="time">10 min</span></header>
+    <p>Nothing about the server changes in this step. What changes is the client's list of authorities. For curl that list is a file, and <code>--cacert</code> replaces it with your own:</p>
+<pre data-mode="type this"><code>curl --cacert ca.pem https://localhost:8443</code></pre>
+    <p>It prints <code>Hello over HTTP/2.0, encrypted: true</code>. Two things changed at once: <code>encrypted</code> is true because <code>r.TLS</code> is set, and the protocol became HTTP/2, which Go turns on automatically for TLS servers and curl asks for during the handshake.</p>
+    <p>Now the browser. Firefox keeps its own list, and you can add to it without an administrator password on every operating system. Open Firefox's Settings, choose <strong>Privacy &amp; Security</strong>, scroll to <strong>Certificates</strong> and press <strong>View Certificates…</strong>. In the Certificate Manager pick the <strong>Authorities</strong> tab, press <strong>Import…</strong>, choose <code>ca.pem</code> from your <code>https-lab</code> folder, tick <strong>Trust this CA to identify websites</strong>, and OK. "My Lab CA" now appears in the list, under its own heading. Reload <a href="https://localhost:8443">https://localhost:8443</a>.</p>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>curl with <code>--cacert</code> prints the page with <code>encrypted: true</code>. Firefox shows the page with a padlock; clicking the padlock says "Connection secure", and "More information" shows the certificate for <code>localhost</code> verified by <code>My Lab CA</code>.</p></div>
+    <p><strong>Talk about it:</strong> the server did not restart and the certificate did not change, yet the warning is gone. Where does the difference live? (In Firefox's profile, in a list of roots.) Firefox on Windows and macOS also trusts whatever is in the operating system's store, so importing into Keychain or certmgr would have worked too, for Chrome and Safari as well; it needs a password and is different on each OS, which is why the lab uses Firefox's own list.</p>
+    <p><strong>Common mistakes:</strong> importing into the <strong>Your Certificates</strong> or <strong>Servers</strong> tab instead of Authorities; forgetting the "identify websites" tick, in which case the CA is listed but the warning stays; a private window, where exceptions are temporary.</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Trust as code, and the handshake in plain text</h3><span class="time">15 min</span></header>
+    <p>A program that talks to a server has the same decision to make, and in Go it is explicit: a <code>CertPool</code> is the list of roots, and you can build one containing exactly one certificate. Make a folder <code>client</code> inside <code>https-lab</code> and create <code>client/main.go</code>:</p>
+<pre data-mode="type this"><code>package main
+
+import (
+	&quot;crypto/tls&quot;
+	&quot;crypto/x509&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+)
+
+func main() {
+	ca, _ := os.ReadFile(&quot;ca.pem&quot;)
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(ca)
+	tr := &amp;http.Transport{TLSClientConfig: &amp;tls.Config{RootCAs: pool}}
+	resp, err := (&amp;http.Client{Transport: tr}).Get(&quot;https://localhost:8443/&quot;)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp.Write(os.Stdout)
+}</code></pre>
+    <p>Read it as four sentences. Read <code>ca.pem</code>. Make an empty pool and put the CA in it. Make an HTTP transport whose TLS configuration uses that pool as its only roots. Get the page and print the whole response, headers included. Run it from <code>https-lab</code>, so that <code>ca.pem</code> is in the current folder:</p>
+<pre data-mode="type this"><code>go run ./client</code></pre>
+    <p>Now watch the handshake itself. <code>s_client</code> is openssl's "be a TLS client and narrate" tool:</p>
+<pre data-mode="type this"><code>openssl s_client -connect localhost:8443 -CAfile ca.pem</code></pre>
+    <p>It stops with the connection open, waiting for you to type a request; press Ctrl-C. Read upwards from the bottom. <code>Verify return code: 0 (ok)</code> is the verdict (OpenSSL 3 prints it twice, once more inside a <code>Post-Handshake New Session Ticket</code> block that arrives after the handshake). <code>New, TLSv1.3, Cipher is TLS_AES_128_GCM_SHA256</code> is what was negotiated. Near the top, <code>Certificate chain</code> lists what the server sent: <code>0 s:CN = localhost</code> with <code>i:CN = My Lab CA</code> (macOS: <code>0 s:/CN=localhost</code>), the subject and the issuer of the one certificate in the chain, and above it two <code>depth=</code> lines showing the verifier walking from the CA down to the server. (OpenSSL 3.0 prints a harmless <code>Can't use SSL_get_servername</code> first; ignore it.)</p>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>The Go client prints <code>HTTP/1.1 200 OK</code>, a few headers, and <code>Hello over HTTP/1.1, encrypted: true</code>. <code>s_client</code> shows <code>Verify return code: 0 (ok)</code> and TLSv1.3 (macOS names the cipher <code>AEAD-AES128-GCM-SHA256</code> instead of <code>TLS_AES_128_GCM_SHA256</code>; the verdict line is the same).</p></div>
+    <p><strong>Talk about it:</strong> change <code>RootCAs: pool</code> to <code>RootCAs: nil</code>, which means "use the operating system's roots", and run again: <code>tls: failed to verify certificate: x509: certificate signed by unknown authority</code>. That is the Go spelling of step 3. Change it back. Why did the Go client get HTTP/1.1 when curl got HTTP/2? (A transport with its own TLS configuration does not enable HTTP/2 unless you set <code>ForceAttemptHTTP2: true</code>; Go's default transport does.) Run <code>s_client</code> without <code>-CAfile</code> and find <code>Verify return code: 21 (unable to verify the first certificate)</code>.</p>
+    <p><strong>Common mistakes:</strong> running the client from inside the <code>client</code> folder, where <code>ca.pem</code> does not exist, which shows up as the "unknown authority" error because the pool is empty; the old server from step 0 still running on 8080 (harmless) or a second copy on 8443 (<code>bind: address already in use</code>).</p>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>What the padlock promises</h3><span class="time">10 min</span></header>
+    <p>Three experiments, each making one of the three checks fail on purpose. The first needs no new files at all: the same server, the same CA, a different name in the address bar.</p>
+<pre data-mode="type this"><code>curl --cacert ca.pem https://127.0.0.1:8443</code></pre>
+    <p>curl: <code>(60) SSL: no alternative certificate subject name matches target host name '127.0.0.1'</code>. In Firefox, <a href="https://127.0.0.1:8443">https://127.0.0.1:8443</a> gives <code>SSL_ERROR_BAD_CERT_DOMAIN</code>. The chain is perfect; the certificate simply is not about that name. Trust is per name, and the name comes from the address bar, not from the server.</p>
+    <p>The second experiment needs a certificate that has already expired. openssl on macOS will not sign one with zero days, so the CA does this one in Go, which also shows that a CA is nothing more than a program with a private key. Make a folder <code>sign</code> and paste this as <code>sign/main.go</code>; read the <code>tmpl</code> block, which is <code>server.ext</code> as a Go struct with the dates moved into the past:</p>
+<pre data-mode="paste this"><code>// The same signing step as &quot;openssl x509 -req -CA ca.pem ...&quot;, written in Go,
+// except that the certificate it issues expired yesterday. Writes expired.pem.
+// Run from the https-lab folder:  go run ./sign
+package main
+
+import (
+	&quot;crypto&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/x509&quot;
+	&quot;crypto/x509/pkix&quot;
+	&quot;encoding/pem&quot;
+	&quot;log&quot;
+	&quot;math/big&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+// readPEM returns the bytes inside the first PEM block of a file.
+func readPEM(name string) []byte {
+	raw, err := os.ReadFile(name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		log.Fatalf(&quot;%s: no PEM block found&quot;, name)
+	}
+	return block.Bytes
+}
+
+// readKey accepts both key formats openssl produces:
+// &quot;BEGIN PRIVATE KEY&quot; (OpenSSL 3, PKCS#8) and &quot;BEGIN RSA PRIVATE KEY&quot; (LibreSSL on macOS, PKCS#1).
+func readKey(name string) crypto.Signer {
+	der := readPEM(name)
+	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
+		return key.(crypto.Signer)
+	}
+	key, err := x509.ParsePKCS1PrivateKey(der)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return key
+}
+
+func main() {
+	ca, err := x509.ParseCertificate(readPEM(&quot;ca.pem&quot;))
+	if err != nil {
+		log.Fatal(err)
+	}
+	caKey := readKey(&quot;ca-key.pem&quot;)
+	serverKey := readKey(&quot;server-key.pem&quot;)
+
+	// This struct is server.ext, as Go sees it, plus dates in the past.
+	tmpl := &amp;x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject:      pkix.Name{CommonName: &quot;localhost&quot;},
+		DNSNames:     []string{&quot;localhost&quot;},
+		NotBefore:    time.Now().Add(-48 * time.Hour),
+		NotAfter:     time.Now().Add(-24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, ca, serverKey.Public(), caKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	out, err := os.Create(&quot;expired.pem&quot;)
+	if err != nil {
+		log.Fatal(err)
+	}
+	pem.Encode(out, &amp;pem.Block{Type: &quot;CERTIFICATE&quot;, Bytes: der})
+	out.Close()
+	log.Println(&quot;wrote expired.pem, expired on&quot;, tmpl.NotAfter.Format(time.RFC1123))
+}</code></pre>
+<pre data-mode="type this"><code>go run ./sign</code></pre>
+    <p>It writes <code>expired.pem</code>, signed by your CA, valid until yesterday. Stop the server, change <code>"server.pem"</code> to <code>"expired.pem"</code> in the <code>ListenAndServeTLS</code> line of <code>main.go</code>, and start it again:</p>
+<pre data-mode="type this"><code>go run .
+curl --cacert ca.pem https://localhost:8443</code></pre>
+    <p>curl: <code>(60) SSL certificate problem: certificate has expired</code>. Firefox: <code>SEC_ERROR_EXPIRED_CERTIFICATE</code>. The Go client says <code>x509: certificate has expired or is not yet valid</code> with both times. Change <code>main.go</code> back to <code>server.pem</code> and restart, so the folder ends the afternoon in a working state.</p>
+    <p>The third experiment is a conversation, not a command. Everything the CA promised held: right key, right name, right dates, padlock. Did the CA check that the server is honest? That its code has no bugs? That it is the site you meant to visit rather than one with a similar name? No. A public CA checks that whoever asked for the certificate controls the name, and nothing else.</p>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p>Three distinct failures seen and named: name mismatch for <code>127.0.0.1</code>, expiry for <code>expired.pem</code>, and (from step 3) unknown issuer. The server is back on <code>server.pem</code> and curl with <code>--cacert</code> prints the page again.</p></div>
+    <p><strong>Talk about it:</strong> <code>openssl verify -CAfile ca.pem -attime 2000000000 server.pem</code> pretends it is the year 2033 and reports <code>certificate has expired</code> for your good certificate: expiry is a property of the moment, not the file. Why are public CAs cutting lifetimes from 200 days today to 47 by 2029? (A stolen key or a sold domain stops mattering on its own, sooner.) What would you have to steal from this folder to impersonate <code>localhost</code> to someone who trusts My Lab CA? (<code>server-key.pem</code>, or <code>ca-key.pem</code>, which is worse.)</p>
+    <p><strong>Common mistakes:</strong> forgetting to restart the server after editing <code>main.go</code>, so the "expired" test still succeeds; running <code>go run ./sign</code> from the wrong folder, so it cannot find <code>ca.pem</code>.</p>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
+    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>A certificate is a public key, a name, two dates and a signature. It contains no secrets; the private key never leaves the machine it was made on.</li>
+      <li>Trust is a list. curl has a file, Firefox has a profile, Go has a <code>CertPool</code>, the OS has a store. "Untrusted" means "not on my list", never "broken".</li>
+      <li>Three checks, three errors: unknown issuer, wrong name, expired. When you see a TLS error in the wild, ask which of the three it is before doing anything else.</li>
+      <li>The padlock is about the pipe. It says nothing about the person at the other end. Say it twice.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>Mutual TLS.</strong> Issue a certificate for <code>/CN=alice</code> the same way as the server's, with an ext file that says <code>extendedKeyUsage = clientAuth</code>. Make the server demand it: build an <code>http.Server</code> with <code>TLSConfig: &amp;tls.Config{ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool}</code> (the same pool as the client) and greet the client by the <code>Subject.CommonName</code> of <code>r.TLS.PeerCertificates[0]</code>. curl without a certificate now fails with "certificate required"; <code>curl --cacert ca.pem --cert alice.pem --key alice-key.pem https://localhost:8443</code> prints <code>Hello alice</code>. This is how services authenticate to each other inside a cluster.</li>
+      <li><strong>Strict transport.</strong> Add <code>w.Header().Set("Strict-Transport-Security", "max-age=31536000")</code> to the handler. Firefox will silently upgrade <code>http://localhost:8443</code> to HTTPS for a year afterwards (clear it in the site's page info when you are done). Real sites send this on every response.</li>
+      <li><strong>No openssl at all.</strong> Turn <code>sign/main.go</code> into a program that makes the CA key, the CA certificate and the server certificate itself, using <code>rsa.GenerateKey</code> and two calls to <code>x509.CreateCertificate</code>. Nothing on this page needed openssl except habit.</li>
+      <li><strong>The real thing.</strong> Read <code>golang.org/x/crypto/acme/autocert</code>: <code>autocert.NewListener("example.com")</code> handed to <code>http.Serve</code> gets a Let's Encrypt certificate for a name you own and renews it. It cannot work for <code>localhost</code>, and it needs port 443 reachable from the internet; read the ACME challenge it performs and match it to slide 9.</li>
+      <li><strong>Chrome and Safari.</strong> Import <code>ca.pem</code> into the operating system's store (Keychain Access on macOS, <code>certmgr.msc</code> Trusted Root Certification Authorities on Windows, <code>certutil</code> into <code>~/.pki/nssdb</code> on Linux) and see the padlock there too. Then remove it, and explain to a neighbour why a corporate laptop with an extra root in that store can read all its owner's HTTPS traffic.</li>
+      <li><strong>Read a real chain.</strong> <code>openssl s_client -connect go.dev:443 -showcerts</code>, then read the two or three certificates it prints with <code>openssl x509 -text</code>. Find the intermediate, the validity period, the SAN list, and which root in your system's store the chain ends at.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The final state of the <code>https-lab</code> folder, minus the keys and certificates, which every student makes fresh. Everything was run in order with the exact commands on this page against Go 1.24 and OpenSSL 3.0.13 on Linux: both servers, curl with and without <code>--cacert</code>, the Go client with the pool and with <code>nil</code>, <code>s_client</code> with and without <code>-CAfile</code>, the name mismatch, the expired certificate from <code>sign.go</code>, and the mutual-TLS stretch goal. Firefox and LibreSSL (macOS) could not be run in the authoring environment; the Firefox error codes and menu path are from Mozilla's documentation, and the openssl commands were chosen to use only flags LibreSSL's source also implements. <code>client.go</code> belongs at <code>client/main.go</code>, <code>sign.go</code> at <code>sign/main.go</code> and <code>ready.go</code> at <code>ready/main.go</code>. The published <code>go.mod</code> is the tested one and says <code>go 1.24.7</code>; the one <code>go mod init</code> writes for you will say 1.27.</p>
+  <div class="dlrow"><a href="code/main.go" download>main.go</a><a href="code/server.ext" download>server.ext</a><a href="code/client.go" download>client.go</a><a href="code/sign.go" download>sign.go</a><a href="code/ready.go" download>ready.go</a><a href="code/go.mod" download>go.mod</a></div>
+  <details class="sol"><summary>main.go<a class="dl" href="code/main.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+)
+
+func main() {
+	http.HandleFunc(&quot;/&quot;, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, &quot;Hello over %s, encrypted: %v\n&quot;, r.Proto, r.TLS != nil)
+	})
+	log.Fatal(http.ListenAndServeTLS(&quot;:8443&quot;, &quot;server.pem&quot;, &quot;server-key.pem&quot;, nil))
+}</code></pre></details>
+  <details class="sol"><summary>server.ext<a class="dl" href="code/server.ext" download>download</a></summary><pre><code>basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:localhost</code></pre></details>
+  <details class="sol"><summary>client.go<a class="dl" href="code/client.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;crypto/tls&quot;
+	&quot;crypto/x509&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+)
+
+func main() {
+	ca, _ := os.ReadFile(&quot;ca.pem&quot;)
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(ca)
+	tr := &amp;http.Transport{TLSClientConfig: &amp;tls.Config{RootCAs: pool}}
+	resp, err := (&amp;http.Client{Transport: tr}).Get(&quot;https://localhost:8443/&quot;)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp.Write(os.Stdout)
+}</code></pre></details>
+  <details class="sol"><summary>sign.go<a class="dl" href="code/sign.go" download>download</a></summary><pre><code>// The same signing step as &quot;openssl x509 -req -CA ca.pem ...&quot;, written in Go,
+// except that the certificate it issues expired yesterday. Writes expired.pem.
+// Run from the https-lab folder:  go run ./sign
+package main
+
+import (
+	&quot;crypto&quot;
+	&quot;crypto/rand&quot;
+	&quot;crypto/x509&quot;
+	&quot;crypto/x509/pkix&quot;
+	&quot;encoding/pem&quot;
+	&quot;log&quot;
+	&quot;math/big&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+// readPEM returns the bytes inside the first PEM block of a file.
+func readPEM(name string) []byte {
+	raw, err := os.ReadFile(name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		log.Fatalf(&quot;%s: no PEM block found&quot;, name)
+	}
+	return block.Bytes
+}
+
+// readKey accepts both key formats openssl produces:
+// &quot;BEGIN PRIVATE KEY&quot; (OpenSSL 3, PKCS#8) and &quot;BEGIN RSA PRIVATE KEY&quot; (LibreSSL on macOS, PKCS#1).
+func readKey(name string) crypto.Signer {
+	der := readPEM(name)
+	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
+		return key.(crypto.Signer)
+	}
+	key, err := x509.ParsePKCS1PrivateKey(der)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return key
+}
+
+func main() {
+	ca, err := x509.ParseCertificate(readPEM(&quot;ca.pem&quot;))
+	if err != nil {
+		log.Fatal(err)
+	}
+	caKey := readKey(&quot;ca-key.pem&quot;)
+	serverKey := readKey(&quot;server-key.pem&quot;)
+
+	// This struct is server.ext, as Go sees it, plus dates in the past.
+	tmpl := &amp;x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject:      pkix.Name{CommonName: &quot;localhost&quot;},
+		DNSNames:     []string{&quot;localhost&quot;},
+		NotBefore:    time.Now().Add(-48 * time.Hour),
+		NotAfter:     time.Now().Add(-24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, ca, serverKey.Public(), caKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	out, err := os.Create(&quot;expired.pem&quot;)
+	if err != nil {
+		log.Fatal(err)
+	}
+	pem.Encode(out, &amp;pem.Block{Type: &quot;CERTIFICATE&quot;, Bytes: der})
+	out.Close()
+	log.Println(&quot;wrote expired.pem, expired on&quot;, tmpl.NotAfter.Format(time.RFC1123))
+}</code></pre></details>
+  <details class="sol"><summary>ready.go<a class="dl" href="code/ready.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;crypto/tls&quot;
+	&quot;fmt&quot;
+	&quot;os/exec&quot;
+)
+
+func main() {
+	for _, tool := range []string{&quot;openssl&quot;, &quot;curl&quot;} {
+		if _, err := exec.LookPath(tool); err != nil {
+			fmt.Println(&quot;not found on PATH:&quot;, tool)
+			return
+		}
+	}
+	fmt.Println(&quot;ready:&quot;, tls.VersionName(tls.VersionTLS13), &quot;in Go, openssl and curl on PATH&quot;)
+}</code></pre></details>
+  <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module httpslab
+
+go 1.24.7</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>Step 0 gets ten minutes because its twelve lines of Go are typed cold; do not let it become a Go lesson. Step 2 is the slow one: two long commands typed flag by flag, plus the ext file, and it is where typos live (a missing quote, <code>-extfile</code> forgotten). Budget the full fifteen minutes and do not explain <code>-CAcreateserial</code> twice. Step 4's Firefox import takes two minutes for people who have seen it and eight for people who have not; do it on the projector once, slowly, before anyone starts. Step 6 has the least typing and the most talking, which is why it has ten minutes; if you are behind after step 5, drop the <code>-attime</code> aside and the third experiment becomes the wrap-up.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Why does curl's error differ from my neighbour's?"</em> Different TLS libraries. Linux and macOS curl (OpenSSL / LibreSSL) say <code>unable to get local issuer certificate</code>; Windows curl uses Schannel and says <code>SEC_E_UNTRUSTED_ROOT (0x80090325) - The certificate chain was issued by an authority that is not trusted</code> (with <code>--cacert</code> it switches to its own validation and a failure there reads <code>CertGetCertificateChain trust error …</code>). Same check, same exit code 60. <code>--cacert</code> works with all of them; on Windows it has since curl 7.60.</li>
+    <li><em>"Why is HTTP/2 there for curl but not for my Go client?"</em> Go's server enables HTTP/2 automatically over TLS; curl asks for it via ALPN. A Go <code>Transport</code> with a custom <code>TLSClientConfig</code> does not attempt HTTP/2 unless <code>ForceAttemptHTTP2</code> is set. Nothing to do with certificates.</li>
+    <li><em>"Can I use this CA for my real project?"</em> For local development, yes: that is exactly what the popular <code>mkcert</code> tool does, with the OS-store import automated. For anything reachable from the internet, use Let's Encrypt; nobody else's browser has your CA.</li>
+    <li><em>"What does the server log mean?"</em> Each refused connection leaves a <code>http: TLS handshake error</code> line: <code>remote error: tls: bad certificate</code> from the Go client, <code>local error: tls: bad record MAC</code> from curl (the way Go reports the client's encrypted "unknown CA" alert), and <code>client sent an HTTP request to an HTTPS server</code> for plain HTTP. All three are the client hanging up, not the server failing.</li>
+    <li><em>"My Mac prints something slightly different."</em> LibreSSL (macOS) writes names in slash form and has older strings: step 1 shows <code>Issuer: CN=My Lab CA</code>, step 2's sign command says only <code>Signature ok</code> with <code>subject=/CN=localhost</code>, and step 5's <code>s_client</code> lists <code>0 s:/CN=localhost</code> and the cipher as <code>AEAD-AES128-GCM-SHA256</code>. The verdicts (<code>server.pem: OK</code>, <code>Verify return code: 0 (ok)</code>) are identical. From LibreSSL source, not run in the authoring environment.</li>
+    <li><em>"Why RSA and not elliptic curves?"</em> Habit and readability of the <code>-text</code> output. <code>openssl ecparam -name prime256v1 -genkey -noout -out ca-key.pem</code> works everywhere on this page; the server key would use the same, and <code>sign.go</code> already accepts either.</li>
+    <li><em>"Why does macOS need <code>-addext</code>?"</em> It does not hurt anywhere. LibreSSL's default config has no <code>v3_ca</code> section, so without it the CA certificate would lack <code>CA:TRUE</code> and every verifier would reject the chain with "certificate is not a CA". OpenSSL on Linux and Windows adds it from the stock config, so on those the flag is redundant but harmless.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://go.dev/dl/">Go downloads</a> and <a href="https://go.dev/doc/install">Go installation</a>: 1.27.1 is the featured release; the Linux tar and PATH lines in the prep.</li>
+    <li><a href="https://pkg.go.dev/net/http">net/http</a>: <code>ListenAndServeTLS</code> "acts identically to ListenAndServe, except that it expects HTTPS connections"; HTTP/2 is enabled automatically over HTTPS, and <code>Transport.ForceAttemptHTTP2</code> for custom TLS configs.</li>
+    <li><a href="https://pkg.go.dev/crypto/x509">crypto/x509</a> (<code>NewCertPool</code>, <code>AppendCertsFromPEM</code>, <code>CreateCertificate</code>) and <a href="https://pkg.go.dev/crypto/tls">crypto/tls</a> (<code>Config.RootCAs</code>: "If RootCAs is nil, TLS uses the host's root CA set"; <code>ClientAuth</code> and <code>ClientCAs</code> for the mutual-TLS stretch goal; <code>VersionName</code>).</li>
+    <li><a href="https://docs.openssl.org/3.0/man1/openssl-req/">openssl req</a>, <a href="https://docs.openssl.org/3.0/man1/openssl-x509/">openssl x509</a> (<code>-req</code>, <code>-CA</code>, <code>-CAkey</code>, <code>-CAcreateserial</code>, <code>-extfile</code>, <code>-days</code>) and <a href="https://docs.openssl.org/3.0/man1/openssl-s_client/">openssl s_client</a>: the flags in steps 1, 2 and 5. LibreSSL's <a href="https://github.com/libressl/openbsd/tree/master/src/usr.bin/openssl">openssl sources</a> were checked for the same flags; its <code>x509 -days</code> rejects 0, which is why <code>sign.go</code> exists.</li>
+    <li><a href="https://curl.se/docs/manpage.html">curl manual</a>: <code>--cacert</code>, "supported for Schannel in Windows 7 or later (added in 7.60.0)"; <a href="https://learn.microsoft.com/en-us/windows/curl/">curl on Windows</a>: Windows PowerShell 5.1's <code>curl</code> alias and <code>curl.exe</code>.</li>
+    <li><a href="https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox">Firefox: setting certificate authorities</a>: "By default, Firefox on Windows, macOS and Android will search for and make use of third-party CAs that have been added to the operating system's certificate store" (<code>security.enterprise_roots.enabled</code>). <a href="https://support.mozilla.org/en-US/kb/what-does-your-connection-is-not-secure-mean">Firefox error codes</a>: <code>SEC_ERROR_UNKNOWN_ISSUER</code>, <code>SSL_ERROR_BAD_CERT_DOMAIN</code>, <code>SEC_ERROR_EXPIRED_CERTIFICATE</code>; the Certificate Manager path (Privacy &amp; Security → Certificates → View Certificates → Authorities → Import) as given on <a href="https://support.mozilla.org/en-US/questions/1307151">Mozilla Support</a>.</li>
+    <li><a href="https://winstall.app/apps/ShiningLight.OpenSSL.Light">winget: ShiningLight.OpenSSL.Light</a> (Shining Light Productions' OpenSSL Light, <code>winget install -e --id ShiningLight.OpenSSL.Light</code>) and <a href="https://www.ssldragon.com/how-to/openssl/install-openssl-windows/">the PATH step</a> it needs; Git for Windows' bundled <code>usr\bin\openssl.exe</code> as the alternative.</li>
+    <li><a href="https://cabforum.org/2025/04/11/ballot-sc081v3-introduce-schedule-of-reducing-validity-and-data-reuse-periods/">CA/Browser Forum ballot SC-081v3</a> (398 → 47 days between March 2026 and March 2029) with the dated steps (200 days from 15 March 2026, 100 from 2027, 47 from 2029) as summarised by <a href="https://www.sectigo.com/blog/200-day-ssl-certificate-expiration-risk">Sectigo</a>: step 2 and step 6.</li>
+    <li><a href="https://letsencrypt.org/how-it-works/">How Let's Encrypt works</a> and its <a href="https://letsencrypt.org/docs/faq/">FAQ</a> ("Our default certificates are valid for 90 days"); <a href="https://pkg.go.dev/golang.org/x/crypto/acme/autocert">autocert</a>; <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security">Strict-Transport-Security</a> on MDN: slides 9 and the stretch goals.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/04-https-hero.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

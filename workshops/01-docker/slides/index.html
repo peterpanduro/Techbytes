@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Containers From the Ground Up · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="01-docker">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="It works on my machine" data-notes="&lt;p&gt;Hands up if you have lost an afternoon to this sentence. Something ran on your laptop, then not on your friend&amp;#x27;s, or not on the server, or not on your own laptop after an update. Two projects that need two versions of the same runtime. A README that says &amp;quot;install these fourteen things&amp;quot; and one of them no longer exists.&lt;/p&gt;&lt;p&gt;That afternoon is the problem we are solving today. By the end you will have a small web server running in a container you built yourself, and you will know what every word in that sentence means. Fifteen minutes of talking, then ninety minutes of typing.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 1</p>
+  <h1>Containers From the Ground Up</h1>
+  <p class="s-big">“It works on my machine.”</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="A container is a process" data-notes="&lt;p&gt;Here is the one sentence that everything else today hangs on. A container is an ordinary process. Not a machine, not a virtual machine. A process, like the terminal you have open, except that when it starts, the kernel has been asked to give it a private view of the world.&lt;/p&gt;&lt;p&gt;Private in four ways. It sees its own root filesystem, so slash is a different slash. It sees its own network interfaces, so port 8080 inside is not port 8080 outside unless we say so. It sees its own process list, so if you run p s inside it, you see two processes and not the four hundred on your laptop. And it has a limit on how much memory and CPU it can take.&lt;/p&gt;&lt;p&gt;What it does not have is its own kernel. Every container on the machine shares the host&amp;#x27;s kernel. That is why a container starts in milliseconds and a virtual machine takes a minute: a VM has to boot an operating system, a container just has to start a process.&lt;/p&gt;&lt;p&gt;One practical consequence for most of you. On a Mac or on Windows, there is no Linux kernel to share, so Docker Desktop runs one small Linux virtual machine, and all your containers run inside that. When Docker feels slow on a Mac, or the clock inside a container is wrong after your laptop slept, that VM is the reason. On Linux there is no VM at all.&lt;/p&gt;">
+<h2>A container is a process</h2>
+<div class="s-one"><svg viewBox="0 0 560 300" class="s-fig" role="img" aria-label="Three containers sharing one kernel, next to a VM with its own kernel">
+  <rect x="10" y="230" width="375" height="50" rx="6" class="f-kernel"/><text x="197" y="261" class="f-lbl">one Linux kernel (the host's)</text>
+  <g class="f-box"><rect x="15" y="40" width="118" height="170" rx="6"/><text x="74" y="70" class="f-t">process</text><text x="74" y="105" class="f-s">own files</text><text x="74" y="130" class="f-s">own network</text><text x="74" y="155" class="f-s">own PIDs</text><text x="74" y="190" class="f-s">memory limit</text></g>
+  <g class="f-box"><rect x="139" y="40" width="118" height="170" rx="6"/><text x="198" y="70" class="f-t">process</text><text x="198" y="105" class="f-s">own files</text><text x="198" y="130" class="f-s">own network</text><text x="198" y="155" class="f-s">own PIDs</text><text x="198" y="190" class="f-s">memory limit</text></g>
+  <g class="f-box"><rect x="263" y="40" width="118" height="170" rx="6"/><text x="322" y="70" class="f-t">process</text><text x="322" y="105" class="f-s">own files</text><text x="322" y="130" class="f-s">own network</text><text x="322" y="155" class="f-s">own PIDs</text><text x="322" y="190" class="f-s">memory limit</text></g>
+  <text x="197" y="25" class="f-cap">containers</text>
+  <g class="f-vm"><rect x="405" y="40" width="150" height="240" rx="6"/><text x="480" y="25" class="f-cap">a virtual machine</text><text x="480" y="90" class="f-s">whole OS</text><text x="480" y="120" class="f-s">its own kernel</text><text x="480" y="150" class="f-s">boots in seconds</text><text x="480" y="180" class="f-s">gigabytes</text></g>
+</svg></div>
+<p class="s-line">Its own files, network and process list. <b>The host's kernel.</b></p></section><section class="slide" id="s3" data-minutes="2" data-title="Image versus container" data-notes="&lt;p&gt;Two words you will use all afternoon, and people mix them up for years. An image and a container.&lt;/p&gt;&lt;p&gt;An image is a filesystem, frozen. It is stored as a stack of layers, each one read-only, and on top there is a small note that says: when you start this, run this program. That is all an image is. You can download one, you can build one, you can put one on a USB stick.&lt;/p&gt;&lt;p&gt;A container is one image, plus a thin writable layer on top, plus a running process. If the image is the class, the container is the instance. You can start ten containers from the same image and they share every read-only layer; each one only pays for the files it changes. When the process writes a file, the file lands in that writable layer. When you delete the container, the writable layer goes with it.&lt;/p&gt;&lt;p&gt;I am going to write this on the board and leave it there: image equals layers plus a start command; container equals image plus writable layer plus process. Every confusing thing that happens today, and there will be a few, is explained by that line. When the visit counter resets to one in step six, that is the writable layer being thrown away.&lt;/p&gt;">
+<h2>Image versus container</h2>
+<div class="s-cols">
+  <div class="s-card">
+    <p class="s-kicker">Image</p>
+    <div class="s-stack">
+      <div class="s-layer">CMD ["/server"]</div>
+      <div class="s-layer">COPY server</div>
+      <div class="s-layer">RUN go build</div>
+      <div class="s-layer">FROM golang</div>
+    </div>
+    <p>Read-only layers + what to start.</p>
+  </div>
+  <div class="s-card">
+    <p class="s-kicker">Container</p>
+    <div class="s-stack">
+      <div class="s-layer s-rw">writable layer</div>
+      <div class="s-layer s-ro">the image</div>
+    </div>
+    <p>Image + writable layer + a process.</p>
+  </div>
+</div>
+<p class="s-line">A class, and an instance.</p></section><section class="slide" id="s4" data-minutes="1" data-title="Where images come from" data-notes="&lt;p&gt;Where do images come from? From a registry, which is a web service that stores them. When you type docker run nginx, Docker expands that to docker dot io, slash library, slash nginx, colon latest. Docker Hub is the default registry, the library part means an official image, and latest is the tag.&lt;/p&gt;&lt;p&gt;The tag is the thing to be careful with. It is a label somebody put on a version, and latest moves every time they publish. So in anything you keep, pin a version, like golang one twenty-seven, so that your build next month is your build today.&lt;/p&gt;&lt;p&gt;You pulled three images for today. Look at the sizes: alpine is a few megabytes, nginx a couple of hundred, and the Go toolchain image is most of a gigabyte. Remember that last number, because in step five we are going to make it go away.&lt;/p&gt;">
+<h2>Where images come from</h2>
+<div class="s-one">
+  <p class="s-big s-center"><code>nginx</code> &nbsp;=&nbsp; <code>docker.io/library/nginx<b>:latest</b></code></p>
+  <table class="s-table s-table-narrow"><tr><th>image</th><th>size</th></tr>
+    <tr><td>alpine</td><td>≈ 8 MB</td></tr>
+    <tr><td>nginx</td><td>≈ 200 MB</td></tr>
+    <tr><td>golang:1.27</td><td>≈ 800 MB</td></tr>
+  </table>
+</div>
+<p class="s-line">A tag is a label, not a promise. Pin it.</p></section><section class="slide" id="s5" data-minutes="1" data-title="The lifecycle" data-notes="&lt;p&gt;Here is the whole lifecycle, and the lab does this loop by hand in step one and then never stops doing it. Run creates a container and starts it. While it runs, p s lists it, logs shows what it printed, and exec starts a second process inside it, which is how you look around. Stop ends the process; the container still exists, p s dash a shows it, and its files are intact. R m deletes it, files and all.&lt;/p&gt;&lt;p&gt;The habit to leave with: whenever anything is confusing, run docker p s dash a first. Nine times out of ten a container you forgot about is still there, holding the port or the name you want.&lt;/p&gt;">
+<h2>The lifecycle</h2>
+<div class="s-one"><svg viewBox="0 0 1180 300" class="s-fig s-wide" role="img" aria-label="run, running, stop, stopped, rm">
+  <g class="f-box"><rect x="20" y="100" width="180" height="90" rx="8"/><text x="110" y="138" class="f-t">docker run</text><text x="110" y="168" class="f-s">create + start</text></g>
+  <path d="M200 145 H290" class="f-arrow"/>
+  <g class="f-box f-live"><rect x="290" y="80" width="260" height="130" rx="8"/><text x="420" y="118" class="f-t">running</text><text x="420" y="150" class="f-s">ps · logs · exec</text></g>
+  <path d="M550 145 H640" class="f-arrow"/><text x="595" y="130" class="f-cap">stop</text>
+  <g class="f-box"><rect x="640" y="80" width="230" height="130" rx="8"/><text x="755" y="118" class="f-t">stopped</text><text x="755" y="150" class="f-s">ps -a still lists it</text><text x="755" y="180" class="f-s">files kept</text></g>
+  <path d="M870 145 H960" class="f-arrow"/><text x="915" y="130" class="f-cap">rm</text>
+  <g class="f-box f-gone"><rect x="960" y="100" width="200" height="90" rx="8"/><text x="1060" y="138" class="f-t">gone</text><text x="1060" y="168" class="f-s">files deleted</text></g>
+  <path d="M755 210 Q755 260 420 260 Q290 260 300 210" class="f-arrow f-dash"/><text x="560" y="285" class="f-cap">docker start</text>
+</svg></div>
+<p class="s-line">Confused? <code>docker ps -a</code> first.</p></section><section class="slide" id="s6" data-minutes="2" data-title="Getting in and out" data-notes="&lt;p&gt;A container with a private view of the world is not much use until we open three doors in it.&lt;/p&gt;&lt;p&gt;Ports. The container has its own network, so a server listening on port 80 inside is invisible until you publish it. Dash p eight-oh-eight-oh colon eighty means: host port eight-oh-eight-oh goes to container port eighty. Host on the left, container on the right. Every single person gets this backwards once; that is fine, just remember which side you are standing on.&lt;/p&gt;&lt;p&gt;Files. Dash v mounts a folder from your laptop into the container at a path you choose. Anything the program writes there is really written on your laptop, and it is the only thing that survives when the container is removed. Databases, uploads, anything you would cry about losing: mounted, always.&lt;/p&gt;&lt;p&gt;Settings. Dash e sets an environment variable, and a well-behaved program reads its settings from the environment when it starts. That is how the same image runs in testing and in production with different passwords and different addresses, without rebuilding.&lt;/p&gt;&lt;p&gt;Ports, files, settings. That is the entire interface between a container and the outside world, and step six is three experiments, one per door.&lt;/p&gt;">
+<h2>Getting in and out</h2>
+<div class="s-rows s-rows-big">
+  <div class="s-row"><code class="s-flag">-p 8080:80</code><div><b>ports</b> <span class="s-muted">host : container</span></div></div>
+  <div class="s-row"><code class="s-flag">-v "$PWD/data":/data</code><div><b>files</b> <span class="s-muted">laptop : container</span></div></div>
+  <div class="s-row"><code class="s-flag">-e GREETING=Hej</code><div><b>settings</b> <span class="s-muted">read at start</span></div></div>
+</div>
+<p class="s-line">Three doors. That is the whole interface.</p></section><section class="slide" id="s7" data-minutes="2" data-title="Layers and the cache" data-notes="&lt;p&gt;Now the recipe. A Dockerfile is a short list of instructions. FROM picks the starting filesystem. COPY adds your files. RUN executes a command and keeps whatever it left behind. CMD says what to start. Four words cover ninety percent of every Dockerfile you will ever read.&lt;/p&gt;&lt;p&gt;Each instruction produces one layer, and here is the rule that makes builds fast or slow: a layer is rebuilt when its input changed, or when anything above it was rebuilt. Everything below a rebuilt layer is rebuilt too.&lt;/p&gt;&lt;p&gt;So look at the widget. Two ways to write the same file. On the left we copy everything in first. Edit one line of main dot go, and the copy layer changes, and everything under it reruns, including downloading the dependencies again. On the right we copy only the manifest first, download, and then copy the code. Now an edit to the code only recompiles. The download is cached until the manifest itself changes, which is rare.&lt;/p&gt;&lt;p&gt;Same image at the end. Different afternoon. Order the file by how often things change: slow and stable at the top, fast and volatile at the bottom. You will see exactly this shape in Node, Python, Rust, everywhere.&lt;/p&gt;">
+<h2>Order matters</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre>FROM golang:1.27
+WORKDIR /app
+COPY go.mod ./        <i># rare</i>
+RUN go mod download   <i># slow</i>
+COPY . .              <i># often</i>
+RUN go build -o server .
+CMD ["./server"]</pre></div>
+  <div class="s-widget"><div class="demo" id="cache-demo">
+      <span class="eyebrow">Interactive · the layer cache</span>
+      <p class="note" style="margin:.3rem 0 .7rem">Each Dockerfile line is a layer. A layer is rebuilt when its input changed, or when any layer above it was rebuilt. Change a file and see what each ordering costs.</p>
+      <div class="seg" role="group" aria-label="What changed" style="margin-bottom:.8rem">
+        <button type="button" data-change="none" aria-pressed="true">Nothing changed</button>
+        <button type="button" data-change="main" aria-pressed="false">Edited main.go</button>
+        <button type="button" data-change="mod" aria-pressed="false">Edited go.mod</button>
+      </div>
+      <div class="layers">
+        <div><div class="lt">A · copy everything first</div><ol id="ly-a"></ol></div>
+        <div><div class="lt">B · copy go.mod first</div><ol id="ly-b"></ol></div>
+      </div>
+      <p class="note" id="ly-sum"></p>
+    </div></div>
+</div>
+<p class="s-line">A layer is rebuilt when its input changed, <b>or anything above it did</b>.</p></section><section class="slide" id="s8" data-minutes="1" data-title="Multi-stage" data-notes="&lt;p&gt;The Go toolchain image is most of a gigabyte. The program it produces is eight megabytes. Shipping the toolchain along with the program is like delivering a cake with the oven.&lt;/p&gt;&lt;p&gt;A multi-stage build fixes that with one idea: a second FROM starts a brand-new image, and COPY dash dash from reaches back into the first stage and takes only the file you want. Here the second stage starts from scratch, which is literally an empty image, and receives one file, the binary.&lt;/p&gt;&lt;p&gt;The result is thirteen megabytes and contains nothing else. No shell, so you cannot exec into it. No package manager, so an attacker who gets in cannot install anything. Nothing to update on Tuesday because there is nothing in there. And notice what else this bought us: the compiler ran inside the first stage, so nobody in this room installs Go today.&lt;/p&gt;">
+<h2>Build big, ship small</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre><b>FROM golang:1.27 AS build</b>
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+<b>FROM scratch</b>
+COPY <b>--from=build</b> /app/server /server
+CMD ["/server"]</pre></div>
+  <div class="s-stat">
+    <div><span class="s-num">≈ 800 MB</span><span class="s-muted">hello:1</span></div>
+    <div class="s-arrow">↓</div>
+    <div><span class="s-num s-good">13 MB</span><span class="s-muted">hello:2 · one file</span></div>
+  </div>
+</div>
+<p class="s-line">Nothing to attack. Nothing to update. And no Go on your laptop.</p></section><section class="slide" id="s9" data-minutes="1" data-title="More than one container" data-notes="&lt;p&gt;Real applications are not one container: an app, a database, a cache, each wanting ports, volumes and settings, and nobody remembers the six docker run commands to start them in the right order.&lt;/p&gt;&lt;p&gt;Docker Compose writes those commands down. Each service gets a name, an image or a build, and exactly the flags you saw two slides ago. Then docker compose up starts all of them on a private network where they find each other by name: the app talks to redis by calling it redis.&lt;/p&gt;&lt;p&gt;Not today; you need the run flags in your fingers first. But the moment you find yourself retyping a run command, that command wants to be a compose file. Workshop six is built on it.&lt;/p&gt;">
+<h2>More than one container: Compose</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre><i># compose.yaml</i>
+services:
+  app:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      GREETING: Hej
+    depends_on: [redis]
+  redis:
+    image: redis:7</pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-num-sm"><code>docker compose up</code></span></div>
+    <p class="s-muted">All the flags from the last slides, written down.<br>Two containers, one private network, one command.</p>
+    <p class="s-muted">Workshop 6 lives here.</p>
+  </div>
+</div>
+<p class="s-line">The <code>docker run</code> line you keep retyping wants to be a file.</p></section><section class="slide" id="s10" data-minutes="1" data-title="What containers are not" data-notes="&lt;p&gt;Three things containers are not, so that you do not learn them the hard way.&lt;/p&gt;&lt;p&gt;Not a virtual machine: same kernel, so a kernel bug is everyone&amp;#x27;s bug. Not a sandbox by default: root inside a container is root on the host unless you configure otherwise, and a mounted folder is your real folder; delete files in it and they are deleted. And not portable across CPU architectures. Those of you on Apple silicon will build arm64 images this afternoon, and they will refuse to run on a typical amd64 server until you ask for the other platform. All three come back in later workshops. Today, just know they exist.&lt;/p&gt;">
+<h2>What containers are not</h2>
+<ul class="s-list s-list-huge">
+  <li><b>Not a virtual machine.</b> <span class="s-muted">Same kernel.</span></li>
+  <li><b>Not a sandbox.</b> <span class="s-muted">Root inside is root outside.</span></li>
+  <li><b>Not every CPU.</b> <span class="s-muted">arm64 laptop, amd64 server.</span></li>
+</ul></section><section class="slide" id="s11" data-minutes="1" data-title="What we build" data-notes="&lt;p&gt;Here is the afternoon. We start by running other people&amp;#x27;s images and doing the lifecycle by hand until it is boring. Then we borrow a Go toolchain from an image to run a small web server without installing anything. Then we write the recipe down as a Dockerfile, watch the cache do its thing, shrink the image with a second stage, and finish with three experiments on ports, settings and volumes, where you will see with your own eyes what survives a restart and what does not.&lt;/p&gt;&lt;p&gt;Every step ends with a checkpoint, and nobody moves on until theirs passes; if you are stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>Hello</li>
+  <li><span>1</span>Someone else's image</li>
+  <li><span>2</span>Borrow a toolchain</li>
+  <li><span>3</span>First Dockerfile</li>
+  <li><span>4</span>Layers and cache</li>
+  <li><span>5</span>Multi-stage: 800 MB → 13 MB</li>
+  <li><span>6</span>Ports, settings, volumes</li>
+  <li><span>7</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">Every step ends in a checkpoint. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/cache-widget.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

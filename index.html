@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TechBytes workshops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="index.html">TechBytes</a>
+  <div class="crumbs"><span>The year</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+<div class="wrap" style="padding-block:2rem 4rem"><main><section id="series">
+  <span class="eyebrow">Software engineering workshop series · the year · 10 slots</span>
+  <h1 style="margin-bottom:.6rem">One narrow thing per afternoon</h1>
+  <p>Every workshop is the same shape: a 15-minute talk for the mental model, then 90 minutes where everyone types the same code at a pace the slowest keyboard in the room can follow. That pace is the binding constraint. Working assumption used throughout: at follow-along tempo, with explanation and checkpoints, a room manages roughly one new line of code per minute and a short command in less, so a lab gets a <strong>budget of about 50 hand-typed lines of code, plus commands</strong>; everything above that (test data, boilerplate, config the students have already seen) is pasted from the page, and the page says which is which.</p>
+  <p><strong>Languages.</strong> Two for the year, chosen per topic: TypeScript on Deno where the platform APIs do the work (WebCrypto, <code>Deno.serve</code>, the built-in test runner) and Go where its standard library and ecosystem are the natural home (TLS, Argon2, Prometheus). Both install as one binary on every OS. Workshop 1's Go server is built inside a container, so nobody installs Go until workshop 3; workshop 6 reuses its Dockerfile. Kubernetes and Git are language-neutral.</p>
+  <div class="series">
+    <article class="ws done">
+      <h3>1 · Containers from the ground up</h3>
+      <p>Image vs container, the run / ps / logs / exec / stop / rm lifecycle, ports, environment and volumes. Then a Dockerfile for a small Go web server built without Go on the laptop, the layer cache, and a multi-stage build that shrinks the image from close to a gigabyte to about thirteen megabytes. <strong>Typed: 27 lines of Dockerfile and 40 commands</strong>; the Go program is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/01-docker/index.html">Open the workshop →</a><a class="open" href="workshops/01-docker/slides/index.html">Slides</a><a class="open" href="workshops/01-docker/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">Go, inside Docker</span><span class="tag">foundation</span></div>
+    </article>
+    <article class="ws now">
+      <h3>2 · TOTP from scratch</h3>
+      <p>RFC 6238 in TypeScript on the built-in WebCrypto API, pinned to the RFC numbers with <code>deno test</code>, then checked against the student's own phone. <strong>Typed: 45 lines</strong> in seven functions and one class; the Base32 encoder, the test file and two small scripts are pasted. No Docker, no dependencies. Risk: clocks, handled in the lab text.</p>
+      <div class="meta"><a class="open" href="workshops/02-totp/index.html">Open the workshop →</a><a class="open" href="workshops/02-totp/slides/index.html">Slides</a><a class="open" href="workshops/02-totp/manuscript.html">Manuscript</a><span class="tag now">written</span><span class="tag">Deno</span><span class="tag">security</span></div>
+    </article>
+    <article class="ws">
+      <h3>3 · Storing passwords properly</h3>
+      <p>Plaintext → SHA-256 → per-user salt → PBKDF2 at OWASP’s 600,000 rounds: students write the dictionary attack, crack 9 of 10 hashes in under a second, then price the same attack out of reach and add a constant-time compare and self-upgrading hashes. Go, standard library only. <strong>Typed: 64 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/03-passwords/index.html">Open the workshop →</a><a class="open" href="workshops/03-passwords/slides/index.html">Slides</a><a class="open" href="workshops/03-passwords/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">Go</span><span class="tag">security</span></div>
+    </article>
+    <article class="ws">
+      <h3>4 · HTTPS: be your own certificate authority</h3>
+      <p>Two openssl commands make a CA, two more and a six-line extension file make a certificate for localhost; a ten-line Go server serves it over TLS, Firefox and curl refuse it until the CA is trusted, a Go client with its own root pool and openssl s_client show trust as code, and the three ways a padlock fails are produced on purpose. <strong>Typed: 55 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/04-https/index.html">Open the workshop →</a><a class="open" href="workshops/04-https/slides/index.html">Slides</a><a class="open" href="workshops/04-https/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">Go</span><span class="tag">security</span></div>
+    </article>
+    <article class="ws">
+      <h3>5 · Git for the things that go wrong</h3>
+      <p>Break a prepared repository six ways and repair it every time: bisect names the commit that broke the test, interactive rebase squashes four WIP commits, the reflog undoes a hard reset and a deleted branch, a conflict is resolved by hand, and a pre-commit hook says no. No code; 38 commands. <strong>Typed: 38 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/05-git/index.html">Open the workshop →</a><a class="open" href="workshops/05-git/slides/index.html">Slides</a><a class="open" href="workshops/05-git/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">standalone</span><span class="tag">tooling</span></div>
+    </article>
+    <article class="ws">
+      <h3>6 · Two services and a queue with Docker Compose</h3>
+      <p>An API in Go that enqueues jobs, a worker in Deno that consumes them from a Redis list, and one compose.yaml that starts all three on a private network; then scale the worker to three and kill one mid-job to see what a plain queue loses. <strong>Typed: 56 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/06-compose/index.html">Open the workshop →</a><a class="open" href="workshops/06-compose/slides/index.html">Slides</a><a class="open" href="workshops/06-compose/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">Deno + Go</span><span class="tag">needs 1</span><span class="tag">microservices</span></div>
+    </article>
+    <article class="ws">
+      <h3>7 · Kubernetes on a laptop</h3>
+      <p>Deploy workshop 6's three containers to a kind cluster on the laptop: one typed Deployment plus a generated Service, scale to three, kill a pod and watch it return, roll out api:2 and roll it back; 19 lines of YAML and ~33 commands. <strong>Typed: 53 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/07-kubernetes/index.html">Open the workshop →</a><a class="open" href="workshops/07-kubernetes/slides/index.html">Slides</a><a class="open" href="workshops/07-kubernetes/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">YAML</span><span class="tag">needs 6</span><span class="tag">infra</span></div>
+    </article>
+    <article class="ws">
+      <h3>8 · Logs and metrics you can actually use</h3>
+      <p>Structured JSON logs with log/slog, a hand-written Prometheus /metrics page (a counter and a histogram in thirty lines), Prometheus and Grafana in Compose, three PromQL expressions, a two-panel dashboard that finds the deliberately slow endpoint, and a request id that joins the graph to the log line that says why. <strong>Typed: 55 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/08-observability/index.html">Open the workshop →</a><a class="open" href="workshops/08-observability/slides/index.html">Slides</a><a class="open" href="workshops/08-observability/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">Go</span><span class="tag">needs 6</span><span class="tag">operations</span></div>
+    </article>
+    <article class="ws">
+      <h3>9 · Log in with GitHub (OAuth 2)</h3>
+      <p>The redirect dance by hand with <code>Deno.serve</code>: an authorize URL with <code>state</code>, a callback that checks it, the code traded for a token server-to-server, then <code>/user</code>, because GitHub issues no OpenID Connect ID token for user login, so identity is an API call. A pasted local fake GitHub runs the lab offline and lets the tests run themselves; the same code then logs in with the student's real account, PKCE binds the code to the app that asked for it, and a test proves each of the three checks (state, exact redirect, PKCE). <strong>Typed: 60 lines, code and commands</strong>; the fake GitHub, the HTML helpers and the tests are pasted.</p>
+      <div class="meta"><a class="open" href="workshops/09-oauth/index.html">Open the workshop →</a><a class="open" href="workshops/09-oauth/slides/index.html">Slides</a><a class="open" href="workshops/09-oauth/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">Deno</span><span class="tag">needs 2–4</span><span class="tag">security</span></div>
+    </article>
+    <article class="ws">
+      <h3>10 · A CI pipeline that builds your image</h3>
+      <p>GitHub Actions on workshop 1's Go server: a test job on every push, a build job that pushes the image to ghcr.io with the workflow's own short-lived token (no personal access token anywhere), and govulncheck failing a branch that pins <code>golang.org/x/text</code> v0.3.7 and calls the vulnerable function; a ruleset turns the red check into a blocked merge, and the fixed image runs on the laptop. Five runs, each wait with a job to do. <strong>Typed: 60 lines, code and commands</strong>; everything else is pasted.</p>
+      <div class="meta"><a class="open" href="workshops/10-ci/index.html">Open the workshop →</a><a class="open" href="workshops/10-ci/slides/index.html">Slides</a><a class="open" href="workshops/10-ci/manuscript.html">Manuscript</a><span class="tag ok">written</span><span class="tag">YAML + Go</span><span class="tag">needs 1, 3–5</span><span class="tag">devops</span></div>
+    </article>
+  </div>
+
+  <h3>Why this order</h3>
+  <p>The year splits into a security block (2–4), a breather (5) and an infrastructure block (6–8). The security workshops need nothing but a language runtime, so they come first, before any fragile tooling is asked of the room. The infrastructure block is consecutive because 7 and 8 both build on 6 and the compose file needs to still be in students' fingers. Git sits between the blocks because it needs no installation, has no code to type, and gives the room a week of low load before the heaviest afternoon.</p>
+  <p>The language sequence falls out naturally: Go (inside Docker, read only), Deno, Go, Go, none, both, none, Go, Deno, YAML and Go. Students meet Deno first (closest to JavaScript they already know), get two consecutive Go afternoons to become comfortable with it, and see both side by side in workshop 6, where the point is that services need not share a language. Nobody has to context-switch languages two weeks running until they have seen each one twice.</p>
+  <p>Within the security block, passwords before TOTP would tell the cleaner story ("something you know, then something you have") and would introduce constant-time comparison a week before TOTP reuses it. TOTP is listed first only because it is written and ready; if workshop 2 has not been announced yet, swap 2 and 3 and nothing else on this page changes, except that Go then comes first.</p>
+  <p>Workshops 9 and 10 come after the core year on purpose. 9 returns to security with everything from 2–4 in hand: WebCrypto and Deno from 2, constant-time compare from 3, and the idea of what to trust from 4. 10 closes the year by automating what 1, 5 and 6 did by hand: build the image, the pre-commit "no", the compose integration test.</p>
+  <p>The load curve, using the typed-line budgets above: light, light, medium, none, heavy, medium, medium, then 9 and 10 medium (60 each). Only one afternoon is heavy and it is the one with the most slack around it.</p>
+
+  <h3>If slots are short</h3>
+  <p>Drop 10 first (it can shrink back to the 10-minute CI demo at the end of 6), then 9, then 8. 8 goes last of the three because it is the only one of the core year nothing else depends on, and 6 and 7 already complete the "from one container to a cluster" story. Do not drop 5 to make room: a year of consecutive build-something afternoons has no recovery week.</p>
+</section>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="assets/site.js"></script>
+</body>
+</html>

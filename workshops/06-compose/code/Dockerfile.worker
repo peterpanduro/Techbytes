@@ -1,0 +1,6 @@
+# Deno ships its own image; the runtime stays in, so this is one stage.
+FROM denoland/deno:2.9.7
+WORKDIR /app
+COPY worker.ts .
+RUN deno cache worker.ts
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-sys", "worker.ts"]

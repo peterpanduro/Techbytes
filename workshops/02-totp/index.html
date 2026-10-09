@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TOTP From Scratch · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 2 · TOTP from scratch</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 2</span>
+      <h1>TOTP From Scratch</h1>
+      <p class="lede">Build the six-digit authenticator code your phone shows, in about forty lines of TypeScript, and prove it is right by scanning your own QR code with Google Authenticator.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~15 min</b> student prep, one week before</li>
+        <li>No prior crypto knowledge</li>
+        <li>Deno · TypeScript</li>
+        <li>No dependencies</li>
+        <li>Any OS</li>
+      </ul>
+    </div>
+    <div class="demo" id="demo" aria-live="polite">
+      <span class="eyebrow">Live · computed in this page</span>
+      <div class="code" id="d-code">······</div>
+      <div class="bar"><i id="d-bar"></i></div>
+      <dl>
+        <dt>secret</dt><dd>12345678901234567890 <span class="muted">(RFC test key)</span></dd>
+        <dt>unix time</dt><dd id="d-time">–</dd>
+        <dt>counter</dt><dd id="d-ctr">–</dd>
+        <dt>HMAC-SHA1</dt><dd id="d-mac">–</dd>
+        <dt>offset</dt><dd id="d-off">–</dd>
+        <dt>31-bit int</dt><dd id="d-int">–</dd>
+      </dl>
+      <p class="note">Add key <code>GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ</code> to an authenticator app and it shows this same code. Yellow = offset byte, blue = the four bytes it points at. This widget calls <code>crypto.subtle.sign("HMAC", …)</code>, the same WebCrypto API the lab uses in Deno.</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Project</a></li>
+        <li><a href="#s1">1 · Secret</a></li>
+        <li><a href="#s2">2 · HMAC</a></li>
+        <li><a href="#s3">3 · Truncation</a></li>
+        <li><a href="#s4">4 · Clock</a></li>
+        <li><a href="#s5">5 · Phone</a></li>
+        <li><a href="#s6">6 · Verifier</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+
+<section id="glance">
+  <span class="eyebrow">Workshop 2</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves with a <code>totp.ts</code> they wrote themselves that produces the same code as their phone, a <code>deno test</code> suite that pins it to the RFC numbers, and a verifier with a time window, replay protection and a constant-time compare.</td></tr>
+    <tr><th>Why this topic</th><td>2FA is on every real system students will work on, yet it is almost never taught. It is also the ideal size: one RFC, one afternoon, no infrastructure, and a very satisfying moment of proof at the end.</td></tr>
+    <tr><th>Concepts</th><td>Shared secrets, HMAC, HOTP (RFC 4226), TOTP (RFC 6238), Base32, big-endian packing, dynamic truncation, time windows, replay, constant-time comparison, brute-force arithmetic, and the limits of TOTP (phishing, relay attacks) that motivate passkeys. On the side: WebCrypto, typed arrays, Deno's permission flags and test runner.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Can write a JavaScript or TypeScript function and run a script. Nothing else. <code>async</code>/<code>await</code> appears because WebCrypto is asynchronous; the talk spends one sentence on it.</td></tr>
+    <tr><th>Language</th><td>TypeScript on Deno 2. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary. Docker is not needed; a container is offered as a fallback only.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Deno 2, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Wi-Fi is only needed for one <code>npm:</code> download in step 5, which the prep pack fetches ahead of time.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 15 minutes)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. Install Deno</h4>
+  <p>Deno is a single program that runs TypeScript directly, no build step. Pick the line for your system, run it in a terminal (Terminal on macOS, PowerShell on Windows), then <strong>open a new terminal window</strong> so it is on your path.</p>
+<pre><code># macOS / Linux
+curl -fsSL https://deno.land/install.sh | sh
+
+# Windows (PowerShell)
+irm https://deno.land/install.ps1 | iex
+
+# or, if you already use a package manager
+brew install deno            # macOS
+winget install DenoLand.Deno # Windows</code></pre>
+  <p>Check it, in the new terminal window. Any version starting with 2 is fine.</p>
+<pre><code>deno --version</code></pre>
+
+  <h4>2. Install an authenticator app on your phone</h4>
+  <p>Any of these work: Google Authenticator, Microsoft Authenticator, Aegis (Android), 2FAS, Ente Auth. If you already use one for a real account, that is fine; we will add a throwaway entry and delete it afterwards. Check that the app can add an account by <em>scanning a QR code</em> and by <em>entering a key manually</em> (every one of the above can).</p>
+
+  <h4>3. Make sure both clocks are automatic</h4>
+  <p>TOTP is built on both devices agreeing what time it is. Phone: Settings → Date &amp; Time → set automatically. Laptop: same, in your OS settings. You will see why in the talk.</p>
+
+  <h4>4. The readiness check</h4>
+  <p>Make a folder called <code>totp-lab</code> and open a terminal in it. First, this downloads the one package we use (about 1 MB, so you do not need the venue Wi-Fi for it) and prints a QR code. Scan it with your phone's camera: it should say <code>hello</code>.</p>
+<pre><code>deno run --allow-env npm:qrcode@1.5.4 hello</code></pre>
+  <p>Second, create a file <code>check.ts</code> in the folder with exactly this content, and run it:</p>
+<pre><code>const key = await crypto.subtle.importKey(&quot;raw&quot;, new TextEncoder().encode(&quot;workshop&quot;), { name: &quot;HMAC&quot;, hash: &quot;SHA-1&quot; }, false, [&quot;sign&quot;]);
+const mac = new Uint8Array(await crypto.subtle.sign(&quot;HMAC&quot;, key, new TextEncoder().encode(&quot;ready&quot;)));
+console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).join(&quot;&quot;));
+</code></pre>
+<pre><code>deno run check.ts</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>caad48f0073dc46b2174e2384dfa2e4378f8c823</code></p><p>If you see exactly that, you are ready. If not, bring the error message to the workshop and arrive ten minutes early; we will sort it out before the talk.</p></div>
+
+  <h4>5. Optional: editor support</h4>
+  <p>Any editor works. If you use VS Code, the official "Deno" extension gives you type errors as you type, which helps in the lab. Enable it for the <code>totp-lab</code> folder (Command Palette → "Deno: Initialize Workspace Configuration").</p>
+
+  <div class="call inst"><p class="lbl">If Deno will not install</p><p>The fallback is Docker Desktop from workshop 1: in the <code>totp-lab</code> folder run <code>docker run --rm -it -v "$PWD":/work -w /work denoland/deno bash</code> (PowerShell: <code>"${PWD}:/work"</code>) and work inside it. Note that the Docker VM's clock on macOS and Windows can drift after the laptop sleeps, which makes codes disagree with the phone; restart Docker Desktop if that happens. Native Deno has no such problem, which is one reason the lab does not use Docker.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run the whole lab yourself, once on each OS you expect in the room, using the exact commands on this page. The typical Windows failure is a terminal opened before Deno was installed (not on the path).</li>
+    <li>Open this page on the projector from a file, <code>localhost</code> or an https address; the widget needs a secure context for WebCrypto and shows "no crypto" over plain http from another machine. The live widget at the top is your demo for slides 3 and 6. Add its key (<code>GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ</code>) to an authenticator app on your own phone beforehand so you can hold the phone up next to the screen.</li>
+    <li>Have the <a href="#solution">full solution</a> ready to paste for anyone who falls more than one step behind; the checkpoints are designed so a student can drop in the reference version of an earlier step and keep going.</li>
+    <li>If the venue has no Wi-Fi, students who skipped the prep cannot fetch <code>npm:qrcode</code>. Have them type the Base32 key into the phone manually in step 5; it takes a minute and makes the point that the QR code is only the secret.</li>
+    <li>Print the RFC 4226 test-vector table (it is in step 3) for the room, or leave it on the projector during steps 2 and 3.</li>
+    <li>Optional: bring one hardware token (a YubiKey or a cheap TOTP card) to pass around during slide 4.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 10 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: a phone and a server that share a secret</h2>
+  <p>The single idea to land: <strong>the code is not sent to the phone; the phone and the server compute it independently from a shared secret and the current time.</strong> Everything else in the lab is the mechanics of that sentence. Keep slides sparse; the speaker notes below carry the content.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">Your phone and the server share a secret</span><span class="d">1 min</span>
+      <span class="say">Title slide with a six-digit code on it. Ask the room how many have used an authenticator app this week. Ask how the app knows the code when the phone is in airplane mode. Let the question hang.</span></li>
+    <li><span class="n">2</span><span class="t">Why passwords alone are not enough</span><span class="d">2 min</span>
+      <span class="say">Reuse, database leaks, phishing. "Something you know" plus "something you have". SMS codes are the weak version (SIM swap, interception); app codes are what this workshop builds. Mention that every serious system they will work on has this, and very few of them will ever have looked inside it.</span></li>
+    <li><span class="n">3</span><span class="t">What it looks like from the outside</span><span class="d">1 min</span>
+      <span class="say">Show the live widget on this page next to your phone. Same code, no network, changes together every 30 seconds. State the thesis sentence out loud.</span></li>
+    <li><span class="n">4</span><span class="t">Ingredient one: a shared secret</span><span class="d">1 min</span>
+      <span class="say">20 random bytes generated by the server, shown to the phone exactly once as a QR code, then stored by both sides. That QR code is the secret, which is why "screenshot your 2FA setup" is bad advice. Base32 is just a way to write bytes as capital letters and digits so it survives being typed.</span></li>
+    <li><span class="n">5</span><span class="t">Ingredient two: HMAC, a hash with a key</span><span class="d">2 min</span>
+      <span class="say">A hash turns any input into a fixed-size fingerprint. HMAC is a hash where you also need the key to produce the right fingerprint; without the key you cannot forge one, and from the fingerprint you cannot recover the key. That is all the crypto in this workshop. Browsers and Deno have it built in as WebCrypto: <code>crypto.subtle.sign("HMAC", key, message)</code>. It returns a Promise, which is the only reason <code>await</code> shows up in the lab.</span></li>
+    <li><span class="n">6</span><span class="t">HOTP: a counter, a MAC, six digits (RFC 4226, 2005)</span><span class="d">2 min</span>
+      <span class="say">Walk the widget's rows top to bottom: counter packed as 8 bytes, HMAC-SHA1 gives 20 bytes, the low four bits of the last byte pick an offset, take four bytes from there, clear the top bit, take the number mod a million, pad with zeros. Each of those is one line of code in the lab. Point at the yellow and blue bytes in the widget.</span></li>
+    <li><span class="n">7</span><span class="t">TOTP: let the clock be the counter (RFC 6238, 2011)</span><span class="d">2 min</span>
+      <span class="say">counter = floor(unix_time / 30). Both sides can compute it without talking. That is the whole difference between HOTP and TOTP. Consequences: time zones do not matter (unix time is UTC); a phone with a wrong clock produces wrong codes; the server must accept a neighbouring step or two to allow for drift and typing time.</span></li>
+    <li><span class="n">8</span><span class="t">The server's job is harder than the phone's</span><span class="d">2 min</span>
+      <span class="say">Accept a window (RFC 6238 recommends at most one step either side). Never accept the same code twice, or an attacker who sees you type it has 30 seconds. Compare in constant time. Do the brute-force arithmetic on the slide: a million possible codes, three accepted at any moment, so one guess succeeds with probability 3 in a million. Without rate limiting an attacker trying 10 codes per second expects a hit in about nine hours. With a lockout after five attempts, never. The code is only as good as the throttling around it.</span></li>
+    <li><span class="n">9</span><span class="t">What TOTP does not protect against</span><span class="d">1 min</span>
+      <span class="say">A phishing site that asks for your code and forwards it to the real site within 30 seconds wins. The server stores the secret in plaintext by necessity, so a server breach leaks everyone's second factor. Passkeys / WebAuthn fix both by binding the login to the site's origin and using public-key signatures; that is a later workshop. TOTP is still everywhere and still far better than nothing.</span></li>
+    <li><span class="n">10</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Show the seven steps. Point out that steps 2 to 4 are checked by <code>deno test</code> against numbers printed in the RFCs, so students know they are right before the phone gets involved. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 7 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in two files, <code>totp.ts</code> (the code) and <code>totp_test.ts</code> (the RFC checks), and run <code>deno test</code> after every step. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference code for that step from the <a href="#solution">full solution</a> and continues. The time budget is deliberately loose in the middle steps and tight at the end.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the algorithm, 45 lines over the afternoon, written by hand at a pace the whole room can follow. <strong>Paste this</strong> is everything else: the Base32 encoder (encoding is not the topic), the test file with the RFC numbers in it, and the two small scripts that talk to the phone. Typing ten six-digit test vectors teaches nothing and invites typos, so they come from this page. The full solution at the bottom is for catching up, never for the first pass.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Two empty files and a green test run</span></div>
+    <div class="row" data-from="5" data-to="15"><span class="k">0:05–0:15</span><span>Step 1 · Generate a secret, write it in Base32</span></div>
+    <div class="row" data-from="15" data-to="30"><span class="k">0:15–0:30</span><span>Step 2 · HMAC over a counter</span></div>
+    <div class="row" data-from="30" data-to="40"><span class="k">0:30–0:40</span><span>Step 3 · Dynamic truncation → HOTP</span></div>
+    <div class="row" data-from="40" data-to="50"><span class="k">0:40–0:50</span><span>Step 4 · Counter from the clock → TOTP</span></div>
+    <div class="row" data-from="50" data-to="65"><span class="k">0:50–1:05</span><span>Step 5 · QR code, phone, proof</span></div>
+    <div class="row" data-from="65" data-to="80"><span class="k">1:05–1:20</span><span>Step 6 · A verifier a server could use</span></div>
+    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Two empty files and a green test run</h3><span class="time">5 min</span></header>
+    <p>In the <code>totp-lab</code> folder from the prep, create <code>totp.ts</code> with just the header, and <code>totp_test.ts</code> with the test scaffolding. Both are pasted; there is nothing to learn from typing an import line.</p>
+<pre data-mode="paste this"><code>// TOTP from scratch — complete lab file. Deno, no dependencies.
+import { timingSafeEqual } from &quot;node:crypto&quot;;
+
+type Bytes = Uint8Array&lt;ArrayBuffer&gt;; // a Uint8Array that WebCrypto accepts</code></pre>
+  <p>The <code>Bytes</code> alias is there because current TypeScript distinguishes a <code>Uint8Array</code> over a plain <code>ArrayBuffer</code> from one over shared memory, and WebCrypto only accepts the former. One alias saves six annotations later.</p>
+  <p>Then <code>totp_test.ts</code>. It has a four-line <code>assertEquals</code> of its own rather than importing one, so the whole lab has zero dependencies:</p>
+<pre data-mode="paste this"><code>function assertEquals(got: unknown, want: unknown, msg = &quot;&quot;) {
+  const g = JSON.stringify(got), w = JSON.stringify(want);
+  if (g !== w) throw new Error(`${msg} got ${g}, want ${w}`);
+}
+
+const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // RFC test secret</code></pre>
+<pre data-mode="type this"><code>deno test</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>deno test</code> reports <code>ok | 0 passed | 0 failed</code>. Deno type-checks a file before running it, so from here on a typo shows up as a red line with a file and line number before a single test runs.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. This step catches every installation problem at once, while there is still slack. Each pasted test block later brings its own <code>import</code> line, so the test file only ever refers to functions that already exist; that is deliberate, so the file compiles after every step.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Generate a secret and write it in Base32</h3><span class="time">10 min</span></header>
+    <p>A TOTP secret is just random bytes. RFC 4226 says at least 16, recommends 20. <code>crypto.getRandomValues</code> fills a typed array from the operating system's cryptographic randomness.</p>
+<pre data-mode="type this"><code>export function newSecret(nbytes = 20): Bytes {
+  return crypto.getRandomValues(new Uint8Array(nbytes));
+}</code></pre>
+    <p>Authenticator apps want the secret as Base32 text: the 32 characters <code>A–Z</code> and <code>2–7</code>, five bits each, no lower case and nothing that looks like anything else, so it survives being read aloud or typed on a phone. Deno's standard library has an encoder, but to keep the lab dependency-free here is one in twelve lines. Paste it under <code>newSecret</code> and read it once: it pushes eight bits in and pulls five bits out until the bytes run out.</p>
+<pre data-mode="paste this"><code>const B32 = &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ234567&quot;;
+
+export function toBase32(bytes: Bytes): string {
+  let bits = 0, acc = 0, out = &quot;&quot;;
+  for (const b of bytes) {
+    acc = (acc &lt;&lt; 8) | b; // push 8 bits in
+    bits += 8;
+    while (bits &gt;= 5) { // pull 5 bits out at a time
+      out += B32[(acc &gt;&gt;&gt; (bits - 5)) &amp; 31];
+      bits -= 5;
+      acc &amp;= (1 &lt;&lt; bits) - 1;
+    }
+  }
+  if (bits &gt; 0) out += B32[(acc &lt;&lt; (5 - bits)) &amp; 31]; // pad the last group
+  return out;
+}</code></pre>
+    <p>Add the first test to <code>totp_test.ts</code>. The RFC's test secret is the ASCII string <code>12345678901234567890</code>; its Base32 form is the key printed under the live widget at the top of this page.</p>
+<pre data-mode="paste this"><code>import { newSecret, toBase32 } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 1: secrets are 20 bytes, base32 matches the RFC key&quot;, () =&gt; {
+  assertEquals(newSecret().length, 20);
+  assertEquals(toBase32(k), &quot;GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&quot;);
+});</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>deno test</code> prints <code>ok | 1 passed | 0 failed</code>. Then <code>deno run totp.ts</code> twice with a temporary <code>console.log(toBase32(newSecret()))</code> at the bottom: two different 32-character secrets.</p></div>
+    <p><strong>Talk about it:</strong> why <code>crypto.getRandomValues</code> and not <code>Math.random</code>? (<code>Math.random</code> is predictable from its internal state; the crypto one reads the OS's entropy pool.) Why 32 characters for 20 bytes? (160 bits / 5 bits per character.)</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>HMAC over a counter</h3><span class="time">15 min</span></header>
+    <p>HOTP feeds a counter into HMAC-SHA1. The counter must be exactly 8 bytes, most significant byte first ("big-endian"). A <code>DataView</code> over an 8-byte buffer writes it that way with <code>setBigUint64</code>. WebCrypto wants the secret wrapped as a key first, then signs.</p>
+<pre data-mode="type this"><code>export async function hmacCounter(secret: Bytes, counter: number, hash = &quot;SHA-1&quot;) {
+  const key = await crypto.subtle.importKey(
+    &quot;raw&quot;, secret, { name: &quot;HMAC&quot;, hash }, false, [&quot;sign&quot;],
+  );
+  const msg = new Uint8Array(8);
+  new DataView(msg.buffer).setBigUint64(0, BigInt(counter)); // 8 bytes, big-endian
+  return new Uint8Array(await crypto.subtle.sign(&quot;HMAC&quot;, key, msg));
+}</code></pre>
+    <p>Now the first number from the RFC. Appendix D of RFC 4226 prints the full HMAC for counter 0:</p>
+<pre data-mode="paste this"><code>import { hmacCounter } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 2: HMAC-SHA1 of counter 0 (RFC 4226 Appendix D)&quot;, async () =&gt; {
+  const mac = await hmacCounter(k, 0);
+  const hex = [...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).join(&quot;&quot;);
+  assertEquals(mac.length, 20);
+  assertEquals(hex, &quot;cc93cf18508d94934c64b65d8ba7667fb7cde4b0&quot;);
+});</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p><code>deno test</code>: step 2 passes, so the MAC is 20 bytes and starts <code>cc93cf18…</code>, exactly the first row of the RFC's table.</p></div>
+    <p><strong>Common mistakes:</strong> <code>setUint32</code> instead of <code>setBigUint64</code> (4 bytes, not 8); forgetting <code>BigInt(counter)</code>; passing <code>true</code> as the little-endian argument. Each gives a perfectly valid-looking 20-byte MAC that is simply wrong, which is why the RFC vector matters.</p>
+    <p><strong>Talk about it:</strong> change one character of the test secret and rerun. Every byte of the MAC changes. That is the property the whole scheme rests on. Also: this is the exact call the widget at the top of the page makes in the browser; WebCrypto is the same API in both places.</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>Dynamic truncation: 20 bytes to 6 digits</h3><span class="time">10 min</span></header>
+    <p>Twenty bytes is not something a human types. RFC 4226 §5.3 turns it into a number: take the low four bits of the last byte as an <em>offset</em> (0–15), read the four bytes starting there as a big-endian integer, clear the top bit so it is never negative, then take it modulo 10<sup>6</sup>.</p>
+<pre data-mode="type this"><code>export function truncate(mac: Bytes, digits = 6): string {
+  const offset = mac[mac.length - 1] &amp; 0x0f; // low 4 bits of the last byte
+  const num = new DataView(mac.buffer).getUint32(offset) &amp; 0x7fffffff;
+  return String(num % 10 ** digits).padStart(digits, &quot;0&quot;);
+}
+
+export async function hotp(secret: Bytes, counter: number, digits = 6, hash = &quot;SHA-1&quot;) {
+  return truncate(await hmacCounter(secret, counter, hash), digits);
+}</code></pre>
+    <p>Test against all ten RFC vectors at once:</p>
+<pre data-mode="paste this"><code>import { hotp } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 3: HOTP vectors (RFC 4226 Appendix D)&quot;, async () =&gt; {
+  const expected = [&quot;755224&quot;, &quot;287082&quot;, &quot;359152&quot;, &quot;969429&quot;, &quot;338314&quot;,
+                    &quot;254676&quot;, &quot;287922&quot;, &quot;162583&quot;, &quot;399871&quot;, &quot;520489&quot;];
+  for (let c = 0; c &lt; expected.length; c++) {
+    assertEquals(await hotp(k, c), expected[c], `counter ${c}:`);
+  }
+});</code></pre>
+    <div class="tbl"><table>
+      <tr><th>Counter</th><th>HMAC-SHA1 (first bytes)</th><th>Offset</th><th>31-bit integer</th><th>HOTP</th></tr>
+      <tr><td class="t">0</td><td class="t">cc93cf18…</td><td class="t">0</td><td class="t">1284755224</td><td class="t">755224</td></tr>
+      <tr><td class="t">1</td><td class="t">75a48a19…</td><td class="t">11</td><td class="t">1094287082</td><td class="t">287082</td></tr>
+      <tr><td class="t">2</td><td class="t">0bacb7fa…</td><td class="t">4</td><td class="t">137359152</td><td class="t">359152</td></tr>
+      <tr><td class="t">3</td><td class="t">66c28227…</td><td class="t">14</td><td class="t">1726969429</td><td class="t">969429</td></tr>
+      <tr><td class="t">4</td><td class="t">a904c900…</td><td class="t">12</td><td class="t">1640338314</td><td class="t">338314</td></tr>
+      <tr><td class="t">5</td><td class="t">a37e783d…</td><td class="t">6</td><td class="t">868254676</td><td class="t">254676</td></tr>
+      <tr><td class="t">6</td><td class="t">bc9cd285…</td><td class="t">14</td><td class="t">1918287922</td><td class="t">287922</td></tr>
+      <tr><td class="t">7</td><td class="t">a4fb960c…</td><td class="t">10</td><td class="t">82162583</td><td class="t">162583</td></tr>
+      <tr><td class="t">8</td><td class="t">1b3c89f6…</td><td class="t">11</td><td class="t">673399871</td><td class="t">399871</td></tr>
+      <tr><td class="t">9</td><td class="t">16374098…</td><td class="t">5</td><td class="t">645520489</td><td class="t">520489</td></tr>
+    </table></div>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>deno test</code>: step 3 passes, all ten counters. The zero-padding matters: a student whose code prints <code>7081804</code> instead of <code>07081804</code> in the next step has forgotten <code>padStart</code>.</p></div>
+    <p><strong>Talk about it:</strong> why <code>&amp; 0x7fffffff</code>? (RFC 4226 says so to avoid signed/unsigned confusion across languages; the top bit is discarded so every implementation agrees. In JavaScript specifically, <code>getUint32</code> already returns an unsigned number, but the mask keeps the code identical to every other implementation.) Notice the 31-bit integer column: the last six digits are the code. That is all "mod a million" does.</p>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>Let the clock be the counter</h3><span class="time">10 min</span></header>
+    <p>This is the entire difference between HOTP and TOTP: <code>counter = floor(unix_time / 30)</code>. Unix time is seconds since 1970-01-01 00:00 UTC, so time zones never enter into it. <code>Date.now()</code> is milliseconds, hence the division by 1000 in the default.</p>
+<pre data-mode="type this"><code>export function totp(secret: Bytes, at = Date.now() / 1000, step = 30, digits = 6, hash = &quot;SHA-1&quot;) {
+  return hotp(secret, Math.floor(at / step), digits, hash);
+}</code></pre>
+    <p>RFC 6238 Appendix B gives 8-digit vectors for the same test secret at fixed times:</p>
+<pre data-mode="paste this"><code>import { totp } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 4: TOTP vectors (RFC 6238 Appendix B, 8 digits)&quot;, async () =&gt; {
+  const vectors: [number, string][] = [[59, &quot;94287082&quot;], [1111111109, &quot;07081804&quot;],
+    [1234567890, &quot;89005924&quot;], [2000000000, &quot;69279037&quot;]];
+  for (const [t, e] of vectors) assertEquals(await totp(k, t, 30, 8), e, `t=${t}:`);
+});</code></pre>
+    <p>And a main block at the bottom of <code>totp.ts</code> that prints the live code for the RFC secret, so it can be compared with the widget at the top of this page:</p>
+<pre data-mode="paste this"><code>if (import.meta.main) {
+  const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // the RFC test secret
+  console.log(&quot;code right now:&quot;, await totp(k));
+}</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p><code>deno test</code>: step 4 passes. <code>deno run totp.ts</code> prints the same six digits as the live widget. Run it again after the widget's bar resets and confirm both changed to the same new code.</p></div>
+    <p><strong>Talk about it:</strong> <code>t = 59</code> gives counter 1, so the code at second 59 is HOTP(k, 1) = <code>287082</code> for six digits; check it against the step 3 table. Then ask: what happens at second 60? What does the phone do if its clock is 45 seconds slow?</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Put it on your phone</h3><span class="time">15 min</span></header>
+    <p>Authenticator apps read a URI in the <code>otpauth://</code> format, usually from a QR code. The label is <code>issuer:account</code>, and the secret is the Base32 string from step 1.</p>
+<pre data-mode="type this"><code>export function otpauthUri(secret: Bytes, account: string, issuer: string) {
+  const label = `${encodeURIComponent(issuer)}:${encodeURIComponent(account)}`;
+  return `otpauth://totp/${label}?secret=${toBase32(secret)}` +
+    `&amp;issuer=${encodeURIComponent(issuer)}&amp;algorithm=SHA1&amp;digits=6&amp;period=30`;
+}</code></pre>
+    <p>Now a separate script, <code>qr.ts</code>, that makes a fresh secret, draws the QR code in the terminal with the package fetched during the prep, also saves it as <code>qr.png</code> in case the terminal version does not scan, and then prints the current code every five seconds:</p>
+<pre data-mode="paste this"><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+import { newSecret, otpauthUri, toBase32, totp } from &quot;./totp.ts&quot;;
+
+const s = newSecret();
+const uri = otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;);
+console.log(uri);
+console.log(await QRCode.toString(uri, { type: &quot;terminal&quot;, small: true }));
+await QRCode.toFile(&quot;qr.png&quot;, uri); // in case the terminal version will not scan
+console.log(&quot;secret, if you would rather type it in:&quot;, toBase32(s));
+
+while (true) {
+  console.log(await totp(s), &quot;  valid for&quot;, 30 - Math.floor(Date.now() / 1000) % 30, &quot;s&quot;);
+  await new Promise((r) =&gt; setTimeout(r, 5000));
+}
+</code></pre>
+    <p>Run it. Deno will stop and ask whether the script may write <code>qr.png</code>, because nothing is allowed by default; answer <code>y</code>, or grant exactly that up front:</p>
+<pre data-mode="type this"><code>deno run --allow-write=qr.png qr.ts</code></pre>
+    <p>Scan the QR code with your phone's authenticator app (or add an account manually and type the Base32 secret). Watch the two codes change together.</p>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>Your phone and your terminal show the same six digits, and they roll over to the same new digits at the same moment. Stop the loop with Ctrl-C.</p></div>
+    <div class="call warn"><p class="lbl">If the codes differ</p><p>Nine times out of ten it is a clock. Compare the laptop's clock with the phone's to the second. If the phone is the one that is wrong, turn automatic time off and on again. Anyone on the Docker fallback: the VM's clock drifts after sleep; restart Docker Desktop. Only after both clocks agree is it worth looking at the code.</p></div>
+    <p><strong>Talk about it:</strong> the QR code <em>is</em> the secret. Anyone who photographs it has your second factor forever. That is why the real setup screens show it once and offer "backup codes" instead of "show QR again". And the permission prompt: a script from npm just asked to write a file, and the runtime made it ask. What would <code>-A</code> have skipped?</p>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>A verifier a server could use</h3><span class="time">15 min</span></header>
+    <p>Generating codes is the easy half. A server that checks them must handle three things: the user's clock may be a little off and typing takes time, so accept the previous and next step (RFC 6238 §5.2 allows at most one step of delay; accepting one step early as well, for a phone whose clock runs fast, is the common extension); a code must never be accepted twice; and the comparison must not leak information through timing. <code>timingSafeEqual</code> comes from Deno's built-in Node compatibility layer, so it is still not a download.</p>
+<pre data-mode="type this"><code>export class Verifier {
+  lastCounter = -1; // highest counter already used
+
+  constructor(private secret: Bytes, private window = 1, private step = 30) {}
+
+  async verify(code: string, at = Date.now() / 1000): Promise&lt;boolean&gt; {
+    const now = Math.floor(at / this.step);
+    const enc = new TextEncoder();
+    for (let c = now - this.window; c &lt;= now + this.window; c++) {
+      if (c &lt;= this.lastCounter) continue; // used already, or older than one used
+      const expected = await hotp(this.secret, c);
+      if (code.length === expected.length &amp;&amp;
+          timingSafeEqual(enc.encode(expected), enc.encode(code))) {
+        this.lastCounter = c;
+        return true;
+      }
+    }
+    return false;
+  }
+}</code></pre>
+    <p>Test it with fixed times so the result is deterministic. Google Authenticator shows the code as "151 534"; the login script strips the space, but a copied code with other characters is rejected without a hint:</p>
+<pre data-mode="paste this"><code>import { Verifier } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 6: verifier accepts each step once, rejects replay&quot;, async () =&gt; {
+  const s = newSecret();
+  const v = new Verifier(s);
+  const t0 = 1_700_000_000;
+  assertEquals(await v.verify(await totp(s, t0 - 30), t0), true);  // previous step
+  assertEquals(await v.verify(await totp(s, t0 - 30), t0), false); // same code again
+  assertEquals(await v.verify(await totp(s, t0), t0), true);       // current step
+  assertEquals(await v.verify(await totp(s, t0 + 30), t0), true);  // next step
+  assertEquals(await v.verify(await totp(s, t0 + 90), t0), false); // too far ahead
+  assertEquals(await v.verify(&quot;12345&quot;, t0 + 300), false);          // wrong length
+});</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>deno test</code>: all five tests pass. Then the live test, with a third small script, <code>login.ts</code>, that acts as the server: it prints the key both as a URI and as the bare Base32 text, so add it to the phone by typing (or reuse the QR trick from <code>qr.ts</code>), then type codes at it. It should accept a code once and refuse it the second time.</p></div>
+<pre data-mode="paste this"><code>import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+
+const s = newSecret();
+console.log(&quot;add this key to your phone:&quot;, otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;));
+console.log(&quot;or type it in:&quot;, toBase32(s));
+const v = new Verifier(s);
+while (true) {
+  const code = prompt(&quot;code from your phone (empty to quit):&quot;);
+  if (!code) break;
+  console.log(await v.verify(code.replace(/\s/g, &quot;&quot;)) ? &quot;accepted&quot; : &quot;rejected&quot;);
+}
+</code></pre>
+<pre data-mode="type this"><code>deno run login.ts</code></pre>
+    <p><strong>Talk about it:</strong> replace <code>timingSafeEqual(...)</code> with <code>expected === code</code>. It still passes every test. Why is it wrong anyway? (<code>===</code> stops at the first differing character, so response time leaks how many leading digits were right. Against a network it is hard to exploit for six digits, but the habit matters: any comparison of a secret uses constant-time compare, always.) Why the length check in front of it? (<code>timingSafeEqual</code> throws on inputs of different length rather than returning false, and a user who types five digits should get "rejected", not a crash.) Why keep <code>lastCounter</code> rather than a set of used codes? (One integer per user, and it also rejects a code from an older step after a newer one was used.)</p>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
+    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>Everything they built runs on APIs that ship with the runtime; the "crypto" was one call to <code>crypto.subtle.sign</code>. The design work is all in what surrounds it: randomness, encoding, windows, replay, timing, throttling.</li>
+      <li>Redo the slide-8 arithmetic with their own verifier: window 1 accepts 3 codes out of 10<sup>6</sup>. Ask what a login endpoint needs around the verifier before it is safe (rate limit per account, lockout, logging).</li>
+      <li>Ask them to delete the throwaway account from their phone and to never reuse a secret printed on a projector.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>The decoder.</strong> Write <code>fromBase32</code>, the mirror image of the pasted encoder (push five bits in, pull eight out), and add a round-trip test. A server that stores secrets as Base32 text needs it.</li>
+      <li><strong>Other hashes and sizes.</strong> Make it produce the RFC 6238 SHA-256 vector (secret is the ASCII digits repeated to 32 bytes, <code>t=59</code> → <code>46119246</code>, hash name <code>"SHA-256"</code>) and SHA-512 (64 bytes, <code>t=59</code> → <code>90693936</code>). Then put <code>algorithm=SHA256</code> in the URI and see whether their phone app honours it. (Google Authenticator has historically ignored <code>algorithm</code> and <code>period</code>, which is why nearly every site sticks to SHA-1, 6 digits, 30 seconds.)</li>
+      <li><strong>Drift experiment.</strong> Feed <code>totp(s, Date.now() / 1000 + 40)</code> to the verifier. Then <code>+ 70</code>. Where does the window stop helping? What would a server do if a user's codes are consistently one step ahead? (RFC 6238 §6 suggests recording the drift after a successful login and applying it next time.)</li>
+      <li><strong>Brute force it.</strong> Write a loop that guesses every code from <code>000000</code> to <code>999999</code> against a <code>Verifier</code> at a fixed time. How many guesses until success, on average? Then add a counter of failed attempts and lock after five. This is the whole argument for rate limiting in one experiment.</li>
+      <li><strong>Serve it.</strong> Wrap the verifier in <code>Deno.serve</code> with a <code>POST /login</code> that takes a code, and note that the first flag you need is <code>--allow-net</code>. This is the seed of workshop 9, the OAuth workshop.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The four files exactly as tested: every RFC 4226 Appendix D vector, RFC 6238 Appendix B for SHA-1 (and SHA-256 and SHA-512 through the <code>hash</code> parameter), type-checked with <code>deno check</code> on Deno 2.9, and cross-checked against the <code>pyotp</code> library. Hand this out only after step 6, or to a student who is stuck.</p>
+  <div class="dlrow"><a href="code/totp.ts" download>totp.ts</a><a href="code/totp_test.ts" download>totp_test.ts</a><a href="code/qr.ts" download>qr.ts</a><a href="code/login.ts" download>login.ts</a><a href="code/check.ts" download>check.ts</a></div>
+  <details class="sol"><summary>totp.ts<a class="dl" href="code/totp.ts" download>download</a></summary><pre><code>// TOTP from scratch — complete lab file. Deno, no dependencies.
+import { timingSafeEqual } from &quot;node:crypto&quot;;
+
+type Bytes = Uint8Array&lt;ArrayBuffer&gt;; // a Uint8Array that WebCrypto accepts
+
+// ---------- Step 1: a shared secret ----------
+export function newSecret(nbytes = 20): Bytes {
+  return crypto.getRandomValues(new Uint8Array(nbytes));
+}
+
+const B32 = &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ234567&quot;;
+
+export function toBase32(bytes: Bytes): string {
+  let bits = 0, acc = 0, out = &quot;&quot;;
+  for (const b of bytes) {
+    acc = (acc &lt;&lt; 8) | b; // push 8 bits in
+    bits += 8;
+    while (bits &gt;= 5) { // pull 5 bits out at a time
+      out += B32[(acc &gt;&gt;&gt; (bits - 5)) &amp; 31];
+      bits -= 5;
+      acc &amp;= (1 &lt;&lt; bits) - 1;
+    }
+  }
+  if (bits &gt; 0) out += B32[(acc &lt;&lt; (5 - bits)) &amp; 31]; // pad the last group
+  return out;
+}
+
+// ---------- Step 2: HMAC over a counter ----------
+export async function hmacCounter(secret: Bytes, counter: number, hash = &quot;SHA-1&quot;) {
+  const key = await crypto.subtle.importKey(
+    &quot;raw&quot;, secret, { name: &quot;HMAC&quot;, hash }, false, [&quot;sign&quot;],
+  );
+  const msg = new Uint8Array(8);
+  new DataView(msg.buffer).setBigUint64(0, BigInt(counter)); // 8 bytes, big-endian
+  return new Uint8Array(await crypto.subtle.sign(&quot;HMAC&quot;, key, msg));
+}
+
+// ---------- Step 3: dynamic truncation ----------
+export function truncate(mac: Bytes, digits = 6): string {
+  const offset = mac[mac.length - 1] &amp; 0x0f; // low 4 bits of the last byte
+  const num = new DataView(mac.buffer).getUint32(offset) &amp; 0x7fffffff;
+  return String(num % 10 ** digits).padStart(digits, &quot;0&quot;);
+}
+
+export async function hotp(secret: Bytes, counter: number, digits = 6, hash = &quot;SHA-1&quot;) {
+  return truncate(await hmacCounter(secret, counter, hash), digits);
+}
+
+// ---------- Step 4: the clock is the counter ----------
+export function totp(secret: Bytes, at = Date.now() / 1000, step = 30, digits = 6, hash = &quot;SHA-1&quot;) {
+  return hotp(secret, Math.floor(at / step), digits, hash);
+}
+
+// ---------- Step 5: the URI a phone can scan ----------
+export function otpauthUri(secret: Bytes, account: string, issuer: string) {
+  const label = `${encodeURIComponent(issuer)}:${encodeURIComponent(account)}`;
+  return `otpauth://totp/${label}?secret=${toBase32(secret)}` +
+    `&amp;issuer=${encodeURIComponent(issuer)}&amp;algorithm=SHA1&amp;digits=6&amp;period=30`;
+}
+
+// ---------- Step 6: a verifier a server could use ----------
+export class Verifier {
+  lastCounter = -1; // highest counter already used
+
+  constructor(private secret: Bytes, private window = 1, private step = 30) {}
+
+  async verify(code: string, at = Date.now() / 1000): Promise&lt;boolean&gt; {
+    const now = Math.floor(at / this.step);
+    const enc = new TextEncoder();
+    for (let c = now - this.window; c &lt;= now + this.window; c++) {
+      if (c &lt;= this.lastCounter) continue; // used already, or older than one used
+      const expected = await hotp(this.secret, c);
+      if (code.length === expected.length &amp;&amp;
+          timingSafeEqual(enc.encode(expected), enc.encode(code))) {
+        this.lastCounter = c;
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+if (import.meta.main) {
+  const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // the RFC test secret
+  console.log(&quot;code right now:&quot;, await totp(k));
+}
+</code></pre></details>
+  <details class="sol"><summary>totp_test.ts<a class="dl" href="code/totp_test.ts" download>download</a></summary><pre><code>function assertEquals(got: unknown, want: unknown, msg = &quot;&quot;) {
+  const g = JSON.stringify(got), w = JSON.stringify(want);
+  if (g !== w) throw new Error(`${msg} got ${g}, want ${w}`);
+}
+
+const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // RFC test secret
+
+import { newSecret, toBase32 } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 1: secrets are 20 bytes, base32 matches the RFC key&quot;, () =&gt; {
+  assertEquals(newSecret().length, 20);
+  assertEquals(toBase32(k), &quot;GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&quot;);
+});
+
+import { hmacCounter } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 2: HMAC-SHA1 of counter 0 (RFC 4226 Appendix D)&quot;, async () =&gt; {
+  const mac = await hmacCounter(k, 0);
+  const hex = [...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).join(&quot;&quot;);
+  assertEquals(mac.length, 20);
+  assertEquals(hex, &quot;cc93cf18508d94934c64b65d8ba7667fb7cde4b0&quot;);
+});
+
+import { hotp } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 3: HOTP vectors (RFC 4226 Appendix D)&quot;, async () =&gt; {
+  const expected = [&quot;755224&quot;, &quot;287082&quot;, &quot;359152&quot;, &quot;969429&quot;, &quot;338314&quot;,
+                    &quot;254676&quot;, &quot;287922&quot;, &quot;162583&quot;, &quot;399871&quot;, &quot;520489&quot;];
+  for (let c = 0; c &lt; expected.length; c++) {
+    assertEquals(await hotp(k, c), expected[c], `counter ${c}:`);
+  }
+});
+
+import { totp } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 4: TOTP vectors (RFC 6238 Appendix B, 8 digits)&quot;, async () =&gt; {
+  const vectors: [number, string][] = [[59, &quot;94287082&quot;], [1111111109, &quot;07081804&quot;],
+    [1234567890, &quot;89005924&quot;], [2000000000, &quot;69279037&quot;]];
+  for (const [t, e] of vectors) assertEquals(await totp(k, t, 30, 8), e, `t=${t}:`);
+});
+
+import { Verifier } from &quot;./totp.ts&quot;;
+
+Deno.test(&quot;step 6: verifier accepts each step once, rejects replay&quot;, async () =&gt; {
+  const s = newSecret();
+  const v = new Verifier(s);
+  const t0 = 1_700_000_000;
+  assertEquals(await v.verify(await totp(s, t0 - 30), t0), true);  // previous step
+  assertEquals(await v.verify(await totp(s, t0 - 30), t0), false); // same code again
+  assertEquals(await v.verify(await totp(s, t0), t0), true);       // current step
+  assertEquals(await v.verify(await totp(s, t0 + 30), t0), true);  // next step
+  assertEquals(await v.verify(await totp(s, t0 + 90), t0), false); // too far ahead
+  assertEquals(await v.verify(&quot;12345&quot;, t0 + 300), false);          // wrong length
+});
+</code></pre></details>
+  <details class="sol"><summary>qr.ts<a class="dl" href="code/qr.ts" download>download</a></summary><pre><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+import { newSecret, otpauthUri, toBase32, totp } from &quot;./totp.ts&quot;;
+
+const s = newSecret();
+const uri = otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;);
+console.log(uri);
+console.log(await QRCode.toString(uri, { type: &quot;terminal&quot;, small: true }));
+await QRCode.toFile(&quot;qr.png&quot;, uri); // in case the terminal version will not scan
+console.log(&quot;secret, if you would rather type it in:&quot;, toBase32(s));
+
+while (true) {
+  console.log(await totp(s), &quot;  valid for&quot;, 30 - Math.floor(Date.now() / 1000) % 30, &quot;s&quot;);
+  await new Promise((r) =&gt; setTimeout(r, 5000));
+}
+</code></pre></details>
+  <details class="sol"><summary>login.ts<a class="dl" href="code/login.ts" download>download</a></summary><pre><code>import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+
+const s = newSecret();
+console.log(&quot;add this key to your phone:&quot;, otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;));
+console.log(&quot;or type it in:&quot;, toBase32(s));
+const v = new Verifier(s);
+while (true) {
+  const code = prompt(&quot;code from your phone (empty to quit):&quot;);
+  if (!code) break;
+  console.log(await v.verify(code.replace(/\s/g, &quot;&quot;)) ? &quot;accepted&quot; : &quot;rejected&quot;);
+}
+</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>Steps 2 and 3 are where the room spreads out; that is why they have the most slack. If you are more than ten minutes behind at the end of step 3, cut the "talk about it" discussions in steps 4 and 6 and keep the code. Step 5 is the payoff and must not be rushed: budget for at least one student whose phone clock is wrong. Step 7's stretch goals absorb any time left over.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Why SHA-1? Isn't it broken?"</em> SHA-1 collisions are practical, but HMAC-SHA1 does not depend on collision resistance and has no known practical attack. The RFCs allow SHA-256 and SHA-512 too; apps' patchy support is why SHA-1 is still the default.</li>
+    <li><em>"Why is everything <code>async</code>?"</em> WebCrypto returns Promises so that browsers can do the work off the main thread. Deno keeps the same API, so the same code runs in both. The cost is one <code>await</code> per call; the benefit is that the lab's HMAC is literally the browser's HMAC.</li>
+    <li><em>"Where does the server keep the secret?"</em> Encrypted at rest at best, but it has to be decryptable to verify, so a full server compromise leaks it. That limitation is one motivation for passkeys, which store only a public key on the server.</li>
+    <li><em>"Can I use this in a real project?"</em> Use a maintained library (<code>otpauth</code> on npm/JSR for TypeScript, <code>pquerna/otp</code> in Go) plus rate limiting; the point of writing it by hand is to be able to read those libraries and their bug reports.</li>
+    <li><em>"What about the codes banks send by SMS?"</em> Usually not TOTP at all: a random code stored server-side and sent over a channel that can be intercepted or SIM-swapped. Same user experience, much weaker security.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc4226">RFC 4226 — HOTP</a>: algorithm, §5.3 truncation, Appendix D test vectors, §7 validation guidance.</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc6238">RFC 6238 — TOTP</a>: time step, §5.2 window recommendation, §6 resynchronisation, Appendix B test vectors.</li>
+    <li><a href="https://github.com/google/google-authenticator/wiki/Key-Uri-Format">Key URI format</a>: the <code>otpauth://</code> scheme and which parameters Google Authenticator honours.</li>
+    <li><a href="https://docs.deno.com/runtime/getting_started/installation/">Deno installation</a> and <a href="https://docs.deno.com/runtime/fundamentals/security/">Deno's permission model</a>: the install lines in the prep, and the scoped <code>--allow-write=qr.png</code> in step 5.</li>
+    
+  </ul>
+</section>
+
+</main>
+</div>
+
+
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

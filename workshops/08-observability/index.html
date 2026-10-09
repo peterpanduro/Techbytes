@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Logs and Metrics You Can Actually Use · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 8 · Logs and Metrics You Can Actually Use</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 8</span>
+      <h1>Logs and Metrics You Can Actually Use</h1>
+      <p class="lede">Give a small Go API structured logs and a hand-written Prometheus endpoint, scrape it, graph it in Grafana, and find the deliberately slow endpoint from the graph alone. Then use a request id to jump from the graph to the one log line that says why.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~25 min</b> student prep, one week before</li>
+        <li>No monitoring knowledge assumed</li>
+        <li>Go standard library, Deno, Compose</li>
+        <li>Any OS</li>
+      </ul>
+    </div>
+    <div class="demo" id="w8-demo">
+      <span class="eyebrow">Interactive · why p95 is not the average</span>
+      <p class="note" style="margin:.3rem 0 .7rem">Fake requests to a <code>/checkout</code> that takes 300 ms, except one call in ten that takes two seconds longer. Every request lands in one bucket of a histogram; the numbers are what a dashboard would show.</p>
+      <div class="w8-top">
+        <div class="seg" role="group" aria-label="Traffic"><button type="button" id="w8-run" aria-pressed="false">Start</button><button type="button" id="w8-reset" aria-pressed="false">Reset</button></div>
+        <span class="w8-last">last request <b id="w8-last">–</b></span>
+      </div>
+      <div class="w8-stats">
+        <div><span>requests</span><b id="w8-n">0</b></div>
+        <div><span>average</span><b id="w8-avg">–</b></div>
+        <div><span>p95</span><b id="w8-p95">–</b></div>
+        <div><span>p95 · from buckets</span><b id="w8-est">–</b></div>
+      </div>
+      <div class="w8-hist" id="w8-hist" aria-label="Histogram of request durations"></div>
+      <p class="note" id="w8-note" style="margin-top:.5rem"></p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Run the API and the load</a></li>
+        <li><a href="#s1">1 · Logs are data</a></li>
+        <li><a href="#s2">2 · Metrics by hand</a></li>
+        <li><a href="#s3">3 · Prometheus scrapes it</a></li>
+        <li><a href="#s4">4 · PromQL</a></li>
+        <li><a href="#s5">5 · Grafana finds the where</a></li>
+        <li><a href="#s6">6 · Logs find the why, and an alert</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 8</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves with a Go API that writes one JSON log line per request (method, path, status, duration, request id) and serves a Prometheus <code>/metrics</code> page they wrote themselves, a Compose file that runs it next to Prometheus and Grafana, a two-panel dashboard that shows which endpoint is slow, one alert rule, and the habit of asking a metric "where?" and a log "why?".</td></tr>
+    <tr><th>Why this topic</th><td>The first week on any real system is spent staring at a dashboard someone else built and a log nobody can search. Students have never seen where those numbers come from. Writing the <code>/metrics</code> page by hand, thirty lines, removes the magic for good: a metric is a number with labels that something fetches every few seconds, and a histogram is six counters. After that, every monitoring tool is the same tool.</td></tr>
+    <tr><th>Concepts</th><td>Structured logs and why a log line is a record, not a sentence; request ids; counters and histograms; labels and cardinality; the Prometheus text exposition format; pull-based scraping and the scrape interval; <code>rate()</code>, <code>sum by</code>, and <code>histogram_quantile()</code>; why p95 is not the average and why a bucketed p95 is an estimate; dashboards as questions; alert rules; the difference between "where" (metrics) and "why" (logs), and what traces would add.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Workshop 1 (containers, ports) and workshop 6 (Compose, a service finds another by name). Can read a short Go program; workshops 3, 4 and 6 provided that. No Prometheus, Grafana or statistics knowledge.</td></tr>
+    <tr><th>Language</th><td>Go, standard library only: <code>log/slog</code> for the logs and <code>fmt</code> for the metrics page. The load generator and the log filter are two tiny Deno scripts, pasted. Prometheus and Grafana run from their official images; nothing is installed on the laptop beyond what earlier workshops installed.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Go 1.27, Deno 2.9 and Docker from the earlier workshops, the three images from the prep pack pulled, a browser, a text editor, and three terminal windows.</td></tr>
+    <tr><th>Room needs</th><td>Projector. No Wi-Fi is needed for anyone who did the prep; the instructor carries the images on a USB stick.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 25 minutes, mostly downloads)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. Go, Deno and Docker</h4>
+  <p>You have all three from earlier workshops. Check they still work; if any is missing, Go comes from <a href="https://go.dev/dl/">go.dev/dl</a> (1.27 is current), Deno from <a href="https://docs.deno.com/runtime/getting_started/installation/">docs.deno.com</a> (<code>curl -fsSL https://deno.land/install.sh | sh</code> on macOS and Linux, <code>irm https://deno.land/install.ps1 | iex</code> in PowerShell), and Docker Desktop from <a href="https://docs.docker.com/get-started/get-docker/">docs.docker.com</a>. Docker Desktop must be running.</p>
+
+  <h4>2. Download the three images we will use</h4>
+  <p>About 1.4 GB in total, most of it the Go toolchain image you may already have from workshop 1. Do this at home.</p>
+<pre><code>docker pull golang:1.27
+docker pull prom/prometheus:v3.14.0
+docker pull grafana/grafana:13.2.2</code></pre>
+
+  <h4>3. The readiness check</h4>
+  <p>Make a folder called <code>obs-lab</code> and open a terminal in it (Terminal on macOS, PowerShell on Windows). Run these three lines:</p>
+<pre><code>go version
+deno eval &quot;console.log(JSON.stringify({ready: true, status: 504}))&quot;
+docker compose version</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (any 1.2x is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole afternoon is built on. If any line fails, bring the error to the workshop and arrive ten minutes early.</p></div>
+  <p>Optional but nice: install <a href="https://jqlang.org/download/">jq</a>, the command-line JSON tool. The lab works without it; there is a Deno script that does the same job.</p>
+
+  <div class="call inst"><p class="lbl">If an image will not pull</p><p>The Prometheus and Grafana images are about 100 MB and 450 MB. Both are on the USB stick together with <code>golang:1.27</code>; <code>docker load -i images.tar</code> restores them in a minute. There is no other blocker: no accounts, no tokens, no cloud.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run the whole lab yourself on each OS you expect in the room, with the exact commands on this page, and write down the numbers you get for <code>rate(http_requests_total[1m])</code> and the checkout p95 so you can say them out loud in step 4.</li>
+    <li>Save the images to a USB stick: <code>docker save golang:1.27 prom/prometheus:v3.14.0 grafana/grafana:13.2.2 -o images.tar</code> (about 1.4 GB).</li>
+    <li>Steps 3 to 6 depend on ports 8080, 9090 and 3000 being free. Ask the room to stop anything from earlier workshops before the break; "port is already allocated" is the error of the day.</li>
+    <li>The widget at the top of this page is slide 5. Let it run for thirty seconds while you talk; the average settles near half a second while p95 sits above two.</li>
+    <li>Grafana's UI moves between versions. Click through "add data source" and "new dashboard" on the pinned image the week before, and take two screenshots for the projector in case the room's browser is slow.</li>
+    <li>Have the <a href="#solution">full solution</a> ready. <code>metrics.go</code> is the one file a stuck student should paste whole; everything else is short enough to fix by reading.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 11 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: where, then why</h2>
+  <p>The single idea to land: <strong>a log line answers "what happened to this request", a metric answers "how is the system doing", and you need both, because you cannot grep a thousand pods.</strong> Metrics find the where; logs find the why; a request id connects them.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">"It's slow." Which part?</span><span class="d">1 min</span>
+      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh in and tail a log? That works for one server. The afternoon is about what works for a thousand.</span></li>
+    <li><span class="n">2</span><span class="t">Two questions, two tools</span><span class="d">2 min</span>
+      <span class="say">"What happened to this request?" is a log question: one record per event, with everything you knew at the time. "How is the system doing?" is a metric question: a few numbers, updated constantly, cheap enough to keep forever. Logs are wide and expensive per event; metrics are narrow and free. A system that has only one of them has a blind spot. Today the API gets both.</span></li>
+    <li><span class="n">3</span><span class="t">A log line is data, not prose</span><span class="d">2 min</span>
+      <span class="say">Show <code>log.Printf("%s %s %d %v", …)</code> next to the JSON line the lab produces: method, path, status, duration in milliseconds, request id. The first is a sentence a human parses with their eyes; the second is a record a program filters with <code>status &gt;= 500</code>. Go's <code>log/slog</code> writes the second form with one line of setup. The request id is a random tag stamped on the request at the door so that every line about it can be found again.</span></li>
+    <li><span class="n">4</span><span class="t">A metric is a number with labels</span><span class="d">1 min</span>
+      <span class="say"><code>http_requests_total{path="/checkout",status="504"} 17</code>. A name, some labels, a value. A counter only goes up; you ask for its rate later. Labels are how you slice: by path, by status. Never a user id or a request id as a label: every distinct value is a new time series, and you would make millions.</span></li>
+    <li><span class="n">5</span><span class="t">Histograms, and why p95 is not the average</span><span class="d">2 min</span>
+      <span class="say">The widget. A histogram is a row of counters with an upper bound each: how many requests took at most 0.1 s, at most 0.25, 0.5, 1, 2.5, anything. Checkout takes 300 ms, except one call in ten that takes two seconds longer. The average settles at half a second and looks fine; the p95 sits above two seconds because one customer in ten is waiting. Averages hide tails; percentiles show them. And a percentile computed from buckets is an estimate: Prometheus will say about 1.9 s where the truth is 2.3, because it interpolates inside the 1-to-2.5 bucket.</span></li>
+    <li><span class="n">6</span><span class="t">Pull, not push</span><span class="d">1 min</span>
+      <span class="say">The API does not send anything anywhere. It serves a plain text page at <code>/metrics</code> with the current counters, and Prometheus fetches that page every five seconds and stores each number with a timestamp. Grafana asks Prometheus questions and draws the answers. Three boxes, two arrows, and the API knows nothing about either of the others. That is why the lab can write the <code>/metrics</code> page by hand in thirty lines.</span></li>
+    <li><span class="n">7</span><span class="t">PromQL in three lines</span><span class="d">2 min</span>
+      <span class="say"><code>rate(http_requests_total[1m])</code>: how fast is the counter climbing, per second, over the last minute. Wrap it in <code>sum by (path)</code> to collapse the status label and get requests per second per endpoint. And <code>histogram_quantile(0.95, sum by (le) (rate(…_bucket[1m])))</code>: take the bucket counters, turn each into a rate, add them up keeping only the bucket label, and read off the 95th percentile. Three shapes cover most dashboards you will ever build.</span></li>
+    <li><span class="n">8</span><span class="t">The graph finds the where</span><span class="d">1 min</span>
+      <span class="say">Two panels: requests per second by path, p95 latency by path. Two lines sit on the floor; one sits at two seconds. You have found the slow endpoint without reading a single log line and without knowing what the code does. That is the point of a metric: it is cheap enough to look at all the time, so you notice before the customer does.</span></li>
+    <li><span class="n">9</span><span class="t">The log finds the why</span><span class="d">1 min</span>
+      <span class="say">The graph cannot tell you why checkout is slow. Take one slow log line, copy its request id, filter the log for it, and there is a second line from inside the handler: "payment provider timed out". Metrics tell you where to look; logs tell you what you find there; the id is the join key. In step 6 you also write the alert rule so that next time nobody has to be watching the graph.</span></li>
+    <li><span class="n">10</span><span class="t">What we are not doing</span><span class="d">1 min</span>
+      <span class="say">Traces: the third pillar, one record per request that crosses several services; OpenTelemetry plus a collector is a workshop of its own. The Prometheus client library, which does what our thirty lines do and much more; we write it by hand once so the library is never magic. Log levels and sampling, and SLOs. All four are stretch goals on the page.</span></li>
+    <li><span class="n">11</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Seven steps: run the API and a load generator, switch the log to JSON and filter it, write the metrics page, bring up Prometheus and Grafana with Compose, ask three PromQL questions, build the two-panel dashboard and find the slow endpoint, then correlate with a request id and add the alert. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 7 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in the <code>obs-lab</code> folder from the prep with three terminals open in it: one for the API, one for the load generator, one for everything else. A browser sits beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the observability code and configuration: 42 lines of Go (the <code>slog</code> changes, the two metrics functions, the warning line) and 9 lines of YAML (<code>prometheus.yml</code> and one Compose line), 51 lines in all, plus about a dozen commands. <strong>Paste this</strong> is the API itself, the two Deno scripts, the Dockerfile, the Compose file and the alert rule: they are read aloud and understood, but they are not the topic. Windows users: everything on this page runs unchanged in PowerShell; where the page pipes into <code>deno run filter.ts</code>, so do you.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="8"><span class="k">0:00–0:08</span><span>Step 0 · Run the API and the load generator</span></div>
+    <div class="row" data-from="8" data-to="20"><span class="k">0:08–0:20</span><span>Step 1 · Logs are data: <code>log/slog</code> and a filter</span></div>
+    <div class="row" data-from="20" data-to="40"><span class="k">0:20–0:40</span><span>Step 2 · Metrics by hand: a counter, a histogram, <code>/metrics</code></span></div>
+    <div class="row" data-from="40" data-to="52"><span class="k">0:40–0:52</span><span>Step 3 · Prometheus scrapes it: <code>prometheus.yml</code> and Compose</span></div>
+    <div class="row" data-from="52" data-to="62"><span class="k">0:52–1:02</span><span>Step 4 · Three PromQL questions</span></div>
+    <div class="row" data-from="62" data-to="74"><span class="k">1:02–1:14</span><span>Step 5 · Grafana finds the where</span></div>
+    <div class="row" data-from="74" data-to="84"><span class="k">1:14–1:24</span><span>Step 6 · Logs find the why, and an alert rule</span></div>
+    <div class="row" data-from="84" data-to="90"><span class="k">1:24–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Run the API and the load generator</h3><span class="time">8 min</span></header>
+    <p>The app for the afternoon is a 47-line Go web server with three endpoints. Create these two files in <code>obs-lab</code> and read <code>main.go</code> once, top to bottom. <code>wrap</code> runs around every handler, times it and prints one line; the <code>recorder</code> exists only to remember the status code. <code>/checkout</code> is the interesting one: it always sleeps 300 ms, and one call in ten hangs for two more seconds and answers 504. That is the "payment provider" we will find later without being told.</p>
+    <h4>go.mod</h4>
+<pre data-mode="paste this"><code>module obs
+
+go 1.24</code></pre>
+    <h4>main.go</h4>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;math/rand/v2&quot;
+	&quot;net/http&quot;
+	&quot;time&quot;
+)
+
+// recorder remembers the status code a handler wrote, so we can log it.
+type recorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *recorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.WriteHeader(code) }
+
+// wrap runs around every handler: time it, then log one line.
+func wrap(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &amp;recorder{w, 200}
+		h(rec, r)
+		log.Printf(&quot;%s %s %d %v&quot;, r.Method, r.URL.Path, rec.status, time.Since(start))
+	}
+}
+
+func main() {
+	http.HandleFunc(&quot;/&quot;, wrap(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, &quot;hello&quot;)
+	}))
+	http.HandleFunc(&quot;/products&quot;, wrap(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, `[&quot;socks&quot;,&quot;hat&quot;,&quot;mug&quot;]`)
+	}))
+	http.HandleFunc(&quot;/checkout&quot;, wrap(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond) // the payment provider is never fast
+		if rand.IntN(10) == 0 {            // and one call in ten hangs
+			time.Sleep(2 * time.Second)
+			http.Error(w, &quot;payment provider timed out&quot;, http.StatusGatewayTimeout)
+			return
+		}
+		fmt.Fprintln(w, &quot;paid&quot;)
+	}))
+	log.Println(&quot;listening on :8080&quot;)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}</code></pre>
+    <p>Now the load generator, a Deno script that hits the three endpoints at random from three loops, forever. Paste it as <code>load.ts</code>:</p>
+<pre data-mode="paste this"><code>// Load generator: three loops hitting the API at random, forever. Ctrl-C stops it.
+const base = &quot;http://localhost:8080&quot;;
+const paths = [&quot;/&quot;, &quot;/products&quot;, &quot;/products&quot;, &quot;/checkout&quot;];
+async function loop(n: number) {
+  while (true) {
+    const path = paths[Math.floor(Math.random() * paths.length)];
+    const t = performance.now();
+    const res = await fetch(base + path);
+    await res.text();
+    console.log(`loop ${n}  ${res.status}  ${path}  ${Math.round(performance.now() - t)} ms`);
+    await new Promise((r) =&gt; setTimeout(r, 100));
+  }
+}
+await Promise.all([1, 2, 3].map(loop));</code></pre>
+    <p>Terminal 1 runs the API, terminal 2 the load, terminal 3 is yours:</p>
+<pre data-mode="type this"><code>go run .
+deno run --allow-net load.ts
+curl -i localhost:8080/checkout</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p>Terminal 1 prints <code>listening on :8080</code> and then a line per request such as <code>GET /checkout 200 300.5ms</code>. Terminal 2 scrolls lines like <code>loop 2  200  /products  1 ms</code> and, every ten checkouts or so, <code>504  /checkout  2302 ms</code>. <code>curl</code> answers <code>paid</code> after about 300 ms, or <code>payment provider timed out</code> with a 504 after 2.3 s if you were unlucky.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Someone will have port 8080 taken by a container from workshop 6 or 7: <code>docker ps</code>, then <code>docker rm -f</code>. Leave the load generator running for the rest of the afternoon; every later step needs traffic.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Logs are data: <code>log/slog</code> and a filter</h3><span class="time">12 min</span></header>
+    <p>The line terminal 1 prints is a sentence. Try to answer "how many 504s in the last minute?" from it and you are writing a regular expression. Go's <code>log/slog</code> package writes the same information as JSON: one record per line, every field named. Three edits to <code>main.go</code>. First, two imports:</p>
+<pre data-mode="type this"><code>	&quot;log/slog&quot;
+	&quot;os&quot;</code></pre>
+    <p>Second, in <code>wrap</code>, replace the <code>rec :=</code>, <code>h(rec, r)</code> and <code>log.Printf</code> lines with these six. The request id is eight random hex digits, stamped onto the request as a header so that anything deeper in the program can find it:</p>
+<pre data-mode="type this"><code>		id := fmt.Sprintf(&quot;%08x&quot;, rand.Uint32())
+		r.Header.Set(&quot;X-Request-Id&quot;, id)
+		rec := &amp;recorder{w, 200}
+		h(rec, r)
+		slog.Info(&quot;request&quot;, &quot;method&quot;, r.Method, &quot;path&quot;, r.URL.Path, &quot;status&quot;, rec.status,
+			&quot;duration_ms&quot;, time.Since(start).Milliseconds(), &quot;request_id&quot;, id)</code></pre>
+    <p>Third, the first line of <code>main</code> makes the JSON handler the default logger. It also captures the old <code>log</code> package, so the "listening" line turns into JSON too without being touched:</p>
+<pre data-mode="type this"><code>	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))</code></pre>
+    <p>Restart the API (Ctrl-C in terminal 1, <code>go run .</code> again). Every line is now a JSON object. Now filter it. Paste this as <code>filter.ts</code>; it reads lines from standard input, parses each one, and prints the ones with <code>status &gt;= 500</code>:</p>
+<pre data-mode="paste this"><code>// Reads JSON log lines on stdin. Prints the ones with status &gt;= 500,
+// or, given an argument, the ones containing that text (a request id).
+import { createInterface } from &quot;node:readline&quot;;
+import process from &quot;node:process&quot;;
+const want = Deno.args[0];
+for await (const line of createInterface({ input: process.stdin })) {
+  try {
+    const rec = JSON.parse(line);
+    if (want ? line.includes(want) : rec.status &gt;= 500) console.log(line);
+  } catch {
+    // not JSON (a startup line, a panic): ignore
+  }
+}</code></pre>
+<pre data-mode="type this"><code>go run . | deno run filter.ts</code></pre>
+    <p>If you installed <code>jq</code>, <code>go run . | jq -c 'select(.status &gt;= 500)'</code> does the same thing. Either way the point is the same: nobody wrote a regular expression, because a log line is a record.</p>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p>Terminal 1 shows only the failures, roughly one every few seconds, each a full JSON line. Nothing with status 200 gets through.</p>
+<pre><code>{&quot;time&quot;:&quot;2026-09-22T12:38:29.730449449+02:00&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;request&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;path&quot;:&quot;/checkout&quot;,&quot;status&quot;:504,&quot;duration_ms&quot;:2301,&quot;request_id&quot;:&quot;c11e5f84&quot;}</code></pre>
+    </div>
+    <p><strong>Common mistakes:</strong> <code>log.Printf</code> left in place next to <code>slog.Info</code> (two lines per request, one of them prose); <code>slog.SetDefault</code> placed after the handlers are registered (harmless, it still works, but say why it is at the top: everything after it logs JSON); running the filter on terminal 2's output instead of terminal 1's.</p>
+    <p><strong>Talk about it:</strong> why <code>duration_ms</code> as an integer rather than <code>300.5ms</code> as a string? (You can compare and sum a number.) What would you put in the line that is not there yet? (User id, upstream latency, the error.) What should never go in a log line? (Passwords, tokens, card numbers; logs are copied everywhere.)</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>Metrics by hand: a counter, a histogram, <code>/metrics</code></h3><span class="time">20 min</span></header>
+    <p>A log line per request is the right thing for "what happened", and the wrong thing for "how are we doing": to answer "requests per second by endpoint" you would re-read the whole log. A metric keeps the answer up to date instead. Two metrics today: a counter of requests by path and status, and a histogram of request durations by path. We write them with maps and <code>fmt</code>, no library, so that the format is never magic. Create <code>metrics.go</code> and paste its top: the imports and the four variables. <code>buckets</code> is the histogram's upper bounds in seconds, ending in <code>+Inf</code>.</p>
+<pre data-mode="paste this"><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math&quot;
+	&quot;net/http&quot;
+	&quot;strings&quot;
+	&quot;sync&quot;
+)
+
+// One counter (requests by path and status) and one histogram (seconds by path),
+// kept in plain maps and printed in the Prometheus text format on /metrics.
+var (
+	mu       sync.Mutex
+	buckets  = []float64{0.1, 0.25, 0.5, 1, 2.5, math.Inf(1)}
+	requests = map[string]int{}   // &quot;path status&quot; -&gt; count
+	observed = map[string][]int{} // path -&gt; cumulative count per bucket
+	sums     = map[string]float64{}
+)</code></pre>
+    <p>Now type the two functions under it. <code>observe</code> is called once per request: it bumps the counter for this path and status, then bumps every bucket whose bound the duration fits under (so the buckets are cumulative, which is what Prometheus expects), and adds to the sum. <code>metrics</code> prints everything in the Prometheus text format: a <code>TYPE</code> line, then one line per label combination, <code>name{labels} value</code>.</p>
+<pre data-mode="type this"><code>func observe(path string, status int, seconds float64) {
+	mu.Lock()
+	defer mu.Unlock()
+	requests[fmt.Sprintf(&quot;%s %d&quot;, path, status)]++
+	if observed[path] == nil {
+		observed[path] = make([]int, len(buckets))
+	}
+	for i, le := range buckets {
+		if seconds &lt;= le {
+			observed[path][i]++
+		}
+	}
+	sums[path] += seconds
+}
+
+func metrics(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+	w.Header().Set(&quot;Content-Type&quot;, &quot;text/plain; version=0.0.4&quot;)
+	fmt.Fprintln(w, &quot;# TYPE http_requests_total counter&quot;)
+	for key, n := range requests {
+		path, status, _ := strings.Cut(key, &quot; &quot;)
+		fmt.Fprintf(w, &quot;http_requests_total{path=%q,status=%q} %d\n&quot;, path, status, n)
+	}
+	fmt.Fprintln(w, &quot;# TYPE http_request_duration_seconds histogram&quot;)
+	for path, counts := range observed {
+		for i, le := range buckets {
+			fmt.Fprintf(w, &quot;http_request_duration_seconds_bucket{path=%q,le=%q} %d\n&quot;, path, fmt.Sprint(le), counts[i])
+		}
+		fmt.Fprintf(w, &quot;http_request_duration_seconds_sum{path=%q} %g\n&quot;, path, sums[path])
+		fmt.Fprintf(w, &quot;http_request_duration_seconds_count{path=%q} %d\n&quot;, path, counts[len(buckets)-1])
+	}
+}</code></pre>
+    <p>Two lines in <code>main.go</code> connect it: the observation at the end of <code>wrap</code>, after <code>slog.Info</code>, and the route in <code>main</code> before the "listening" line. <code>/metrics</code> is deliberately not wrapped, so scraping it does not count as traffic:</p>
+<pre data-mode="type this"><code>		observe(r.URL.Path, rec.status, time.Since(start).Seconds())
+	http.HandleFunc(&quot;/metrics&quot;, metrics)</code></pre>
+    <p>Restart the API, let the load run for half a minute, then look at the page:</p>
+<pre data-mode="type this"><code>curl localhost:8080/metrics</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>Something close to this, with your own numbers. Four counter lines, then for each path six <code>_bucket</code> lines whose values never decrease from top to bottom, a <code>_sum</code> and a <code>_count</code>. For <code>/checkout</code> the <code>le="0.25"</code> bucket is 0 (nothing is faster than 300 ms) and the <code>le="0.5"</code> and <code>le="1"</code> buckets are equal (nothing lands between half a second and one second):</p>
+<pre><code># TYPE http_requests_total counter
+http_requests_total{path=&quot;/checkout&quot;,status=&quot;200&quot;} 111
+http_requests_total{path=&quot;/checkout&quot;,status=&quot;504&quot;} 17
+http_requests_total{path=&quot;/&quot;,status=&quot;200&quot;} 110
+http_requests_total{path=&quot;/products&quot;,status=&quot;200&quot;} 217
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{path=&quot;/checkout&quot;,le=&quot;0.1&quot;} 0
+http_request_duration_seconds_bucket{path=&quot;/checkout&quot;,le=&quot;0.25&quot;} 0
+http_request_duration_seconds_bucket{path=&quot;/checkout&quot;,le=&quot;0.5&quot;} 111
+http_request_duration_seconds_bucket{path=&quot;/checkout&quot;,le=&quot;1&quot;} 111
+http_request_duration_seconds_bucket{path=&quot;/checkout&quot;,le=&quot;2.5&quot;} 128
+http_request_duration_seconds_bucket{path=&quot;/checkout&quot;,le=&quot;+Inf&quot;} 128
+http_request_duration_seconds_sum{path=&quot;/checkout&quot;} 72.49204246999997
+http_request_duration_seconds_count{path=&quot;/checkout&quot;} 128
+…</code></pre>
+    </div>
+    <p><strong>Talk about it:</strong> read the checkout histogram out loud: 128 requests, 111 under half a second, 17 between one and 2.5 seconds. What is the average? (72.5 s / 128 = 0.57 s.) What is the p95? (The 95th percent mark is request 122 of 128, which is in the 1-to-2.5 bucket; the truth is 2.3 s.) The map order changes between scrapes; why does that not matter? (Each line is self-describing.) Why is the duration in seconds and not milliseconds? (Prometheus convention: base units, always.) What happens to this program if someone requests <code>/a</code>, <code>/b</code>, <code>/c</code> … a million times? (A million time series: the catch-all <code>/</code> handler logs the real path. The fix is <code>r.Pattern</code>, the matched route, instead of <code>r.URL.Path</code>. Not today, but never put an unbounded value in a label.)</p>
+    <p><strong>Common mistakes:</strong> <code>&lt;</code> instead of <code>&lt;=</code> in <code>observe</code> (buckets are "less than or equal", that is what <code>le</code> means); forgetting the <code>+Inf</code> bucket by editing the list (Prometheus rejects the histogram without it); a <code>_count</code> that is not equal to the <code>+Inf</code> bucket.</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>Prometheus scrapes it: <code>prometheus.yml</code> and Compose</h3><span class="time">12 min</span></header>
+    <p>The API serves numbers; Prometheus collects them. It needs to be told what to fetch and how often. Type <code>prometheus.yml</code>; six lines, and every one of them is a real decision:</p>
+<pre data-mode="type this"><code>global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: [&quot;api:8080&quot;]</code></pre>
+    <p><code>scrape_interval: 5s</code> is aggressive (the default is a minute; 15 s is common) so that the graphs move while you watch. The target is <code>api:8080</code>, not <code>localhost</code>: inside Compose, services find each other by name, exactly as in workshop 6, so the API needs to be a service too. Paste the Dockerfile from workshop 1 with one change (<code>COPY *.go</code>, since there are now two files) and a Compose file with three services:</p>
+    <h4>Dockerfile</h4>
+<pre data-mode="paste this"><code>FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+COPY *.go ./
+RUN CGO_ENABLED=0 go build -o server .
+
+FROM scratch
+COPY --from=build /app/server /server
+CMD [&quot;/server&quot;]</code></pre>
+    <h4>compose.yaml</h4>
+<pre data-mode="paste this"><code>services:
+  api:
+    build: .
+    ports: [&quot;8080:8080&quot;]
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    ports: [&quot;9090:9090&quot;]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    ports: [&quot;3000:3000&quot;]</code></pre>
+    <p>Stop the <code>go run</code> in terminal 1 (Ctrl-C) so that port 8080 is free; the load generator in terminal 2 can keep running, it will fail for a few seconds and recover. Then bring everything up:</p>
+<pre data-mode="type this"><code>docker compose up -d --build
+docker compose ps</code></pre>
+    <p>Open <a href="http://localhost:9090/targets">localhost:9090/targets</a>. Prometheus lists its one target, <code>api:8080</code>, and after a few seconds says <code>UP</code>. Then <a href="http://localhost:9090/query">localhost:9090/query</a>, type <code>http_requests_total</code> in the box and press Execute: the four counter lines from step 2, now as time series that Prometheus has been storing every five seconds.</p>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>docker compose ps</code> shows <code>api</code>, <code>prometheus</code> and <code>grafana</code> running. The targets page shows <code>api:8080</code> as <code>UP</code> with a "last scrape" a few seconds ago. The query <code>http_requests_total</code> returns four series, and running it again returns bigger numbers.</p></div>
+    <p><strong>Common mistakes:</strong> <code>localhost:8080</code> as the target (that is Prometheus's own container; the target shows <code>DOWN</code> with "connection refused"); YAML indented with a tab (Prometheus refuses to start; <code>docker compose logs prometheus</code> says so); the old <code>go run</code> still holding port 8080 so <code>api</code> fails to start.</p>
+    <div class="call inst"><p class="lbl">Instructor</p><p>The build step pulls nothing if the prep was done, but the first <code>go build</code> inside the container takes some tens of seconds on a laptop. Use the wait to say what "UP" means: Prometheus made an HTTP request to <code>/metrics</code>, parsed it, and stored every line with a timestamp. The API did nothing but answer.</p></div>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>Three PromQL questions</h3><span class="time">10 min</span></header>
+    <p>Prometheus's query page is where you learn the language, one expression at a time. Switch to the Graph tab for each one. Nothing here is typed into a file; the three expressions are the whole step, and the dashboard in step 5 reuses them unchanged.</p>
+<pre data-mode="type this"><code>rate(http_requests_total[1m])
+sum by (path) (rate(http_requests_total[1m]))
+histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_bucket[1m])))</code></pre>
+    <p>The first asks: over the last minute, how fast did each counter climb, per second? Four lines, one per path-and-status pair. The second adds them up but keeps <code>path</code>, so the 200s and 504s of <code>/checkout</code> merge into one line: requests per second per endpoint. The third is the one people copy for years: take the six bucket counters per path, turn each into a rate, add them up keeping <code>path</code> and <code>le</code>, and ask for the 95th percentile. Read it inside out and it is three ideas you already have.</p>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>Query 1 shows four series: three between about 3 and 6 requests per second and the <code>/checkout</code> 504 series down near 0.3; query 2 shows three lines, <code>/products</code> highest at about 6 per second, the other two about 3 (with our load generator, half the requests go to <code>/products</code>). Query 3 shows <code>/</code> and <code>/products</code> flat at the smallest bucket bound, 0.1, and <code>/checkout</code> at about 1.9 s. Not 2.3: the truth is between the 1 and 2.5 bounds and Prometheus interpolates linearly inside the bucket. Coarser buckets, rougher estimate.</p></div>
+    <p><strong>Talk about it:</strong> why <code>[1m]</code> and not <code>[5s]</code>? (A rate needs at least two samples in the window; with a 5 s scrape, <code>[1m]</code> holds twelve.) Why does the p95 for the fast endpoints read 0.1 when they take a millisecond? (Everything is in the first bucket, so the best Prometheus can say is "at most 0.1". If you cared about the fast endpoints, you would add smaller buckets.) What does <code>sum by (le)</code> without <code>path</code> give you? (One p95 over all endpoints, which hides checkout inside the fast ones.)</p>
+    <div class="call inst"><p class="lbl">Not executed while writing this page</p><p>Prometheus could not be run in the authoring environment (no registry access), so the numbers in this checkpoint were computed by hand from the real <code>/metrics</code> output in step 2 with the interpolation rule from the PromQL documentation; the shape (four series, three lines, one endpoint near 2 s) is what the load generator produces. Your own numbers from the instructor prep replace them.</p></div>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Grafana finds the where</h3><span class="time">12 min</span></header>
+    <p>Prometheus can graph one expression. Grafana keeps many on one page, for everyone, forever. Open <a href="http://localhost:3000">localhost:3000</a> and sign in with <code>admin</code> / <code>admin</code>; it asks you to choose a new password, and you may skip that. Two things to do, both in the UI.</p>
+    <p><strong>Add the data source.</strong> Connections → Add new connection → search "Prometheus" → Add new data source. The only field that matters is the server URL: <code>http://prometheus:9090</code>, the service name again, because Grafana's container talks to Prometheus's container. Save &amp; test; Grafana says "Successfully queried the Prometheus API."</p>
+    <p><strong>Build the dashboard.</strong> Dashboards → New → New dashboard → Add visualization → pick the Prometheus data source. In the query editor switch from Builder to Code and paste the second expression from step 4. Give the panel the title "Requests per second by path". Back to the dashboard, add a second visualization with the third expression and the title "p95 latency by path"; in the panel options on the right set the unit to seconds. Save the dashboard as "API".</p>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>Two panels side by side, updating every few seconds. In the first, three lines with <code>/products</code> on top. In the second, two lines on the floor and one at about two seconds, labelled <code>/checkout</code>. Ask the person next to you which endpoint is slow. They can tell you without having read <code>main.go</code>.</p></div>
+    <p><strong>Talk about it:</strong> this is the "where". What would you want on the third panel? (Error rate: <code>sum by (path) (rate(http_requests_total{status=~"5.."}[1m]))</code>.) Which of these panels would you want to be woken up for? What would a graph of the average have shown for checkout? (About half a second, comfortably under one, and nobody would have looked twice.)</p>
+    <div class="call inst"><p class="lbl">Not executed while writing this page</p><p>Grafana could not be run in the authoring environment. The menu paths, the default credentials and the "Successfully queried the Prometheus API" message are taken from the Grafana 13 documentation linked under Sources; verify them on the pinned image during your own prep, and if the room is short of time, the instructor notes have a provisioning file that creates the data source automatically.</p></div>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>Logs find the why, and an alert rule</h3><span class="time">10 min</span></header>
+    <p>The graph says <em>checkout</em>. It cannot say why. That is a log question, and the request id is the join. The API now runs in a container, so its log comes from Compose; the filter from step 1 still applies, and with an argument it prints the lines containing a request id instead:</p>
+<pre data-mode="type this"><code>docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
+    <p>Copy the <code>request_id</code> from any 504 line, then ask for everything about it:</p>
+<pre data-mode="type this"><code>docker compose logs --no-log-prefix api | deno run filter.ts c11e5f84</code></pre>
+    <p>One line comes back: the request record. The <em>why</em> is not in the log yet, because nothing inside the handler logs. Add one line to the slow branch of <code>/checkout</code>, just before <code>http.Error</code>. It reads the id back from the header that <code>wrap</code> set, so the two lines can be joined:</p>
+<pre data-mode="type this"><code>			slog.Warn(&quot;payment provider timed out&quot;, &quot;request_id&quot;, r.Header.Get(&quot;X-Request-Id&quot;))</code></pre>
+    <p>Now the alert, so that next time nobody needs to be watching. Paste <code>alerts.yml</code>: one rule, the step 4 p95 expression, fire when it has been above one second for a minute. The annotation uses Prometheus's template syntax to name the path and the value:</p>
+<pre data-mode="paste this"><code>groups:
+  - name: api
+    rules:
+      - alert: CheckoutSlow
+        expr: histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_bucket[1m]))) &gt; 1
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: &quot;p95 latency on {{ $labels.path }} is {{ $value }} s&quot;</code></pre>
+    <p>Two typed lines tell Prometheus to load it, at the end of <code>prometheus.yml</code>, and one line in <code>compose.yaml</code>, under the Prometheus volumes, mounts the file:</p>
+<pre data-mode="type this"><code>rule_files:
+  - alerts.yml</code></pre>
+<pre data-mode="type this"><code>      - ./alerts.yml:/etc/prometheus/alerts.yml</code></pre>
+<pre data-mode="type this"><code>docker compose up -d --build
+docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
+    <p>The rebuild picks up the warning line; the restart of Prometheus picks up the rule. Take a new 504's request id and filter for it again: two lines this time. Then open <a href="http://localhost:9090/alerts">localhost:9090/alerts</a>.</p>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p>Filtering for a request id returns two lines with the same id, the warning from inside the handler and then the request line:</p>
+<pre><code>{&quot;time&quot;:&quot;2026-09-22T12:40:49.958418978+02:00&quot;,&quot;level&quot;:&quot;WARN&quot;,&quot;msg&quot;:&quot;payment provider timed out&quot;,&quot;request_id&quot;:&quot;0d8c0957&quot;}
+{&quot;time&quot;:&quot;2026-09-22T12:40:49.958460915+02:00&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;request&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;path&quot;:&quot;/checkout&quot;,&quot;status&quot;:504,&quot;duration_ms&quot;:2301,&quot;request_id&quot;:&quot;0d8c0957&quot;}</code></pre>
+    <p>The alerts page lists <code>CheckoutSlow</code>, first as pending, and after a minute of load as firing, with <code>path="/checkout"</code> in its labels and the summary reading something like "p95 latency on /checkout is 1.9 s".</p></div>
+    <p><strong>Talk about it:</strong> where does a firing alert go? (Nowhere, today. Alertmanager routes it to a pager or a chat; it is one more service in the Compose file, and a stretch goal.) Why <code>for: 1m</code>? (One slow scrape should not page anyone.) The metric found <em>where</em>, the log found <em>why</em>; what would a trace add? (The same request id, but across every service it touched, with timings for each.)</p>
+    <p><strong>Common mistakes:</strong> the alert never leaves "pending" because the load generator was stopped; <code>docker compose restart prometheus</code> instead of <code>up -d</code>, which does not pick up the new volume; a <code>tab</code> in <code>alerts.yml</code>.</p>
+    <div class="call inst"><p class="lbl">Not executed while writing this page</p><p>The alert rule was validated as YAML and against the alerting-rules documentation, not run. The two-line log correlation was run exactly as shown, on the <code>go run</code> version of the API; through Compose the only difference is the <code>docker compose logs</code> prefix, which <code>--no-log-prefix</code> removes.</p></div>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">6 min</span></header>
+    <p>Bring the room back together for three minutes, then let the fast students pick a stretch goal. <code>docker compose down</code> when you leave.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>A log line is a record: name every field, stamp a request id on it, and the log becomes something you query, not something you read.</li>
+      <li>A metric is a number with labels that something fetches every few seconds. A histogram is a row of cumulative counters. You wrote both in thirty lines; every library does the same thing.</li>
+      <li>Averages hide tails. Ask for the p95, and remember that a p95 from buckets is an estimate whose precision is the bucket width.</li>
+      <li>Metrics find the where, logs find the why, the request id is the join. Alerts are the same expression with a threshold and a <code>for</code>.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>The library.</strong> Replace <code>metrics.go</code> with <code>github.com/prometheus/client_golang</code>: <code>promauto.NewCounterVec</code>, <code>promauto.NewHistogramVec</code>, and <code>promhttp.Handler()</code> on <code>/metrics</code>. Compare its output with yours: same names, same lines, plus forty Go-runtime metrics for free. (Needs <code>go get</code> and a network; run it at home if the venue has none.)</li>
+      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the SDK and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are the next afternoon.</li>
+      <li><strong>Levels and sampling.</strong> Give the handler a <code>slog.Debug</code> line per request and turn it on with <code>slog.HandlerOptions{Level: slog.LevelDebug}</code> only when an environment variable is set. Then log only every tenth 200 but every 5xx: that is sampling, and it is how a busy service keeps its log bill sane.</li>
+      <li><strong>An SLO.</strong> "99% of checkouts under one second over 30 days." Write the PromQL for the fraction that met it (<code>_bucket{le="1"}</code> over <code>_count</code>) and compute how many slow requests the month can afford before the objective is broken. That number is an error budget.</li>
+      <li><strong>Alertmanager.</strong> Add <code>prom/alertmanager</code> to Compose, point Prometheus at it with an <code>alerting:</code> block, and route the alert to a webhook receiver (a ten-line <code>Deno.serve</code> that prints the JSON). Watch the page arrive.</li>
+      <li><strong>Provision the dashboard.</strong> Export the dashboard as JSON from Grafana, mount it under <code>/etc/grafana/provisioning/dashboards</code> with a provider file, <code>docker compose down -v</code>, <code>up</code>, and the dashboard is there before anyone logs in. Dashboards are code too.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The final state of the <code>obs-lab</code> folder. <code>main.go</code>, <code>metrics.go</code>, <code>load.ts</code> and <code>filter.ts</code> were run exactly as in steps 0 to 2 and 6 (with <code>go run</code>, under the load generator, the JSON log filtered both ways, <code>/metrics</code> fetched with <code>curl</code> and parsed by the official Python <code>prometheus_client</code> parser, which reports one counter family with four samples and one histogram family with 24), and the binary was run from a <code>scratch</code> image. <code>compose.yaml</code> passes <code>docker compose config</code>; <code>prometheus.yml</code> and <code>alerts.yml</code> parse as YAML and follow the configuration and alerting-rules documentation. Prometheus and Grafana themselves could not be started in the authoring environment, so steps 3 to 6 were verified against the documentation linked in the instructor notes, not observed.</p>
+  <div class="dlrow"><a href="code/main.go" download>main.go</a><a href="code/metrics.go" download>metrics.go</a><a href="code/go.mod" download>go.mod</a><a href="code/load.ts" download>load.ts</a><a href="code/filter.ts" download>filter.ts</a><a href="code/Dockerfile" download>Dockerfile</a><a href="code/compose.yaml" download>compose.yaml</a><a href="code/prometheus.yml" download>prometheus.yml</a><a href="code/alerts.yml" download>alerts.yml</a></div>
+  <details class="sol"><summary>main.go<a class="dl" href="code/main.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;log/slog&quot;
+	&quot;math/rand/v2&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+// recorder remembers the status code a handler wrote, so we can log it.
+type recorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *recorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.WriteHeader(code) }
+
+// wrap runs around every handler: time it, log one line, record one observation.
+func wrap(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		id := fmt.Sprintf(&quot;%08x&quot;, rand.Uint32())
+		r.Header.Set(&quot;X-Request-Id&quot;, id)
+		rec := &amp;recorder{w, 200}
+		h(rec, r)
+		slog.Info(&quot;request&quot;, &quot;method&quot;, r.Method, &quot;path&quot;, r.URL.Path, &quot;status&quot;, rec.status,
+			&quot;duration_ms&quot;, time.Since(start).Milliseconds(), &quot;request_id&quot;, id)
+		observe(r.URL.Path, rec.status, time.Since(start).Seconds())
+	}
+}
+
+func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	http.HandleFunc(&quot;/&quot;, wrap(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, &quot;hello&quot;)
+	}))
+	http.HandleFunc(&quot;/products&quot;, wrap(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, `[&quot;socks&quot;,&quot;hat&quot;,&quot;mug&quot;]`)
+	}))
+	http.HandleFunc(&quot;/checkout&quot;, wrap(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond) // the payment provider is never fast
+		if rand.IntN(10) == 0 {            // and one call in ten hangs
+			time.Sleep(2 * time.Second)
+			slog.Warn(&quot;payment provider timed out&quot;, &quot;request_id&quot;, r.Header.Get(&quot;X-Request-Id&quot;))
+			http.Error(w, &quot;payment provider timed out&quot;, http.StatusGatewayTimeout)
+			return
+		}
+		fmt.Fprintln(w, &quot;paid&quot;)
+	}))
+	http.HandleFunc(&quot;/metrics&quot;, metrics)
+	log.Println(&quot;listening on :8080&quot;)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}</code></pre></details>
+  <details class="sol"><summary>metrics.go<a class="dl" href="code/metrics.go" download>download</a></summary><pre><code>package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math&quot;
+	&quot;net/http&quot;
+	&quot;strings&quot;
+	&quot;sync&quot;
+)
+
+// One counter (requests by path and status) and one histogram (seconds by path),
+// kept in plain maps and printed in the Prometheus text format on /metrics.
+var (
+	mu       sync.Mutex
+	buckets  = []float64{0.1, 0.25, 0.5, 1, 2.5, math.Inf(1)}
+	requests = map[string]int{}   // &quot;path status&quot; -&gt; count
+	observed = map[string][]int{} // path -&gt; cumulative count per bucket
+	sums     = map[string]float64{}
+)
+
+func observe(path string, status int, seconds float64) {
+	mu.Lock()
+	defer mu.Unlock()
+	requests[fmt.Sprintf(&quot;%s %d&quot;, path, status)]++
+	if observed[path] == nil {
+		observed[path] = make([]int, len(buckets))
+	}
+	for i, le := range buckets {
+		if seconds &lt;= le {
+			observed[path][i]++
+		}
+	}
+	sums[path] += seconds
+}
+
+func metrics(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+	w.Header().Set(&quot;Content-Type&quot;, &quot;text/plain; version=0.0.4&quot;)
+	fmt.Fprintln(w, &quot;# TYPE http_requests_total counter&quot;)
+	for key, n := range requests {
+		path, status, _ := strings.Cut(key, &quot; &quot;)
+		fmt.Fprintf(w, &quot;http_requests_total{path=%q,status=%q} %d\n&quot;, path, status, n)
+	}
+	fmt.Fprintln(w, &quot;# TYPE http_request_duration_seconds histogram&quot;)
+	for path, counts := range observed {
+		for i, le := range buckets {
+			fmt.Fprintf(w, &quot;http_request_duration_seconds_bucket{path=%q,le=%q} %d\n&quot;, path, fmt.Sprint(le), counts[i])
+		}
+		fmt.Fprintf(w, &quot;http_request_duration_seconds_sum{path=%q} %g\n&quot;, path, sums[path])
+		fmt.Fprintf(w, &quot;http_request_duration_seconds_count{path=%q} %d\n&quot;, path, counts[len(buckets)-1])
+	}
+}</code></pre></details>
+  <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module obs
+
+go 1.24</code></pre></details>
+  <details class="sol"><summary>load.ts<a class="dl" href="code/load.ts" download>download</a></summary><pre><code>// Load generator: three loops hitting the API at random, forever. Ctrl-C stops it.
+const base = &quot;http://localhost:8080&quot;;
+const paths = [&quot;/&quot;, &quot;/products&quot;, &quot;/products&quot;, &quot;/checkout&quot;];
+async function loop(n: number) {
+  while (true) {
+    const path = paths[Math.floor(Math.random() * paths.length)];
+    const t = performance.now();
+    const res = await fetch(base + path);
+    await res.text();
+    console.log(`loop ${n}  ${res.status}  ${path}  ${Math.round(performance.now() - t)} ms`);
+    await new Promise((r) =&gt; setTimeout(r, 100));
+  }
+}
+await Promise.all([1, 2, 3].map(loop));</code></pre></details>
+  <details class="sol"><summary>filter.ts<a class="dl" href="code/filter.ts" download>download</a></summary><pre><code>// Reads JSON log lines on stdin. Prints the ones with status &gt;= 500,
+// or, given an argument, the ones containing that text (a request id).
+import { createInterface } from &quot;node:readline&quot;;
+import process from &quot;node:process&quot;;
+const want = Deno.args[0];
+for await (const line of createInterface({ input: process.stdin })) {
+  try {
+    const rec = JSON.parse(line);
+    if (want ? line.includes(want) : rec.status &gt;= 500) console.log(line);
+  } catch {
+    // not JSON (a startup line, a panic): ignore
+  }
+}</code></pre></details>
+  <details class="sol"><summary>Dockerfile<a class="dl" href="code/Dockerfile" download>download</a></summary><pre><code>FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+COPY *.go ./
+RUN CGO_ENABLED=0 go build -o server .
+
+FROM scratch
+COPY --from=build /app/server /server
+CMD [&quot;/server&quot;]</code></pre></details>
+  <details class="sol"><summary>compose.yaml<a class="dl" href="code/compose.yaml" download>download</a></summary><pre><code>services:
+  api:
+    build: .
+    ports: [&quot;8080:8080&quot;]
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    ports: [&quot;9090:9090&quot;]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alerts.yml:/etc/prometheus/alerts.yml
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    ports: [&quot;3000:3000&quot;]</code></pre></details>
+  <details class="sol"><summary>prometheus.yml<a class="dl" href="code/prometheus.yml" download>download</a></summary><pre><code>global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: [&quot;api:8080&quot;]
+rule_files:
+  - alerts.yml</code></pre></details>
+  <details class="sol"><summary>alerts.yml<a class="dl" href="code/alerts.yml" download>download</a></summary><pre><code>groups:
+  - name: api
+    rules:
+      - alert: CheckoutSlow
+        expr: histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_bucket[1m]))) &gt; 1
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: &quot;p95 latency on {{ $labels.path }} is {{ $value }} s&quot;</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>Step 2 is the long one and the one to protect: thirty typed lines with two nested loops, and the room will be split between people who finish in ten minutes and people who need all twenty. Call the checkpoint the moment the fastest half is done and let the rest paste <code>metrics.go</code>; step 3 onwards needs the file to be right, not to have been typed. Step 5 is where the clock disappears, because a UI is slower to follow than a terminal: project your own Grafana, do each click once, and keep the room's browsers on the same tab as yours. If you are behind after step 4, skip the "talk about it" questions in steps 5 and 6 and drop the alert rule to a stretch goal; the request-id correlation is the part of step 6 to keep.</p>
+  <p>Steps 3 to 6 were not run while this page was written (no registry access in the authoring environment); the configuration was checked against the documentation below and the expected numbers were derived from the real <code>/metrics</code> output. Run the lab end to end on the pinned images the week before and replace the numbers in checkpoints 4 and 5 with yours.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Why not just use the library?"</em> You will, next week, and it will be four lines. Today you know what those four lines produce, why <code>+Inf</code> is mandatory, and what a histogram costs (six series per path). People who skip this step spend their first incident staring at <code>histogram_quantile</code> as if it were magic.</li>
+    <li><em>"The p95 says 1.9 but the log says 2.3."</em> Correct, and worth two minutes. Prometheus knows only that 17 requests fell between 1 and 2.5 s and assumes they are spread evenly. Buckets are chosen by you; put a bound where you need precision (at your SLO threshold, say) and the estimate is exact there.</li>
+    <li><em>"Can Prometheus scrape my app on the laptop instead of in Compose?"</em> Yes: target <code>host.docker.internal:8080</code>, and on Linux add <code>extra_hosts: ["host.docker.internal:host-gateway"]</code> to the Prometheus service. Not in the lab because the room has Compose in its fingers from workshops 6 and 7, and it means one fewer thing that differs by OS.</li>
+    <li><em>"Is JSON logging slower?"</em> Slightly more bytes per line, and <code>slog</code> is designed not to allocate for the common case. The cost that matters is elsewhere: log volume. A busy service logs every request into a system that indexes it, and that is the bill; sampling (stretch goal) is the answer, not going back to prose.</li>
+    <li><em>"Where do logs go in production?"</em> Standard output, exactly as here, and the platform collects them: Docker's log driver, Kubernetes, then something like Loki or Elasticsearch that indexes the JSON fields. Step 1's filter is a one-file version of that pipeline.</li>
+  </ul>
+  <h4>If the room is short of time: provision the data source</h4>
+  <p>Instead of the clicks in step 5, add this file as <code>grafana/datasource.yml</code> and mount it in the Grafana service with <code>- ./grafana:/etc/grafana/provisioning/datasources</code>; Grafana creates the data source at startup. Not run while writing this page; the shape is from the provisioning documentation below.</p>
+<pre><code>apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true</code></pre>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://pkg.go.dev/log/slog">log/slog</a>: <code>NewJSONHandler</code>, <code>SetDefault</code> (which also redirects the <code>log</code> package), and the <code>time</code>/<code>level</code>/<code>msg</code> keys in step 1.</li>
+    <li><a href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition formats</a>: the text format step 2 prints, including the mandatory <code>+Inf</code> bucket, <code>_sum</code> and <code>_count</code>, increasing bucket order, and the <code>text/plain; version=0.0.4</code> content type.</li>
+    <li><a href="https://prometheus.io/docs/practices/naming/">Metric and label naming</a>: base units (seconds), the <code>_total</code> suffix on counters, and the cardinality warning behind the <code>r.Pattern</code> remark.</li>
+    <li><a href="https://prometheus.io/docs/prometheus/latest/configuration/configuration/">Configuration</a>: <code>scrape_interval</code> (default 1m), <code>scrape_configs</code>, <code>static_configs</code>, <code>rule_files</code>; step 3 and step 6.</li>
+    <li><a href="https://prometheus.io/docs/prometheus/latest/installation/">Installation</a>: the <code>prom/prometheus</code> image, port 9090, and the <code>/etc/prometheus/prometheus.yml</code> mount path used in the Compose file. Versions from <a href="https://prometheus.io/download/">the download page</a> (3.14.0 current on 2026-09-22).</li>
+    <li><a href="https://prometheus.io/docs/prometheus/latest/querying/functions/">Query functions</a>: <code>rate()</code> and <code>histogram_quantile()</code>, including the <code>sum by (le) (rate(…_bucket[…]))</code> example that step 4 follows. <a href="https://prometheus.io/docs/prometheus/latest/getting_started/">Getting started</a> for the <code>/query</code> page.</li>
+    <li><a href="https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/">Alerting rules</a>: the <code>groups / rules / alert / expr / for / labels / annotations</code> shape and the <code>{{ $labels.path }}</code> and <code>{{ $value }}</code> templates in <code>alerts.yml</code>.</li>
+    <li><a href="https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/">Run Grafana in Docker</a> (the <code>grafana/grafana</code> image; <code>grafana-oss</code> is no longer updated from 12.4) and <a href="https://grafana.com/docs/grafana/latest/setup-grafana/sign-in-to-grafana/">Sign in to Grafana</a> (<code>admin</code> / <code>admin</code>, then a prompt to change it).</li>
+    <li><a href="https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/">Configure the Prometheus data source</a> (menu path, server URL, "Successfully queried the Prometheus API") and <a href="https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/create-dashboard/">Create a dashboard</a>; <a href="https://grafana.com/docs/grafana/latest/administration/provisioning/">Provisioning</a> for the fallback file above.</li>
+    <li><a href="https://docs.deno.com/runtime/getting_started/installation/">Deno installation</a> and <a href="https://go.dev/dl/">Go downloads</a>: the prep pack.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/08-observability-hero.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the RFC test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

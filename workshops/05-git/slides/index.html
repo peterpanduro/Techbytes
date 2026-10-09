@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Git for the Things That Go Wrong · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="05-git">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="Nothing committed is ever lost" data-notes="&lt;p&gt;Hands up if you have ever typed git reset dash dash hard and then felt your stomach drop. Or deleted a branch and realised a second later that it was the only copy. Or spent an afternoon reading diffs to find out which commit broke the build. Everybody has, and most people fix it by deleting the folder and cloning again.&lt;/p&gt;&lt;p&gt;Here is the sentence this afternoon hangs on: nothing you have committed is ever lost. Not after a reset, not after a rebase, not after deleting the branch. Every git disaster you will ever have is a label pointing at the wrong place, and labels can be moved. In fifteen minutes I will show you why that is true, and in the ninety after that you will break a repository on purpose, six different ways, and repair it every time.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 5</p>
+  <h1>Git for the Things That Go Wrong</h1>
+  <p class="s-big">Nothing committed is ever lost.</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="A commit is a snapshot that names its parent" data-notes="&lt;p&gt;Let us start with what a commit actually is, because most people carry a wrong picture. A commit is not a diff. It is a snapshot of every file in the project, plus a small header: who made it, when, a message, and, this is the important part, the hash of the commit that came before it. The parent.&lt;/p&gt;&lt;p&gt;The hash of a commit is computed from all of that content, including the parent&amp;#x27;s hash. So a hash names a snapshot and the entire history behind it. Change anything, anywhere in that history, and you get a different hash.&lt;/p&gt;&lt;p&gt;Here is a consequence you will see with your own eyes. In step zero everyone runs the same script, with fixed names and fixed dates, and everyone in the room gets the same hashes. Your top commit will be f zero six three a three five, and so will your neighbour&amp;#x27;s. Same content, same history, same name. That is not a coincidence, that is the design.&lt;/p&gt;&lt;p&gt;The other consequence is the one the whole afternoon rests on. Commits are stored in a database inside the dot-git folder, keyed by hash. Making a commit adds an object. Nothing you type in the lab today removes one. Reset does not delete commits. Rebase does not delete commits. Deleting a branch does not delete commits. They all move labels, and the objects sit there, unlabelled, for thirty days at the very least before git even considers cleaning them up. Once you believe that sentence, git stops being frightening.&lt;/p&gt;">
+<h2>A commit is a snapshot that names its parent</h2>
+<div class="s-one"><svg viewBox="0 0 1100 300" class="s-fig s-wide" role="img" aria-label="Three commits, each naming its parent">
+  <g class="f-box"><rect x="20" y="60" width="300" height="180" rx="8"/><text x="170" y="95" class="f-t">4128a3a</text><text x="170" y="130" class="f-s">tree: every file, as it was</text><text x="170" y="158" class="f-s">author, date, message</text><text x="170" y="186" class="f-s">parent: 95d7f26</text></g>
+  <path d="M320 150 H400" class="f-arrow w5f-back"/>
+  <g class="f-box f-live"><rect x="400" y="60" width="300" height="180" rx="8"/><text x="550" y="95" class="f-t">f063a35</text><text x="550" y="130" class="f-s">tree: every file, as it was</text><text x="550" y="158" class="f-s">author, date, message</text><text x="550" y="186" class="f-s">parent: 4128a3a</text></g>
+  <text x="550" y="270" class="f-cap">hash = SHA-1 of all of this, parent included</text>
+  <g class="f-box f-gone"><rect x="780" y="60" width="300" height="180" rx="8"/><text x="930" y="95" class="f-t">next commit</text><text x="930" y="130" class="f-s">tree: every file, as it will be</text><text x="930" y="158" class="f-s">you, now, your message</text><text x="930" y="186" class="f-s">parent: f063a35</text></g>
+  <path d="M780 150 H700" class="f-arrow"/>
+</svg></div>
+<p class="s-line">Same content, same history, same hash. <b>On every laptop in this room.</b></p></section><section class="slide" id="s3" data-minutes="2" data-title="Branches are sticky notes; HEAD is a note on a note" data-notes="&lt;p&gt;So what is a branch? Open dot-git, refs, heads, main in a text editor. It is a file with forty hex characters and a newline. Forty-one bytes. That is the whole branch: a sticky note with a hash on it. When you commit, git makes a new commit whose parent is the hash on the note, and then rewrites the note to the new hash. That is all commit does to a branch.&lt;/p&gt;&lt;p&gt;And HEAD is another file. It says: ref, refs, heads, main. HEAD points at a branch, the branch points at a commit. A pointer to a pointer.&lt;/p&gt;&lt;p&gt;Every command people fear is now easy to read. Git switch rewrites HEAD. Git reset moves the branch that HEAD points to, and the dash dash hard part additionally rewrites your working files to match. Git branch dash capital D deletes the sticky note; the commits it named are untouched. Git rebase makes new commits, one by one, and at the end moves the note to the new ones; the old ones stay in the database.&lt;/p&gt;&lt;p&gt;Look at the picture. Main points at ninety-five d seven. The two commits to its right, the hollow ones, are still in the database, but no note leads to them. That is what unreachable means. Unreachable is not deleted. It is unlabelled. The lab is largely about putting labels back, and for that you need the hash, and the next slide is where git writes them all down for you.&lt;/p&gt;">
+<h2>Branches are sticky notes. HEAD is a note on a note.</h2>
+<div class="s-one"><svg viewBox="0 0 1100 360" class="s-fig s-wide" role="img" aria-label="A row of commits with branch labels and HEAD">
+  <line x1="80" y1="200" x2="980" y2="200" class="w5f-edge"/>
+  <line x1="440" y1="200" x2="620" y2="100" class="w5f-edge"/>
+  <circle cx="80" cy="200" r="16" class="w5f-dot"/><text x="80" y="245" class="w5f-hash">4c42b15</text>
+  <circle cx="260" cy="200" r="16" class="w5f-dot"/><text x="260" y="245" class="w5f-hash">4738704</text>
+  <circle cx="440" cy="200" r="16" class="w5f-dot"/><text x="440" y="245" class="w5f-hash">4e88d37</text>
+  <circle cx="620" cy="200" r="16" class="w5f-dot"/><text x="620" y="245" class="w5f-hash">95d7f26</text>
+  <circle cx="800" cy="200" r="16" class="w5f-dot w5f-hollow"/><text x="800" y="245" class="w5f-hash w5f-dim">4128a3a</text>
+  <circle cx="980" cy="200" r="16" class="w5f-dot w5f-hollow"/><text x="980" y="245" class="w5f-hash w5f-dim">f063a35</text>
+  <text x="890" y="160" class="f-cap">unreachable, not deleted</text>
+  <circle cx="620" cy="100" r="16" class="w5f-dot"/><text x="700" y="107" class="w5f-hash">eb748f7</text>
+  <g class="w5f-tag"><rect x="510" y="20" width="220" height="38" rx="6"/><text x="620" y="46" class="w5f-tagt">feature/tagline</text></g>
+  <line x1="620" y1="58" x2="620" y2="84" class="w5f-edge"/>
+  <g class="w5f-tag"><rect x="565" y="262" width="110" height="38" rx="6"/><text x="620" y="288" class="w5f-tagt">main</text></g>
+  <g class="w5f-tag w5f-tag-head"><rect x="380" y="262" width="110" height="38" rx="6"/><text x="435" y="288" class="w5f-tagt">HEAD</text></g>
+  <path d="M490 281 H556" class="f-arrow"/>
+  <text x="435" y="330" class="f-cap">ref: refs/heads/main</text>
+</svg></div>
+<p class="s-line"><code>.git/refs/heads/main</code> is 41 bytes: a hash and a newline.</p></section><section class="slide" id="s4" data-minutes="2" data-title="The reflog" data-notes="&lt;p&gt;This is the reflog, and it is the safety net under everything. Every time HEAD moves, for any reason, git appends one line to a log: the hash it moved to, and why. Commit, checkout, reset, rebase, merge, all of them.&lt;/p&gt;&lt;p&gt;Watch the widget. Six commits on main, the real ones from the lab. I press reset dash dash hard HEAD tilde two, and the main label jumps back two commits, to the same commit you will land on in step three. The two newest commits are now unreachable; they are drawn hollow. But they are still there. Now git reflog: the top line says reset, moving to HEAD tilde two, and the line under it, HEAD at one, is where HEAD was before, with its hash. That hash is the rescue. Git branch rescue, that hash, and the label is back and everything is reachable again. Or git reset dash dash hard HEAD at one, which means: where HEAD was one move ago.&lt;/p&gt;&lt;p&gt;Three things to know. The reflog is per repository, on your machine, not pushed anywhere: it saves you from your own mistakes, not from a colleague&amp;#x27;s. Entries for unreachable commits, which is exactly what a rescue needs, are kept for thirty days by default, and ninety for the rest, so the net is wide but not infinite. And the reflog only records moves, so a change you never committed is not in it. Uncommitted work is the only thing git can actually lose. So commit early, commit ugly, and tidy later. The tidying is slide six.&lt;/p&gt;">
+<h2>The reflog: every move HEAD ever made</h2>
+<div class="s-widget s-widget-center"><div class="demo" id="w5-demo">
+      <span class="eyebrow">Interactive · pointers, not deletions</span>
+      <p class="note" style="margin:.3rem 0 .7rem">The last six commits on <code>main</code>, with the real hashes from the lab. A branch is a label on a commit; HEAD is a label on a branch. Press the commands and watch what moves. Nothing is ever removed.</p>
+      <div class="w5-cmds" role="group" aria-label="Git commands">
+        <button type="button" data-cmd="reset">git reset --hard HEAD~2</button>
+        <button type="button" data-cmd="reflog">git reflog</button>
+        <button type="button" data-cmd="branch">git branch rescue f063a35</button>
+        <button type="button" data-cmd="start" class="w5-quiet">start over</button>
+      </div>
+      <svg id="w5-graph" viewBox="0 0 540 150" role="img" aria-label="Six commits in a row with branch labels"></svg>
+      <pre id="w5-reflog" class="w5-reflog" hidden></pre>
+      <p class="note" id="w5-sum" aria-live="polite"></p>
+    </div></div></section><section class="slide" id="s5" data-minutes="1" data-title="Bisect: binary search over history" data-notes="&lt;p&gt;A test fails on main and passed a month ago. Somewhere in between, one commit broke it. You could read them all. Or you tell git one good commit and one bad commit, and git checks out the one in the middle. You run the test and say good or bad, and it halves the range again.&lt;/p&gt;&lt;p&gt;Ten commits between good and bad takes three runs. A thousand commits takes ten. And if you have a script that exits zero on pass and non-zero on fail, git bisect run does the saying for you and walks off to find the culprit alone. Step one is exactly this, with our test script, and it will name the commit: zero eight e one four b one, a dropped pair of parentheses.&lt;/p&gt;">
+<h2>Bisect: binary search over history</h2>
+<div class="s-one"><svg viewBox="0 0 1100 250" class="s-fig s-wide" role="img" aria-label="Ten commits between a good tag and a bad head, bisected in three runs">
+  <line x1="60" y1="150" x2="1040" y2="150" class="w5f-edge"/>
+  <circle cx="60" cy="150" r="14" class="w5f-dot w5f-good"/><text x="60" y="195" class="w5f-hash">v1.0</text><text x="60" y="225" class="f-cap">good</text>
+  <circle cx="158" cy="150" r="14" class="w5f-dot w5f-good"/><text x="158" y="195" class="w5f-hash">4708ac8</text><text x="158" y="100" class="f-cap">run 3 · good</text>
+  <circle cx="256" cy="150" r="14" class="w5f-dot w5f-bad"/><text x="256" y="195" class="w5f-hash">08e14b1</text><text x="256" y="225" class="f-cap">first bad</text><text x="300" y="100" class="f-cap">run 2 · bad</text>
+  <circle cx="354" cy="150" r="14" class="w5f-dot w5f-untested"/>
+  <circle cx="452" cy="150" r="14" class="w5f-dot w5f-untested"/>
+  <circle cx="550" cy="150" r="14" class="w5f-dot w5f-bad"/><text x="550" y="195" class="w5f-hash">4c42b15</text><text x="550" y="100" class="f-cap">run 1 · bad</text>
+  <circle cx="648" cy="150" r="14" class="w5f-dot w5f-untested"/>
+  <circle cx="746" cy="150" r="14" class="w5f-dot w5f-untested"/>
+  <circle cx="844" cy="150" r="14" class="w5f-dot w5f-untested"/>
+  <circle cx="942" cy="150" r="14" class="w5f-dot w5f-untested"/>
+  <circle cx="1040" cy="150" r="14" class="w5f-dot w5f-bad"/><text x="1040" y="195" class="w5f-hash">main</text><text x="1040" y="225" class="f-cap">bad</text>
+  <path d="M1040 120 Q800 -10 562 128" class="f-arrow f-dash"/>
+  <path d="M540 118 Q400 0 268 128" class="f-arrow f-dash"/>
+  <path d="M248 118 Q205 40 170 128" class="f-arrow f-dash"/>
+</svg></div>
+<p class="s-line">Ten commits: three runs. A thousand: ten. <code>git bisect run ./test.sh</code> does the runs.</p></section><section class="slide" id="s6" data-minutes="2" data-title="Rewriting history: interactive rebase and the one rule" data-notes="&lt;p&gt;Now the tidying. Interactive rebase takes a range of commits and opens a to-do list: one line per commit, oldest first, each starting with pick. You edit the verbs. Reword changes a message. Squash melds a commit into the one above it and combines the messages. Fixup melds and throws the message away. Drop removes it. Reorder the lines and you reorder the commits. Save, close, and git replays the commits according to the list.&lt;/p&gt;&lt;p&gt;Here is the honest picture of what that does. Rebase does not edit commits, because commits cannot be edited; the hash is the content. It makes new commits and moves the branch label to the new ones. The four WIP commits you squash in step two are not gone afterwards. They are unreachable, and you can still git show them by hash.&lt;/p&gt;&lt;p&gt;Which brings us to the one rule. Rewriting history is fine, healthy even, on commits nobody else has. The moment a commit has been pushed and someone may have built on it, rewriting it means their history and yours disagree about what happened, and the fix for that is far worse than an ugly log. So: rebase your own branch before the pull request, as much as you like. Never rebase main. If your team has a rule about squash-merges versus merge commits, that rule decides who tidies and when; the mechanism is the same either way.&lt;/p&gt;">
+<h2>Rewriting history</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre>pick   cb1d805 WIP
+<b>squash</b> 1096f61 wip kelvin
+<b>squash</b> c0ecc06 fix
+<b>squash</b> 037ffcf WIP tests and help
+
+<i># pick · reword · squash · fixup · drop</i>
+<i># reorder lines to reorder commits</i></pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-num-sm">4 → 1</span><span class="s-muted">new commit, new hash</span></div>
+    <div><span class="s-num s-num-sm">old 4</span><span class="s-muted">still in .git, unreachable</span></div>
+  </div>
+</div>
+<p class="s-line">Rewrite what nobody has. <b>Never rewrite what you pushed.</b></p></section><section class="slide" id="s7" data-minutes="2" data-title="A conflict is a question, not an error" data-notes="&lt;p&gt;A merge conflict is not an error. It is git saying: these two branches changed the same line, and I am not going to guess. The file you are shown has three markers. Between the seven less-thans and the equals signs is the version on your side, HEAD. Between the equals signs and the seven greater-thans is the other branch&amp;#x27;s version. Everything outside the markers merged cleanly and is already done.&lt;/p&gt;&lt;p&gt;Your job is to edit that region into the line you actually want, which is often neither side and sometimes both. Delete the marker lines. Then git add the file, which is how you tell git resolved, and git commit finishes the merge. If you panic, git merge dash dash abort puts everything back exactly as it was; the reflog slide tells you why that is possible.&lt;/p&gt;&lt;p&gt;The one you will meet in the lab is this README tagline. One branch fixed a spelling mistake in it, the other made the sentence longer. Git cannot pick. You can, and the right answer uses both: temperature, spelt correctly, for the shell.&lt;/p&gt;&lt;p&gt;One more thing, for the stretch goal: git rerere, reuse recorded resolution. Turn it on and git remembers how you resolved a conflict, and if the same conflict comes back, on a rebase, say, it applies your answer for you.&lt;/p&gt;">
+<h2>A conflict is a question, not an error</h2>
+<div class="s-one">
+  <div class="s-code"><pre># tempconv
+
+<b>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</b>                       <i>your side (main)</i>
+A tiny temperature converter.
+<b>=======</b>
+A tiny temperture converter for the shell.
+<b>&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/tagline</b>            <i>their side</i>
+
+## Usage                                <i>merged already</i></pre></div>
+</div>
+<p class="s-line">Edit the region. Delete the markers. <code>git add</code> says "resolved". <code>git commit</code> finishes.</p></section><section class="slide" id="s8" data-minutes="1" data-title="Hooks: a script that says no" data-notes="&lt;p&gt;A hook is a script git runs at a moment you choose. Pre-commit runs before a commit is made, and if the script exits non-zero, there is no commit. That is the whole mechanism: a shell script in dot-git slash hooks with the right name and the executable bit. In step five yours will run the tests and refuse anything that adds a TODO.&lt;/p&gt;&lt;p&gt;Two things to know. Hooks live in dot-git, so they are not committed and not shared; teams use a tool or a config setting to install the same hooks everywhere. And dash dash no-verify skips them. The hook is a seatbelt, not a lock: it stops you committing broken code by accident, not on purpose, and the day you type no-verify, you should be able to say why.&lt;/p&gt;">
+<h2>Hooks: a script that says no</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre><i># .git/hooks/pre-commit</i>
+#!/usr/bin/env bash
+./test.sh &gt;/dev/null      || <b>exit 1</b>
+git diff --cached |
+  grep -q '^+.*TODO'        &amp;&amp; <b>exit 1</b>
+exit 0</pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-num-sm">exit 0</span><span class="s-muted">the commit happens</span></div>
+    <div><span class="s-num s-num-sm">exit 1</span><span class="s-muted">it does not</span></div>
+  </div>
+</div>
+<p class="s-line"><code>--no-verify</code> exists. A seatbelt, not a lock.</p></section><section class="slide" id="s9" data-minutes="1" data-title="The small tools: stash, worktree, -S, blame -L" data-notes="&lt;p&gt;Four small tools, one slide. Git stash puts your uncommitted changes on a shelf so you can switch branches, and stash pop brings them back. Git worktree add checks out a second branch into a second folder, sharing the same repository, so you can look at main while you are mid-change without shelving anything.&lt;/p&gt;&lt;p&gt;Git log dash capital S, with a string, finds the commits that added or removed that exact text, which is how you find where a line came from when blame points at a refactor. And git blame dash L with a line range shows who last touched just those lines. None of these is a disaster tool. They are the tools that stop you getting into one.&lt;/p&gt;">
+<h2>The small tools</h2>
+<div class="s-rows s-rows-big">
+  <div class="s-row"><code class="s-flag">git stash</code><div><b>shelve</b> <span class="s-muted">uncommitted changes, then <code>pop</code></span></div></div>
+  <div class="s-row"><code class="s-flag">git worktree add</code><div><b>a second folder</b> <span class="s-muted">same repository, other branch</span></div></div>
+  <div class="s-row"><code class="s-flag">git log -S'text'</code><div><b>who added these words</b> <span class="s-muted">the pickaxe</span></div></div>
+  <div class="s-row"><code class="s-flag">git blame -L 6,8</code><div><b>who last touched these lines</b></div></div>
+</div></section><section class="slide" id="s10" data-minutes="1" data-title="The next 90 minutes" data-notes="&lt;p&gt;Here is the afternoon. Step zero, a script builds the same repository for everyone, and I mean the same: same hashes. Step one, bisect finds the commit that broke the test, and you undo it with revert. Step two, you squash four WIP commits into one with a real message. Step three, two accidents: a hard reset and a deleted branch, both repaired from the reflog. Step four, a merge conflict, resolved by hand. Step five, a pre-commit hook that says no. Step six, stash, worktree, and finding where a line came from.&lt;/p&gt;&lt;p&gt;Every step ends in a checkpoint, and nobody moves on until theirs passes. Stuck for five minutes, wave; every step can be restarted from a hash, because your hashes are my hashes. Five-minute break. Then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>The same repository for everyone</li>
+  <li><span>1</span>Bisect, then revert</li>
+  <li><span>2</span>Four WIP commits into one</li>
+  <li><span>3</span>Hard reset, deleted branch, reflog</li>
+  <li><span>4</span>A merge conflict, by hand</li>
+  <li><span>5</span>A pre-commit hook</li>
+  <li><span>6</span>Stash, worktree, pickaxe</li>
+  <li><span>7</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">No code. 38 commands. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/05-git-hero.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

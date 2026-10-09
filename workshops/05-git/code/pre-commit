@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# pre-commit: refuse the commit if the tests fail or if it adds a TODO.
+# Git runs this before every commit. Exit 0 = go ahead, anything else = refuse.
+bad=0
+if ! ./test.sh >/dev/null; then
+  echo "pre-commit: ./test.sh fails. Fix it, or --no-verify if you really must." >&2
+  bad=1
+fi
+if git diff --cached | grep -E '^\+.*TODO' >/dev/null; then
+  echo "pre-commit: this commit adds a TODO. Do it or drop it:" >&2
+  git diff --cached | grep -E '^\+.*TODO' >&2
+  bad=1
+fi
+exit $bad

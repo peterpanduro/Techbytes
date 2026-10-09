@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logs and Metrics You Can Actually Use · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="08-observability">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="It&#x27;s slow. Which part?" data-notes="&lt;p&gt;A customer writes in: checkout is slow. You have twelve servers, a log file on each one, and a hunch. What do you do? Most of us, honestly, ssh into one of them and tail the log and hope the slow request comes past. That works for one server, on a good day.&lt;/p&gt;&lt;p&gt;This afternoon is about what works for twelve servers, or a thousand pods, at three in the morning. Two kinds of data, one small Go API, and by the end you will find a deliberately slow endpoint from a graph alone, and then find out why it is slow from one log line. Fifteen minutes of talking, then ninety minutes of typing.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 8</p>
+  <h1>Logs and Metrics You Can Actually Use</h1>
+  <p class="s-big">“Checkout is slow.” Twelve servers. Which part?</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="Two questions, two tools" data-notes="&lt;p&gt;Here are the two questions, and they need two different kinds of data. The first question is: what happened to this request? That one, that customer, at that second. That is a log question. A log is one record per event, with everything you knew at the time: who, what, how long, what went wrong. It is wide, and it costs something per event, because you write and store every one of them.&lt;/p&gt;&lt;p&gt;The second question is: how is the system doing? Not one request; all of them. How many per second, how many failing, how slow is the slowest five percent. That is a metric question. A metric is a handful of numbers that are always up to date, and they are almost free, because they are the same size whether you serve one request or a million.&lt;/p&gt;&lt;p&gt;Notice that you cannot answer the second question with the first kind of data, not really. To get requests per second out of a log you have to read the whole log, every time. And you cannot answer the first question with the second: a counter cannot tell you what happened to Anna&amp;#x27;s order. A system that has only one of these has a blind spot, and you find out which one during an incident. So today the API gets both, and the last step shows how they connect.&lt;/p&gt;">
+<h2>Two questions, two tools</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">a log answers</p><p class="s-big">“What happened to <em>this</em> request?”</p><p class="s-muted">one record per event · wide · costs per event</p></div>
+    <div class="s-card s-card-accent"><p class="s-kicker">a metric answers</p><p class="s-big">“How is the system doing?”</p><p class="s-muted">a few numbers · always current · almost free</p></div>
+  </div>
+</div>
+<p class="s-line">You cannot grep a thousand pods. You need both.</p></section><section class="slide" id="s3" data-minutes="2" data-title="A log line is data, not prose" data-notes="&lt;p&gt;Here is the same event twice. On top, the way most programs log it: a timestamp and a sentence. A human can read that. Now try to answer, from a million of those lines, how many 504s happened in the last minute. You are writing a regular expression, and it will be wrong the first three times.&lt;/p&gt;&lt;p&gt;Underneath, the same event as a record. One JSON object per line, every field with a name: method, path, status as a number, the duration as a number of milliseconds, and a request id. Now the question is one filter: status greater than or equal to five hundred. No parsing. That is what structured logging means, and it is the difference between a log you read and a log you query.&lt;/p&gt;&lt;p&gt;Go has this in the standard library since 1.21, in the package log slash slog. One line of setup makes every log call in the program write JSON, including the old-style calls you forgot to change. You will do that in step one; it is seven lines.&lt;/p&gt;&lt;p&gt;The request id deserves a sentence of its own. It is eight random hex digits, made up at the door when the request arrives, and stamped onto the request so that everything deeper in the program can put it on its own log lines. Later, when you have one slow line in your hand, that id is how you find every other line about the same request. Hold that thought until slide nine.&lt;/p&gt;">
+<h2>A log line is data, not prose</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre><i>// prose: a human reads it</i>
+2026/09/22 12:38 GET /checkout 504 2.301s
+
+<i>// data: a program filters it</i>
+{"time":"2026-09-22T12:38:29Z",
+ "level":"INFO","msg":"request",
+ "method":"GET","path":"/checkout",
+ "status":<b>504</b>,"duration_ms":<b>2301</b>,
+ "request_id":<b>"c11e5f84"</b>}</pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-num-sm"><code>log/slog</code></span><span class="s-muted">in the standard library</span></div>
+    <div><span class="s-num s-num-sm"><code>select(.status &gt;= 500)</code></span><span class="s-muted">no regular expression</span></div>
+  </div>
+</div>
+<p class="s-line">Name every field. Stamp an id on it.</p></section><section class="slide" id="s4" data-minutes="1" data-title="A metric is a number with labels" data-notes="&lt;p&gt;A metric is smaller than you think. A name, some labels, and a number. This one says: checkout has answered five-oh-four seventeen times since the program started. It is a counter, so it only ever goes up; you never store requests per second, you store the total and ask for the rate later, which turns out to be far more robust.&lt;/p&gt;&lt;p&gt;The labels are how you slice: by path, by status code, later by server. But every distinct combination of label values is a separate time series that has to be stored, so never put an unbounded value in a label. A user id, a request id, an email address: each would be a new series, and you would make millions. Labels are for things you can count on your hands.&lt;/p&gt;">
+<h2>A metric is a number with labels</h2>
+<div class="s-one">
+  <p class="s-code-line"><code>http_requests_total{path="/checkout",status="504"} <b>17</b></code></p>
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">counter</p><p class="s-big">only goes up</p><p class="s-muted">ask for its rate later</p></div>
+    <div class="s-card"><p class="s-kicker">labels</p><p class="s-big">how you slice</p><p class="s-muted">path, status · never a user id</p></div>
+  </div>
+</div>
+<p class="s-line">Every distinct label value is a new time series.</p></section><section class="slide" id="s5" data-minutes="2" data-title="Histograms, and why p95 is not the average" data-notes="&lt;p&gt;Now the number that matters most, latency, and it is not a counter, because every request has its own. So we keep a histogram, and a histogram is just a row of counters with an upper bound each: how many requests took at most a tenth of a second, at most a quarter, at most a half, one, two and a half, and anything at all. Six counters per endpoint, and that last one, plus infinity, is required, because it is also the total.&lt;/p&gt;&lt;p&gt;Watch the widget. This is a fake checkout: three hundred milliseconds every time, except one call in ten, which takes two seconds longer. Look at the average. It settles at about half a second, and half a second sounds fine. Now look at p95, the time that ninety-five percent of requests beat. It sits above two seconds, because one customer in ten is standing there waiting, and the average has quietly spread their two seconds across everybody else.&lt;/p&gt;&lt;p&gt;Averages hide tails. Percentiles show them. That is the single most useful thing to know about latency, and it is why every dashboard you will ever see has p95 or p99 on it and almost none have the mean.&lt;/p&gt;&lt;p&gt;One more thing, and the lab will make you notice it: a percentile computed from buckets is an estimate. Prometheus knows that seventeen requests fell between one and two and a half seconds; it does not know where. It assumes they are spread evenly, and answers about one point nine, where the truth is two point three. Buckets are chosen by you. Put a bound where you need precision.&lt;/p&gt;">
+<h2>Why p95 is not the average</h2>
+<div class="s-widget s-widget-center"><div class="demo" id="w8-demo">
+      <span class="eyebrow">Interactive · why p95 is not the average</span>
+      <p class="note" style="margin:.3rem 0 .7rem">Fake requests to a <code>/checkout</code> that takes 300 ms, except one call in ten that takes two seconds longer. Every request lands in one bucket of a histogram; the numbers are what a dashboard would show.</p>
+      <div class="w8-top">
+        <div class="seg" role="group" aria-label="Traffic"><button type="button" id="w8-run" aria-pressed="false">Start</button><button type="button" id="w8-reset" aria-pressed="false">Reset</button></div>
+        <span class="w8-last">last request <b id="w8-last">–</b></span>
+      </div>
+      <div class="w8-stats">
+        <div><span>requests</span><b id="w8-n">0</b></div>
+        <div><span>average</span><b id="w8-avg">–</b></div>
+        <div><span>p95</span><b id="w8-p95">–</b></div>
+        <div><span>p95 · from buckets</span><b id="w8-est">–</b></div>
+      </div>
+      <div class="w8-hist" id="w8-hist" aria-label="Histogram of request durations"></div>
+      <p class="note" id="w8-note" style="margin-top:.5rem"></p>
+    </div></div>
+<p class="s-line">Averages hide tails. Percentiles show them.</p></section><section class="slide" id="s6" data-minutes="1" data-title="Pull, not push" data-notes="&lt;p&gt;How do the numbers get out of the program? They do not. The program does not send anything anywhere. It serves one more page, at slash metrics, plain text, with the current value of every counter. And Prometheus, a separate program, fetches that page every few seconds, five in our lab, and stores each number with a timestamp. Grafana, a third program, asks Prometheus questions and draws the answers.&lt;/p&gt;&lt;p&gt;Three boxes, two arrows, and the arrows point towards the API. That is the whole architecture, and it has a consequence you will feel in step two: because the metrics page is just text, you can write it by hand. Thirty lines of Go with a couple of maps and f m t dot print f. You will, once, and after that no metrics library will ever be magic to you.&lt;/p&gt;">
+<h2>Pull, not push</h2>
+<div class="s-flow">
+  <div class="s-fl"><span class="s-fl-t">the API</span><span class="s-muted"><code>/metrics</code>, plain text</span></div>
+  <div class="s-fl-arrow">←</div>
+  <div class="s-fl"><span class="s-fl-t">Prometheus</span><span class="s-muted">fetches it every 5 s, stores it</span></div>
+  <div class="s-fl-arrow">←</div>
+  <div class="s-fl"><span class="s-fl-t">Grafana</span><span class="s-muted">asks, draws</span></div>
+</div>
+<p class="s-line">The API serves a text page. It knows nothing about the other two.</p></section><section class="slide" id="s7" data-minutes="2" data-title="PromQL in three lines" data-notes="&lt;p&gt;Prometheus has a query language, and the lab is built on three lines of it, so here they are. Line one. Rate of h t t p requests total over one minute. The counter only goes up; rate asks: over the last minute, how fast was it climbing, per second? That is requests per second, one line per label combination. Four of them, for us: three paths, and checkout twice, once for two hundred and once for five-oh-four.&lt;/p&gt;&lt;p&gt;Line two wraps the first in sum by path. Add everything up, but keep the path label. Now the two checkout series merge into one, and you have requests per second per endpoint. Sum by is how you collapse the labels you do not care about right now.&lt;/p&gt;&lt;p&gt;Line three is the one people copy for years without reading, so read it inside out with me. Innermost: rate of the bucket counters. Each of the six buckets per path is a counter, so this gives six rates per path. Then sum by path and l e: add up, keeping the path and the bucket bound. L e is the label that says less than or equal, and histogram quantile needs it. Then histogram quantile of point nine five: from those six rates, read off where the ninety-fifth percentile falls. Three ideas you already have: rate, sum by, and the histogram from the previous slide. Every latency graph you will ever see is this line.&lt;/p&gt;">
+<h2>PromQL in three lines</h2>
+<div class="s-one">
+  <div class="s-code"><pre><b>rate</b>(http_requests_total<b>[1m]</b>)
+
+<b>sum by (path)</b> (rate(http_requests_total[1m]))
+
+<b>histogram_quantile(0.95,</b>
+  sum by (path, <b>le</b>) (rate(http_request_duration_seconds_bucket[1m])))</pre></div>
+</div>
+<p class="s-line">How fast is it climbing · add up, keep one label · read off the 95th percentile.</p></section><section class="slide" id="s8" data-minutes="1" data-title="The graph finds the where" data-notes="&lt;p&gt;In step five you build a dashboard with two panels: requests per second by path, and p95 latency by path. The second panel looks like this. Two lines sit on the floor. One sits at two seconds. You have found the slow endpoint without reading a single log line and without knowing what the code does. And a graph like this is cheap enough to have on a screen all day, so you notice before the customer writes in.&lt;/p&gt;&lt;p&gt;That is what a metric is for. It answers where. It cannot answer why, and the next slide is about that.&lt;/p&gt;">
+<h2>The graph finds the where</h2>
+<div class="s-one"><svg viewBox="0 0 900 300" class="s-fig" role="img" aria-label="p95 latency by path: two flat lines near zero, one line at two seconds">
+  <line x1="70" y1="20" x2="70" y2="250" class="f-axis"/><line x1="70" y1="250" x2="880" y2="250" class="f-axis"/>
+  <text x="60" y="255" class="f-ax">0</text><text x="60" y="150" class="f-ax">1 s</text><text x="60" y="45" class="f-ax">2 s</text>
+  <line x1="70" y1="145" x2="880" y2="145" class="f-thr"/><text x="875" y="135" class="f-cap f-end">alert at 1 s</text>
+  <polyline points="70,244 200,246 330,243 460,245 590,244 720,246 880,244" class="f-line"/>
+  <polyline points="70,247 200,245 330,247 460,244 590,247 720,245 880,246" class="f-line"/>
+  <polyline points="70,58 200,50 330,62 460,48 590,56 720,52 880,55" class="f-line f-slow"/>
+  <text x="880" y="82" class="f-lbl f-end">/checkout · p95 ≈ 2 s</text>
+  <text x="880" y="232" class="f-s f-end">/ and /products</text>
+</svg></div>
+<p class="s-line">You found the slow endpoint without reading a line of code.</p></section><section class="slide" id="s9" data-minutes="1" data-title="The log finds the why" data-notes="&lt;p&gt;The graph says checkout. Why is checkout slow? The graph has no idea. So you take one slow log line, copy its request id, and filter the log for that id. And now a second line comes back, from inside the handler: warning, payment provider timed out, same id. There is your why. Metrics found where to look; the log said what was there; the id joined them. That is the whole method, and it scales to a thousand pods because both halves are queries, not eyes.&lt;/p&gt;&lt;p&gt;And once you know the question, you write it down as an alert, so that next time nobody has to be watching the graph. Same expression as the dashboard, a threshold, and a duration. That is step six.&lt;/p&gt;">
+<h2>The log finds the why</h2>
+<div class="s-one">
+  <div class="s-code"><pre><i># filter the log for one request id</i>
+{"level":"<b>WARN</b>", "msg":"<b>payment provider timed out</b>",
+ "request_id":"<b>0d8c0957</b>"}
+
+{"level":"INFO", "msg":"request", "path":"/checkout",
+ "status":504, "duration_ms":2301,
+ "request_id":"<b>0d8c0957</b>"}</pre></div>
+</div>
+<p class="s-line">Metrics find <b>where</b>. Logs find <b>why</b>. The request id is the join.</p></section><section class="slide" id="s10" data-minutes="1" data-title="What we are not doing" data-notes="&lt;p&gt;Three things we skip, so you know they exist. Traces are the third pillar: one record per request that follows it across every service it touches, with a timing for each hop. OpenTelemetry plus a collector plus a UI is an afternoon by itself, and it is on the stretch list. The Prometheus client library does what our thirty lines do, plus forty runtime metrics for free; we write it by hand once so the library is never magic, and you can swap it in at home. And log levels, sampling, and service level objectives: all stretch goals, all on the page.&lt;/p&gt;">
+<h2>What we are not doing</h2>
+<ul class="s-list s-list-huge">
+  <li><b>Traces.</b> <span class="s-muted">The third pillar; a workshop of its own.</span></li>
+  <li><b>The client library.</b> <span class="s-muted">Once by hand, then never magic.</span></li>
+  <li><b>Sampling, levels, SLOs.</b> <span class="s-muted">Stretch goals.</span></li>
+</ul></section><section class="slide" id="s11" data-minutes="1" data-title="What we build" data-notes="&lt;p&gt;Here is the afternoon. We run a small Go API and a load generator that hammers it. We switch its log to JSON and filter it for failures. We write the metrics page by hand: a counter, a histogram, thirty lines. Then Prometheus and Grafana come up next to it in Compose, we ask the three PromQL questions from slide seven, build the two-panel dashboard, and find the slow endpoint from the graph. Then we take a request id from a slow line, find the why, and write the alert rule so it never needs finding again.&lt;/p&gt;&lt;p&gt;Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>Run the API and the load</li>
+  <li><span>1</span>Logs are data: slog, a filter</li>
+  <li><span>2</span>Metrics by hand: /metrics</li>
+  <li><span>3</span>Prometheus scrapes it</li>
+  <li><span>4</span>Three PromQL questions</li>
+  <li><span>5</span>Grafana finds the where</li>
+  <li><span>6</span>Logs find the why, an alert</li>
+  <li><span>7</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">Go standard library, two tiny Deno scripts, Compose. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/08-observability-hero.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

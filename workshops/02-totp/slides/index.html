@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOTP From Scratch · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="02-totp">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="Your phone and the server share a secret" data-notes="&lt;p&gt;Hands up if you have used an authenticator app this week. Most of you. Six digits, they change every thirty seconds, you type them in, you are in.&lt;/p&gt;&lt;p&gt;Now a question. Put your phone in airplane mode. The app still shows a code. It still works. Nobody sent that code to your phone. So how does the app know it? Hold that question; in fifteen minutes you will know the answer, and in two hours you will have written it yourself, in about forty lines, and checked it against your own phone.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 2</p>
+  <h1>TOTP From Scratch</h1>
+  <p class="s-code-big">287 082</p>
+  <p class="s-big">Your phone and the server share a secret.</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="Why passwords alone are not enough" data-notes="&lt;p&gt;Why do we bother with a second factor at all? Because passwords fail in three predictable ways. People reuse them, so one leaked site opens every other site. Databases leak; if you run a service long enough, yours will be dumped somewhere. And phishing: people type the correct password into a site that merely looks like yours.&lt;/p&gt;&lt;p&gt;So we add something you have to something you know. The password proves you know a secret; the phone proves you hold a device. An attacker with the password alone is stuck.&lt;/p&gt;&lt;p&gt;There are two common ways to do the phone part. The bank sends a code by text message: that is a random number the server made up, sent over a channel that can be intercepted or hijacked by moving your number to another SIM. Or an app on the phone shows a code with no network at all. The second one is what we build today, and it is on every serious system you will ever work on. Very few developers have ever looked inside it. After today, you have.&lt;/p&gt;">
+<h2>Why passwords alone are not enough</h2>
+<div class="s-one">
+  <p class="s-words">reuse &nbsp;·&nbsp; leaks &nbsp;·&nbsp; phishing</p>
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">something you know</p><p class="s-big">the password</p></div>
+    <div class="s-plus">+</div>
+    <div class="s-card s-card-accent"><p class="s-kicker">something you have</p><p class="s-big">the phone</p></div>
+  </div>
+</div>
+<p class="s-line">SMS codes: the weak version. App codes: what we build.</p></section><section class="slide" id="s3" data-minutes="1" data-title="What it looks like from the outside" data-notes="&lt;p&gt;Here it is, live. This page is computing a code right now, and this is my phone, showing the same code, with the same countdown. No network between them. Watch them roll over together.&lt;/p&gt;&lt;p&gt;Here is the whole talk in one sentence: the code is never sent to the phone. The phone and the server each compute it independently, from a secret they share and the current time. Everything else today is the mechanics of that sentence. Keep an eye on the rows under the code; we are going to walk down them.&lt;/p&gt;">
+<h2>From the outside</h2>
+<div class="s-widget s-widget-center"><div class="demo" id="demo" aria-live="polite">
+  <span class="eyebrow">Live · computed in this page</span>
+  <div class="code" id="d-code">······</div>
+  <div class="bar"><i id="d-bar"></i></div>
+  <dl>
+    <dt>secret</dt><dd>12345678901234567890 <span class="muted">(RFC test key)</span></dd>
+    <dt>unix time</dt><dd id="d-time">–</dd>
+    <dt>counter</dt><dd id="d-ctr">–</dd>
+    <dt>HMAC-SHA1</dt><dd id="d-mac">–</dd>
+    <dt>offset</dt><dd id="d-off">–</dd>
+    <dt>31-bit int</dt><dd id="d-int">–</dd>
+  </dl>
+  <p class="note">Key <code>GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ</code> in an authenticator app shows this same code.</p>
+</div></div></section><section class="slide" id="s4" data-minutes="1" data-title="Ingredient one: a shared secret" data-notes="&lt;p&gt;Ingredient one is the secret. When you enable two-factor on a site, the server generates twenty random bytes. It shows them to you once, as a QR code, and your phone stores them. From that moment both sides hold the same twenty bytes and nobody else does.&lt;/p&gt;&lt;p&gt;Base32 is just a way to write those bytes as capital letters and the digits two to seven, so the secret can be typed into a phone by hand if the camera fails. No lower case, no characters that look alike.&lt;/p&gt;&lt;p&gt;The thing to notice: the QR code is the secret. Not a pointer to it, the thing itself. Anyone who photographs your setup screen has your second factor, forever. That is why real sites show it once and offer backup codes instead of show it again.&lt;/p&gt;">
+<h2>Ingredient one: a shared secret</h2>
+<div class="s-flow">
+  <div class="s-fl"><span class="s-fl-t">20 random bytes</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t"><code>GEZDGNBV…</code></span><span class="s-muted">Base32</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t">QR code</span><span class="s-muted">shown once</span></div>
+</div>
+<p class="s-line">The QR code <em>is</em> the secret.</p></section><section class="slide" id="s5" data-minutes="2" data-title="Ingredient two: HMAC" data-notes="&lt;p&gt;Ingredient two. You know what a hash is: feed in any input, get a fixed-size fingerprint, and change one bit of the input and the whole fingerprint changes. Anyone can compute a hash; there is no secret in it.&lt;/p&gt;&lt;p&gt;HMAC is a hash with a key mixed in. You need the key to produce the right fingerprint. Without the key you cannot forge one, and given a fingerprint you cannot work backwards to the key. That is the entire cryptographic content of this workshop: one function, key plus message in, twenty bytes out.&lt;/p&gt;&lt;p&gt;And you do not implement it. It is built into every browser and into Deno as WebCrypto: crypto dot subtle dot sign, HMAC, key, message. The page behind me is calling exactly that function right now. One thing about it: it returns a promise, because browsers run it off the main thread. That is the only reason you will see the word await in the lab.&lt;/p&gt;">
+<h2>Ingredient two: a hash with a key</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">hash</p><p class="s-big"><code>message → fingerprint</code></p></div>
+    <div class="s-card s-card-accent"><p class="s-kicker">HMAC</p><p class="s-big"><code>key + message → fingerprint</code></p></div>
+  </div>
+  <p class="s-code-line"><code>crypto.subtle.sign("HMAC", key, message)</code></p>
+</div>
+<p class="s-line">No key, no fingerprint. That is all the cryptography today.</p></section><section class="slide" id="s6" data-minutes="2" data-title="HOTP" data-notes="&lt;p&gt;Now put the two ingredients together. This is HOTP, from an RFC written in 2005, and it is a five-step pipeline. Every step is one line of code this afternoon.&lt;/p&gt;&lt;p&gt;Start with a counter, a whole number. Pack it as eight bytes, most significant byte first. Feed those eight bytes and the secret into HMAC-SHA1, and you get twenty bytes back. Twenty bytes is not something a human types, so we truncate: take the last byte, keep its low four bits, and that number, zero to fifteen, is an offset into the twenty bytes. Read four bytes starting at that offset as an integer. Clear the top bit so every language agrees on the sign. Take it modulo a million, pad with zeros, and that is your six digits.&lt;/p&gt;&lt;p&gt;The example on the slide is straight out of the RFC&amp;#x27;s appendix, with the real test secret and counter zero. The MAC starts c c nine three, the last byte is zero, so the offset is zero, the first four bytes give one billion two hundred eighty-four million seven hundred fifty-five thousand two hundred twenty-four, and the last six digits of that are seven five five two two four. Your code will produce exactly those numbers, or it will not, and then you know which line is wrong. That is what test vectors are for.&lt;/p&gt;">
+<h2>HOTP: a counter, a MAC, six digits</h2>
+<ol class="s-pipe">
+  <li><span>counter</span><code>0</code><em>8 bytes</em></li>
+  <li><span>HMAC-SHA1</span><code>cc93cf18 … e4b<b>0</b></code><em>20 bytes</em></li>
+  <li><span>offset</span><code>last byte &amp; 0x0F = 0</code><em></em></li>
+  <li><span>4 bytes</span><code>cc93cf18 &amp; 0x7fffffff</code><em>1 284 755 224</em></li>
+  <li><span>mod 10⁶</span><code>755224</code><em></em></li>
+</ol>
+<p class="s-line">One line of code each. Every number is printed in RFC 4226.</p></section><section class="slide" id="s7" data-minutes="2" data-title="TOTP" data-notes="&lt;p&gt;HOTP has a problem: the phone and the server have to agree on the counter, and they are not talking to each other. TOTP, from 2011, solves it with one line. Let the counter be the current unix time divided by thirty, rounded down. Both sides have a clock. Both sides can compute it. Nobody has to send anything.&lt;/p&gt;&lt;p&gt;That is the entire difference between HOTP and TOTP. One line. Everything else is identical.&lt;/p&gt;&lt;p&gt;Three consequences. Unix time is seconds since 1970 in UTC, so time zones never matter; a phone in Tokyo and a server in Luleå compute the same counter. A phone with a wrong clock produces wrong codes, and you will meet this in the lab, because somebody&amp;#x27;s laptop or phone will be a minute off. And because typing a code takes a few seconds, the server has to accept the previous and the next thirty-second step too, or people would be rejected at the boundary.&lt;/p&gt;">
+<h2>TOTP: let the clock be the counter</h2>
+<div class="s-one">
+  <p class="s-code-line s-code-huge"><code>counter = ⌊ unix_time / 30 ⌋</code></p>
+  <p class="s-big s-center">Both sides can compute it. Nobody sends anything.</p>
+</div>
+<p class="s-line">Wrong clock, wrong code.</p></section><section class="slide" id="s8" data-minutes="2" data-title="The server&#x27;s job" data-notes="&lt;p&gt;Generating codes is the easy half. The server that checks them has four jobs.&lt;/p&gt;&lt;p&gt;One: the window. Accept the previous step and the next one as well as the current, to allow for clock drift and typing time. The RFC says at most one step either side, and you will see why in a moment.&lt;/p&gt;&lt;p&gt;Two: replay. Never accept the same code twice. If someone watches you type a code, they have thirty seconds to use it; if the server remembers what it has already accepted, they have nothing.&lt;/p&gt;&lt;p&gt;Three: compare in constant time. A normal string comparison stops at the first wrong character, so the response time leaks how many leading digits were right. For six digits over a network it is hard to exploit, but the habit is the point: every comparison of a secret is constant time, always.&lt;/p&gt;&lt;p&gt;Four: throttling, and here is the arithmetic. A million possible codes, three accepted at any moment, so each guess succeeds with probability three in a million. An attacker trying ten codes a second expects to get in after about nine hours. Nine hours is nothing. With a lockout after five failed attempts, never. The code is only as good as the rate limiting around it, and that is not in the RFC; that is your job.&lt;/p&gt;">
+<h2>The server's job is harder</h2>
+<div class="s-one">
+  <p class="s-words">window &nbsp;·&nbsp; replay &nbsp;·&nbsp; constant time &nbsp;·&nbsp; throttle</p>
+  <div class="s-two s-two-stat">
+    <div><span class="s-num">3 in 10⁶</span><span class="s-muted">per guess</span></div>
+    <div><span class="s-num">≈ 9 h</span><span class="s-muted">at 10 guesses / s</span></div>
+    <div><span class="s-num s-good">never</span><span class="s-muted">lockout after 5</span></div>
+  </div>
+</div>
+<p class="s-line">The code is only as good as the throttling around it.</p></section><section class="slide" id="s9" data-minutes="1" data-title="What TOTP does not protect against" data-notes="&lt;p&gt;Two things TOTP does not fix, so you are not surprised later. A phishing site that asks for your code and forwards it to the real site within thirty seconds wins; the code is valid, it just was not you typing it into the right place. And the server has to store the secret in a form it can use, so a database breach leaks everyone&amp;#x27;s second factor at once.&lt;/p&gt;&lt;p&gt;Passkeys fix both, by tying the login to the site&amp;#x27;s real address and using public-key signatures where the server holds nothing secret. That is a workshop for later in the year. For now: TOTP is on almost every system you will touch, it is enormously better than a password alone, and after today you will know exactly where its edges are.&lt;/p&gt;">
+<h2>What TOTP does not stop</h2>
+<ul class="s-list s-list-huge">
+  <li><b>Real-time phishing.</b> <span class="s-muted">Forwarded within 30 s.</span></li>
+  <li><b>A server breach.</b> <span class="s-muted">The secret is on the server.</span></li>
+</ul>
+<p class="s-line">Passkeys fix both. A later workshop.</p></section><section class="slide" id="s10" data-minutes="1" data-title="What we build" data-notes="&lt;p&gt;Here is the afternoon. Seven steps, in TypeScript on Deno, no libraries. Steps two, three and four are checked by deno test against numbers printed in the RFCs, so you will know your code is right before your phone is involved. Step five is the moment: your own secret, your own QR code, your phone, and the same digits in both places. Step six is the server side: the window, replay, constant time. Then stretch goals for the fast typists.&lt;/p&gt;&lt;p&gt;Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>Two files, green test run</li>
+  <li><span>1</span>A secret, in Base32</li>
+  <li><span>2</span>HMAC over a counter</li>
+  <li><span>3</span>Truncation → HOTP</li>
+  <li><span>4</span>Clock → TOTP</li>
+  <li><span>5</span>QR code, phone, proof</li>
+  <li><span>6</span>A verifier</li>
+  <li><span>7</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">Deno, no dependencies. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

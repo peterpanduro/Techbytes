@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Log in with GitHub (OAuth 2) · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="09-oauth">
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="&quot;Log in with GitHub&quot;: what happens?" data-notes="&lt;p&gt;Hands up if you have ever clicked a &amp;quot;Log in with GitHub&amp;quot; button. Keep it up if you could draw what happened between the click and the page that said hello. That is the gap we close today.&lt;/p&gt;&lt;p&gt;It feels like one click. It is about six HTTP requests between three parties, two of them redirects, and one of them a request your browser never sees. Today you build the server behind that button, by hand, in about fifty lines of TypeScript. You develop it against a fake GitHub on your own laptop, then point the same code at the real one and log in with your own account. Fifteen minutes of talking first, then ninety minutes of building.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 9</p>
+  <h1>Log in with GitHub (OAuth 2)</h1>
+  <p class="s-big">What happens after the click?</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="Let an app act as you, without your password" data-notes="&lt;p&gt;Start with the problem OAuth was invented for. Some app wants to do something with your GitHub account: read your profile, list your repositories. The old answer was: give it your password. Think about what that means. The app can now do everything you can do, until you change your password, and when you do, every other app you gave it to breaks as well. You cannot give it less, and you cannot take it back from just that one.&lt;/p&gt;&lt;p&gt;OAuth&amp;#x27;s answer is delegation. You never give the app your password. You go to GitHub, you sign in there, and GitHub asks you: this app wants to read your profile, is that all right? If you say yes, GitHub gives the app a token. The token is scoped: it can read your profile and nothing else. And it can be revoked: there is a page in your GitHub settings that lists every app you have authorized, with a button next to each.&lt;/p&gt;&lt;p&gt;Notice what OAuth is about: authorization, permission to act. &amp;quot;Log in with GitHub&amp;quot; borrows it for something slightly different, which is finding out who you are. We come back to that gap on slide seven, because it is exactly where GitHub differs from Google.&lt;/p&gt;&lt;p&gt;And workshop four, in one line: a certificate proves that a server holds the key for a name, and trust is a list you choose. That question was &amp;quot;encrypted to whom?&amp;quot;. Today&amp;#x27;s question is &amp;quot;logged in as whom?&amp;quot;.&lt;/p&gt;">
+<h2>Let an app act as you, without your password</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">the old way</p><p class="s-big">your password</p><p class="s-muted">everything, until you change it</p></div>
+    <div class="s-plus">→</div>
+    <div class="s-card s-card-accent"><p class="s-kicker">OAuth</p><p class="s-big">a token</p><p class="s-muted">one app · one scope · revocable</p></div>
+  </div>
+</div>
+<p class="s-line">Workshop 4: encrypted to whom? Today: <b>logged in as whom?</b></p></section><section class="slide" id="s3" data-minutes="1" data-title="Three parties and a redirect" data-notes="&lt;p&gt;Three parties. Your browser. Your app, the server you write today. And GitHub. Who holds what? The browser holds you: your GitHub session, and whatever cookie the app gives it. The app holds a client ID, which is public, and a client secret, which is not. GitHub holds your password and decides what to hand out.&lt;/p&gt;&lt;p&gt;The whole protocol is who redirects whom where, carrying what. Every hop that passes through the browser is visible: it is in the address bar, in the history, in server logs. That is the front channel. One request goes straight from your app to GitHub and never touches the browser: the back channel. Keep those two words. The secret only ever travels on the back channel.&lt;/p&gt;">
+<h2>Three parties and a redirect</h2>
+<div class="s-flow">
+  <div class="s-fl"><span class="s-fl-t">Browser</span><span class="s-muted">you · your GitHub session · the app's cookie</span></div>
+  <div class="s-fl-arrow">⇄</div>
+  <div class="s-fl"><span class="s-fl-t">Your app</span><span class="s-muted">client ID (public) · client secret (private)</span></div>
+  <div class="s-fl-arrow">⇄</div>
+  <div class="s-fl"><span class="s-fl-t">GitHub</span><span class="s-muted">your password · decides what to hand out</span></div>
+</div>
+<p class="s-line">Through the browser: <b>front channel</b>. Server to server: <b>back channel</b>.</p></section><section class="slide" id="s4" data-minutes="2" data-title="Step one: send the user to GitHub" data-notes="&lt;p&gt;Step one. The user clicks the button, and your app does not show a form. It answers with a redirect to github dot com, slash login, slash oauth, slash authorize, with four values in the query string.&lt;/p&gt;&lt;p&gt;Client ID: which app is asking. GitHub looks it up, and that is how its consent page knows to say &amp;quot;TechBytes OAuth lab&amp;quot;. Redirect URI: where to send the user back afterwards. It must match, exactly, the callback URL you registered in the prep. Hold on to that; it is one of today&amp;#x27;s three checks. Scope: what you are asking for. We ask for read colon user, permission to read the profile, and nothing else. Ask for the least you need, because the consent page shows the user exactly what you asked for.&lt;/p&gt;&lt;p&gt;And state, a random string that your app makes up for this one login. That is the next slide.&lt;/p&gt;&lt;p&gt;Then the user is on GitHub. They sign in there, not on your page. A password manager, a passkey, the six-digit codes from workshop two: all of that happens on GitHub&amp;#x27;s page, and your app never sees any of it. That is the point.&lt;/p&gt;">
+<h2>Step one: send the user to GitHub</h2>
+<div class="s-one">
+  <div class="s-code" style="width:100%"><pre>302 Found
+Location: https://github.com/login/oauth/authorize
+    ?<b>client_id</b>=Ov23…                                <i>← which app</i>
+    &amp;<b>redirect_uri</b>=http://127.0.0.1:8000/callback    <i>← exactly as registered</i>
+    &amp;<b>scope</b>=read:user                               <i>← the least you need</i>
+    &amp;<b>state</b>=Qx3v…                                   <i>← random, this login only</i></pre></div>
+</div>
+<p class="s-line">The user signs in <b>on GitHub</b>. Your app never sees the password.</p></section><section class="slide" id="s5" data-minutes="1" data-title="state: the string that ties the trip together" data-notes="&lt;p&gt;State. Before the redirect, your app makes a long random value, puts it in the URL, and also puts it in a cookie in the user&amp;#x27;s browser. GitHub hands it back unchanged on the return trip. Your app compares the two, and if they differ, or the cookie is missing, it stops. GitHub&amp;#x27;s documentation is blunt about it: if they don&amp;#x27;t match, abort.&lt;/p&gt;&lt;p&gt;What it proves: this callback belongs to a login that this browser started, here, a few minutes ago. We will compare it in constant time, out of habit from workshop three. But it is not a password. The exact match is what matters.&lt;/p&gt;">
+<h2><code>state</code> ties the trip together</h2>
+<div class="s-flow">
+  <div class="s-fl"><span class="s-fl-t">make it</span><span class="s-muted">32 random bytes · in the URL and in a cookie</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t">GitHub echoes it</span><span class="s-muted">unchanged, on the way back</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t">compare</span><span class="s-muted">missing or different: stop</span></div>
+</div>
+<p class="s-line">This callback belongs to a login <b>this browser started</b>.</p></section><section class="slide" id="s6" data-minutes="2" data-title="Step two: the code comes back; trade it for a token" data-notes="&lt;p&gt;Step two. The user says yes. GitHub redirects the browser back to your callback with two values in the query string: state, which you check, and a code.&lt;/p&gt;&lt;p&gt;The code is not the token. It is a claim ticket. It travelled through the browser, so assume it has been seen: it is in the address bar, in the history, maybe in a log. So it is deliberately weak. GitHub says it expires after ten minutes, and on its own it buys nothing.&lt;/p&gt;&lt;p&gt;To turn it into a token, your server makes a request of its own, straight to GitHub: a POST to login, slash oauth, slash access token, carrying the code, your client ID, the same redirect URI again, and the client secret. That is the back channel. The browser is not involved, the user cannot see it, and the secret never leaves your server.&lt;/p&gt;&lt;p&gt;One detail that will bite you otherwise: ask for JSON. By default GitHub answers in form encoding. Send an Accept header of application slash json, and you get an access token, a token type of bearer, the scope, and, because Expire user access tokens is on by default, an expiry of eight hours and a refresh token. If anything is wrong, a bad secret or a spent code, you get an error field instead, and your code has to look for it.&lt;/p&gt;">
+<h2>Step two: trade the code for a token</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">front channel · visible</p><p class="s-big"><code>?code=…&amp;state=…</code></p><p class="s-muted">a claim ticket · 10 minutes</p></div>
+    <div class="s-plus">→</div>
+    <div class="s-card s-card-accent"><p class="s-kicker">back channel · server to server</p><p class="s-big">POST access_token</p><p class="s-muted">code + client_secret · Accept: application/json</p></div>
+  </div>
+  <div class="s-code" style="width:100%"><pre>{"access_token":"gho_…", "token_type":"bearer", "scope":"read:user",
+ "expires_in":28800, "refresh_token":"ghr_…", …}</pre></div>
+</div>
+<p class="s-line"><b>The secret never leaves your server.</b></p></section><section class="slide" id="s7" data-minutes="2" data-title="Step three: who is this? There is no ID token" data-notes="&lt;p&gt;Step three, and this is where GitHub surprises people. You have a token. Who is the user?&lt;/p&gt;&lt;p&gt;If you have built &amp;quot;Sign in with Google&amp;quot;, you may expect an ID token: a signed statement, a JSON Web Token, that says &amp;quot;this is user so-and-so&amp;quot;, signed by Google, which you verify with Google&amp;#x27;s public key. That is OpenID Connect, a layer on top of OAuth, and the signature is the same idea as workshop four&amp;#x27;s certificates.&lt;/p&gt;&lt;p&gt;GitHub does not do OpenID Connect for logging users in. There is no ID token. So we do the only thing we can: we use the token. We call api dot github dot com, slash user, with an Authorization header that says Bearer and the token, and GitHub answers with the profile of whoever the token belongs to. A login, a numeric id, a name.&lt;/p&gt;&lt;p&gt;So &amp;quot;logged in with GitHub&amp;quot; means: GitHub gave us a token in exchange for a code we asked for, the token works, and slash user says it is octocat. That is the whole proof of identity. It is good enough, because we checked every step that led to the token. Which is why the checks matter. And one habit: store the numeric id, not the login. People rename themselves.&lt;/p&gt;">
+<h2>Step three: who is this?</h2>
+<div class="s-one">
+  <div class="s-two">
+    <div class="s-card"><p class="s-kicker">Google, Microsoft, …</p><p class="s-big">ID token</p><p class="s-muted">OpenID Connect · a signed JWT · verify the signature</p></div>
+    <div class="s-plus">≠</div>
+    <div class="s-card s-card-accent"><p class="s-kicker">GitHub</p><p class="s-big">GET /user</p><p class="s-muted">no ID token · ask the API with the token</p></div>
+  </div>
+</div>
+<p class="s-line">Identity is <b>an API call that works</b>. Key on <code>id</code>, not <code>login</code>.</p></section><section class="slide" id="s8" data-minutes="1" data-title="PKCE: bind the code to the app that asked" data-notes="&lt;p&gt;PKCE, pronounced pixie: Proof Key for Code Exchange. Before the redirect, the app makes a second random value, the verifier, and keeps it. It sends GitHub only a hash of it, the challenge. When the app redeems the code on the back channel, it sends the verifier itself, and GitHub checks that its hash matches the challenge.&lt;/p&gt;&lt;p&gt;So a code is now bound to whoever started the login. Someone who sees the code in a URL cannot redeem it, because they never had the verifier. GitHub supports it with SHA-256 only, recommends it, and still wants your client secret. PKCE does not replace the secret, and it does not replace state. It is a third lock, on a different door.&lt;/p&gt;">
+<h2>PKCE: bind the code to the app that asked</h2>
+<div class="s-flow">
+  <div class="s-fl"><span class="s-fl-t">verifier</span><span class="s-muted">random · stays with the app</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t">challenge</span><span class="s-muted">SHA-256, base64url · goes out with the redirect</span></div>
+  <div class="s-fl-arrow">→</div>
+  <div class="s-fl"><span class="s-fl-t">redeem</span><span class="s-muted">verifier on the back channel · GitHub compares</span></div>
+</div>
+<p class="s-line">S256 only. <b>Not instead of</b> the secret or <code>state</code>.</p></section><section class="slide" id="s9" data-minutes="2" data-title="Three checks that make it safe" data-notes="&lt;p&gt;Here is the whole flow, and where the three checks sit. Let me step through it.&lt;/p&gt;&lt;p&gt;Hop one: the browser asks for the app&amp;#x27;s front page. Hop two: the app answers with the redirect. State and the verifier go into a cookie; state and the challenge go into the URL. And GitHub runs check two right here: is this redirect URI exactly the registered one? If not, no code is issued.&lt;/p&gt;&lt;p&gt;Hop three is between you and GitHub only. Hop four: back to the callback with the code and state. Check one, the app&amp;#x27;s own: does state match the cookie? Then the app clears the cookie, and the browser drops it.&lt;/p&gt;&lt;p&gt;Hop five, the back channel: secret, code, the redirect URI again, and the verifier. GitHub runs check two again, and check three: does the verifier hash to the challenge? Only then is there a token. Hop six: slash user.&lt;/p&gt;&lt;p&gt;Two of the three checks are run by GitHub, but each one depends on something your app does: making state and comparing it, registering exactly one callback and sending it both times, keeping the verifier. Each check is one line of code you will be able to point at, and in step seven you prove each one with a test.&lt;/p&gt;">
+<h2>Three checks that make it safe</h2>
+<div class="s-widget-center"><div class="demo" id="w9-demo">
+      <span class="eyebrow">Interactive · the redirect dance</span>
+      <p class="note" style="margin:.3rem 0 .7rem">Six hops between three parties. Dashed hops go through the browser: the front channel, visible in the address bar and the history. Solid hops go server to server: the back channel, where the secret travels. Step through and watch where each of the three checks runs.</p>
+      <div class="seg" role="group" aria-label="Hop in the flow" style="margin-bottom:.8rem">
+        <button type="button" data-hop="1" aria-pressed="true">1 · Log in</button>
+        <button type="button" data-hop="2" aria-pressed="false">2 · To GitHub</button>
+        <button type="button" data-hop="3" aria-pressed="false">3 · Approve</button>
+        <button type="button" data-hop="4" aria-pressed="false">4 · Back with a code</button>
+        <button type="button" data-hop="5" aria-pressed="false">5 · Code for a token</button>
+        <button type="button" data-hop="6" aria-pressed="false">6 · Who is this?</button>
+      </div>
+      <div class="w9-body">
+        <svg id="w9-svg" viewBox="0 0 520 350" role="img" aria-label="Sequence diagram of the login: browser, your app and GitHub, six numbered hops, and where the state, exact-redirect and PKCE checks run"></svg>
+        <div class="w9-side">
+          <p class="w9-wire" id="w9-wire"></p>
+          <ol class="w4-checks w9-checks" id="w9-checks"></ol>
+          <p class="note" id="w9-verdict"></p>
+        </div>
+      </div>
+    </div></div></section><section class="slide" id="s10" data-minutes="1" data-title="What we build" data-notes="&lt;p&gt;Here is the afternoon. Step zero: a project, and a fake GitHub that runs on your laptop. It is pasted, so that everything works offline and the tests run on their own. Then the authorize URL with state; the callback server; the token exchange; slash user, and you are signed in as octocat. Step five: change four lines of configuration and log in with your real GitHub account. Step six: PKCE. Step seven: tests that prove each of the three checks.&lt;/p&gt;&lt;p&gt;Every step ends with a checkpoint, and nobody moves on until theirs passes. Stuck for five minutes, wave, and there is a reference version to paste. Five-minute break, then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>A project and a fake GitHub</li>
+  <li><span>1</span>The authorize URL and <code>state</code></li>
+  <li><span>2</span>The callback server</li>
+  <li><span>3</span>Trade the code for a token</li>
+  <li><span>4</span>Who is this? <code>/user</code></li>
+  <li><span>5</span>The real GitHub</li>
+  <li><span>6</span>PKCE</li>
+  <li><span>7</span>The three checks, proved</li>
+  <li><span>8</span>Wrap-up and stretch goals</li>
+</ol>
+<p class="s-line">Deno, no dependencies, a fake GitHub. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/09-oauth-hero.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

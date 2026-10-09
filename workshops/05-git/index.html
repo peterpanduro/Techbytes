@@ -1,0 +1,1121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Git for the Things That Go Wrong · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 5 · Git for the Things That Go Wrong</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 5</span>
+      <h1>Git for the Things That Go Wrong</h1>
+      <p class="lede">A prepared repository with planted problems: a commit that broke the tests, four WIP commits that need squashing, a hard reset and a deleted branch to undo, a merge conflict to resolve by hand, and a pre-commit hook that says no. No code to write; thirty-eight commands, and after each one the repository is still whole.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~15 min</b> student prep, one week before</li>
+        <li>Basic git only: add, commit, push</li>
+        <li>No code; ~40 commands</li>
+        <li>Any OS (Git Bash on Windows)</li>
+      </ul>
+    </div>
+    <div class="demo" id="w5-demo">
+      <span class="eyebrow">Interactive · pointers, not deletions</span>
+      <p class="note" style="margin:.3rem 0 .7rem">The last six commits on <code>main</code>, with the real hashes from the lab. A branch is a label on a commit; HEAD is a label on a branch. Press the commands and watch what moves. Nothing is ever removed.</p>
+      <div class="w5-cmds" role="group" aria-label="Git commands">
+        <button type="button" data-cmd="reset">git reset --hard HEAD~2</button>
+        <button type="button" data-cmd="reflog">git reflog</button>
+        <button type="button" data-cmd="branch">git branch rescue f063a35</button>
+        <button type="button" data-cmd="start" class="w5-quiet">start over</button>
+      </div>
+      <svg id="w5-graph" viewBox="0 0 540 150" role="img" aria-label="Six commits in a row with branch labels"></svg>
+      <pre id="w5-reflog" class="w5-reflog" hidden></pre>
+      <p class="note" id="w5-sum" aria-live="polite"></p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · The same repository for everyone</a></li>
+        <li><a href="#s1">1 · Bisect</a></li>
+        <li><a href="#s2">2 · Interactive rebase</a></li>
+        <li><a href="#s3">3 · Reflog</a></li>
+        <li><a href="#s4">4 · Merge conflict</a></li>
+        <li><a href="#s5">5 · Pre-commit hook</a></li>
+        <li><a href="#s6">6 · Stash, worktree, pickaxe</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 5</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves having repaired six git "disasters" with their own hands, and with the model that makes them unfrightening: a commit is a snapshot with a parent, a branch is a label on a commit, HEAD is a label on a branch, and nothing committed is deleted by reset, rebase or branch deletion. They can find a breaking commit with <code>bisect</code>, tidy a branch with <code>rebase -i</code>, recover from the reflog, resolve a conflict, and install a hook.</td></tr>
+    <tr><th>Why this topic</th><td>Everyone in the room uses git daily and most have only ever used add, commit, push and pull. The first time something goes wrong they delete the folder and clone again, and the second time they lose a day's work. One afternoon of breaking a repository on purpose, in a safe copy, replaces that fear with a handful of habits. It is also the breather of the year: no runtime to install, no code to type, placed between the security block and the infrastructure block.</td></tr>
+    <tr><th>Concepts</th><td>Commits as content-addressed snapshots, the parent chain, why hashes are the same on every laptop today; branches and HEAD as pointers; reachable versus unreachable, and the reflog; <code>bisect</code> as binary search and <code>bisect run</code>; interactive rebase (pick, squash, reword, fixup) and the rule about rewriting shared history; <code>revert</code> versus <code>reset</code>; merge conflicts and the three markers; hooks and <code>--no-verify</code>; stash, worktrees, <code>log -S</code>, <code>blame -L</code>.</td></tr>
+    <tr><th>Assumed knowledge</th><td>Has used git before: knows what a commit and a branch are for, has run <code>git add</code>, <code>git commit</code> and <code>git push</code>. Can open a terminal. No knowledge of git internals, rebase, bisect or hooks is assumed.</td></tr>
+    <tr><th>Language</th><td>None. The practice project is a five-line shell script with a shell test script, both pasted by the setup script and never edited beyond one appended line. Every command is a git command.</td></tr>
+    <tr><th>Students need</th><td>Laptop with git 2.23 or newer (any git from the last five years), a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: VS Code or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Nothing else.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 15 minutes)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. Install git, and use the right terminal</h4>
+  <p>Windows: install Git for Windows from <a href="https://git-scm.com/install/windows">git-scm.com/install/windows</a> (or <code>winget install --id Git.Git -e --source winget</code>). It includes <strong>Git Bash</strong>; use Git Bash, not PowerShell, for everything in this workshop, because the setup script and the test script are bash scripts. The git commands themselves are identical everywhere. macOS: <code>xcode-select --install</code> gives you Apple's git, or <code>brew install git</code> for the current one. Linux: <code>sudo apt install git</code> or <code>sudo dnf install git</code>. Then:</p>
+<pre><code>git --version</code></pre>
+  <p>Anything from 2.23 onwards is fine; the current release is 2.55. Older than 2.23 and <code>git switch</code> does not exist: upgrade.</p>
+
+  <h4>2. Tell git who you are, if you never have</h4>
+<pre><code>git config --global user.name &quot;Your Name&quot;
+git config --global user.email &quot;you@example.com&quot;</code></pre>
+  <p>You will make a few commits in the lab and git refuses to commit without these.</p>
+
+  <h4>3. Give git an editor it can open</h4>
+  <p>Twice in the lab git opens a file for you to edit and waits until you close it. Pick one of these and run it once:</p>
+<pre><code>git config --global core.editor &quot;code --wait&quot;      # VS Code; needs the &quot;code&quot; command on your PATH
+git config --global core.editor nano               # or nano, which Git Bash and macOS include</code></pre>
+  <p>To check: run <code>git config --global --edit</code>. Your config file must open in the editor you chose, and the terminal must wait until you close it. If VS Code says <code>code: command not found</code>, open VS Code, press F1, run "Shell Command: Install 'code' command in PATH", and try again; or use nano.</p>
+
+  <h4>4. The readiness check</h4>
+  <p>In Git Bash or Terminal:</p>
+<pre><code>echo ready | git hash-object --stdin</code></pre>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>395527df662d5fdf4b00c5f1cd9b8d7ac048e127</code>, exactly. That is the name git gives to a file containing the word "ready", and it is the same on every computer in the world, which is the idea the whole afternoon is built on. If you get <code>b81bd720fc3e7f4662c75969e274e5500e06f5a4</code> you are in PowerShell, which sends the word with Windows line endings: switch to Git Bash. If you get "command not found", git is not on your PATH.</p></div>
+
+  <h4>5. Optional: build the practice repository once</h4>
+  <p>Save <a href="code/make-repo.sh" download>make-repo.sh</a> into an empty folder and run <code>bash make-repo.sh</code> there. It prints <code>Top of main: f063a35 CHANGELOG: prepare 1.1</code>. If it does, you are ready. Delete the <code>git-lab</code> folder it made before the workshop (<code>rm -rf git-lab</code>); we build it again together so everyone starts from the same place.</p>
+
+  <div class="call inst"><p class="lbl">If git will not install</p><p>A university-managed Windows laptop without admin rights can still install Git for Windows with the portable ("thumbdrive edition") build from the same download page, which needs no administrator. Everything else on this page works from it.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run <code>make-repo.sh</code> twice on your laptop and <code>diff</code> the two <code>git log --all</code> outputs: they must be identical, and the top of <code>main</code> must be <code>f063a35</code>. If it is not, the script was edited before it ran; global git config cannot change them (the script overrides <code>autocrlf</code> and <code>gpgsign</code> locally, and this was tested under a hostile global config). A script saved with CRLF line endings does not produce different hashes: it crashes on line 7 (<code>set: -: invalid option</code>) and makes no <code>git-lab</code> at all.</li>
+    <li>Run the whole lab yourself with exactly the commands on this page. Your own commits (the revert, the squash, the merge) will have different hashes from the ones shown here, because you are a different author committing at a different time; every hash the script made will be the same.</li>
+    <li>Windows in the room: the hook, the test script and the setup script all need Git Bash. Say it before step 0, and again before step 5. <code>chmod +x</code> changes nothing on Windows and the hook still runs there, because Git for Windows does not check the executable bit.</li>
+    <li>The widget at the top of this page is slide 4. Press reset, then reflog, then branch while you talk.</li>
+    <li>Have the <code>GIT_SEQUENCE_EDITOR</code> line from step 2 ready to paste for anyone whose editor will not cooperate. It is the one place the editor can eat ten minutes.</li>
+    <li>Nobody needs Wi-Fi. If the venue's is down, the afternoon runs unchanged.</li>
+    <li>Rehearsing twice in the same folder: <code>git worktree remove ../kelvin</code> (or delete the <code>kelvin</code> folder) before the second run, or step 6's <code>worktree add</code> fails with "already exists".</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 10 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: everything is a pointer</h2>
+  <p>The single idea to land: <strong>a commit is a snapshot that names its parent, a branch is a label on a commit, HEAD is a label on a branch, and none of the frightening commands deletes a commit; they move labels.</strong> Once that is believed, every step of the lab is "find the hash, put the label back".</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">Nothing committed is ever lost</span><span class="d">1 min</span>
+      <span class="say">Title slide. Ask who has typed <code>reset --hard</code> and felt their stomach drop, deleted a branch that was the only copy, or spent an afternoon reading diffs to find which commit broke the build. The sentence the afternoon hangs on: nothing you have committed is ever lost. Every git disaster is a label pointing at the wrong place, and labels move.</span></li>
+    <li><span class="n">2</span><span class="t">A commit is a snapshot that names its parent</span><span class="d">2 min</span>
+      <span class="say">Not a diff: a snapshot of every file, plus author, date, message and the hash of the parent. The hash is computed from all of it, so it names the snapshot and the whole history behind it. Consequence one: everyone in the room runs the same script with fixed names and dates and gets the same hashes; the top commit is <code>f063a35</code> on every laptop. Consequence two: commits live in a database in <code>.git</code>, and nothing in today's lab removes one. Reset, rebase and branch deletion move labels; unlabelled commits sit there for 30 days at the very least.</span></li>
+    <li><span class="n">3</span><span class="t">Branches are sticky notes; HEAD is a note on a note</span><span class="d">2 min</span>
+      <span class="say"><code>.git/refs/heads/main</code> is a 41-byte file: a hash and a newline. Commit makes a new commit whose parent is that hash, then rewrites the file. HEAD is a file saying <code>ref: refs/heads/main</code>. Read every scary command through this: switch rewrites HEAD; reset moves the branch HEAD points at (<code>--hard</code> also rewrites the working files); branch -D deletes the note; rebase makes new commits and moves the note. Unreachable means no note leads there. Unreachable is not deleted.</span></li>
+    <li><span class="n">4</span><span class="t">The reflog</span><span class="d">2 min</span>
+      <span class="say">Use the widget on this page. Every move HEAD makes appends a line: hash and reason. Press reset: main jumps back two to <code>95d7f26</code>, the two newest commits go hollow but stay. Press reflog: <code>HEAD@{1}</code> is where you were, with its hash. Press branch: a new label and everything is reachable again. Three caveats: the reflog is local, not pushed; entries for unreachable commits, which is what a rescue needs, expire after 30 days (90 for the rest); it only records moves, so uncommitted work is the one thing git can lose. Commit early, commit ugly, tidy later.</span></li>
+    <li><span class="n">5</span><span class="t">Bisect: binary search over history</span><span class="d">1 min</span>
+      <span class="say">One good commit, one bad commit, git checks out the middle one; you say good or bad, it halves again. Ten commits take three runs, a thousand take ten. With a script that exits 0 on pass and non-zero on fail, <code>git bisect run</code> does the saying for you and names the culprit. Step 1 is exactly this with our test script.</span></li>
+    <li><span class="n">6</span><span class="t">Rewriting history: interactive rebase and the one rule</span><span class="d">2 min</span>
+      <span class="say">The to-do list: one line per commit, oldest first, verbs pick, reword, squash, fixup, drop; reorder lines to reorder commits. Rebase cannot edit commits (the hash is the content); it makes new ones and moves the label, so the four WIP commits squashed in step 2 are still there, unreachable, showable by hash. The rule: rewrite anything nobody else has; never rewrite a pushed commit that someone may have built on. Rebase your own branch before the pull request; never rebase main.</span></li>
+    <li><span class="n">7</span><span class="t">A conflict is a question, not an error</span><span class="d">2 min</span>
+      <span class="say">Both branches changed the same line and git will not guess. Between <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> and <code>=======</code> is your side; between <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> is theirs; everything outside merged already. Edit the region into the line you want, often both sides combined, delete the markers, <code>git add</code> to say "resolved", <code>git commit</code> to finish. <code>git merge --abort</code> puts everything back. The lab's conflict is a README tagline: one branch fixed a typo, the other made it longer; the right answer uses both. Stretch: <code>rerere</code> remembers resolutions.</span></li>
+    <li><span class="n">8</span><span class="t">Hooks: a script that says no</span><span class="d">1 min</span>
+      <span class="say">A script in <code>.git/hooks</code> with the right name and the executable bit; pre-commit runs before the commit exists and a non-zero exit means no commit. Hooks are not committed or shared, so teams install them with a tool. <code>--no-verify</code> skips them: a seatbelt, not a lock. The day you type it, be able to say why.</span></li>
+    <li><span class="n">9</span><span class="t">The small tools: stash, worktree, -S, blame -L</span><span class="d">1 min</span>
+      <span class="say">Stash shelves uncommitted changes so you can switch; worktree checks out a second branch into a second folder sharing the same repository; <code>log -S</code> finds the commits that added or removed an exact string, which is how you find where a line came from when blame points at a refactor; <code>blame -L</code> shows who last touched a line range. Not disaster tools: the tools that keep you out of one.</span></li>
+    <li><span class="n">10</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Seven steps: build the same repository for everyone; bisect and revert; squash four WIP commits; a hard reset and a deleted branch, both repaired from the reflog; a merge conflict by hand; a pre-commit hook; stash, worktree and pickaxe. Every step ends in a checkpoint. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 7 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in one terminal (Git Bash on Windows) with their editor beside it. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes waves, and every step can be restarted from a known commit hash, because the hashes are the same on every laptop.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the git commands: 38 of them over the afternoon, and typing a git command until it is boring is the skill. <strong>Paste this</strong> is two files: the setup script that builds the repository and the pre-commit hook. Windows users run everything in Git Bash; nothing on this page needs PowerShell.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · The same repository for everyone</span></div>
+    <div class="row" data-from="5" data-to="20"><span class="k">0:05–0:20</span><span>Step 1 · Bisect: which commit broke the test?</span></div>
+    <div class="row" data-from="20" data-to="35"><span class="k">0:20–0:35</span><span>Step 2 · Interactive rebase: four WIP commits into one</span></div>
+    <div class="row" data-from="35" data-to="45"><span class="k">0:35–0:45</span><span>Step 3 · Two accidents and the reflog</span></div>
+    <div class="row" data-from="45" data-to="60"><span class="k">0:45–1:00</span><span>Step 4 · A merge conflict, by hand</span></div>
+    <div class="row" data-from="60" data-to="70"><span class="k">1:00–1:10</span><span>Step 5 · A pre-commit hook that says no</span></div>
+    <div class="row" data-from="70" data-to="80"><span class="k">1:10–1:20</span><span>Step 6 · Stash, worktree, and where did this line come from</span></div>
+    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>The same repository for everyone</h3><span class="time">5 min</span></header>
+    <p>Save the setup script into an empty folder (download it from the <a href="#solution">full solution</a>, or paste it into a file called <code>make-repo.sh</code>). It builds a small project, <code>tempconv</code>, with 31 commits on four branches, and every commit has a fixed author and a fixed date, so the hashes on your screen are the hashes on this page. If you built it at home, <code>rm -rf git-lab</code> first.</p>
+<pre data-mode="type this"><code>bash make-repo.sh
+cd git-lab
+git log --oneline --graph --all
+./test.sh</code></pre>
+<pre data-mode="you should see"><code>* f063a35 (HEAD -&gt; main) CHANGELOG: prepare 1.1
+* 4128a3a Bump version to 1.1 in --help
+* 95d7f26 Fix typo in README
+| * 5fed98d (feature/tagline) README: second usage example
+| * eb748f7 README: longer tagline
+|/
+* 4e88d37 Add CONTRIBUTING.md
+* 4738704 test.sh: print a summary line
+| * 54ad38b (experiment/color) docs: mention the colour
+| * 8ea762e Print Fahrenheit in red
+|/
+* 4c42b15 README: contributing section
+* 160c0c8 docs: examples
+* e6dbf60 CHANGELOG: note the refactor
+* 08e14b1 Simplify f_to_c arithmetic
+| * 037ffcf (feature/kelvin) WIP tests and help
+| * c0ecc06 fix
+| * 1096f61 wip kelvin
+| * cb1d805 WIP
+|/
+* 4708ac8 Refactor: one function per conversion
+* 707e21a (tag: v1.0) Release 1.0
+* b248e55 Add --help
+  ... 10 more, down to
+* 2d9e498 Initial commit</code></pre>
+    <p>Read the graph from the bottom: one line of commits, three side branches. <code>feature/kelvin</code> is four commits called WIP; <code>experiment/color</code> and <code>feature/tagline</code> are two each. <code>v1.0</code> is a tag. Then the tests:</p>
+<pre data-mode="you should see"><code>ok    100 -&gt; 212
+ok    0 -&gt; 32
+ok    -40 -&gt; -40
+FAIL  212 f -&gt; 195 (wanted 100)
+FAIL  32 f -&gt; 15 (wanted 0)
+some tests FAILED</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p>The top line of the log is exactly <code>f063a35 (HEAD -&gt; main) CHANGELOG: prepare 1.1</code>, and <code>./test.sh</code> prints two <code>FAIL</code> lines and <code>some tests FAILED</code>. Same hash as your neighbour, or one of you is not in <code>git-lab</code>.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room and look at top lines. Errors and no <code>git-lab</code> folder means a mangled download (a CRLF-saved script dies on line 7 with <code>set: -: invalid option</code>): re-download and rebuild. A <em>different</em> hash means the script was edited, or, for a hash on one of your own commits, nothing at all. This is the moment to catch it, while there is slack.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Bisect: which commit broke the test?</h3><span class="time">15 min</span></header>
+    <p>The tests fail on <code>main</code> and, the changelog says, passed at <code>v1.0</code>. Ten commits in between. Tell git one bad commit (where you are) and one good one, and it checks out the middle:</p>
+<pre data-mode="type this"><code>git bisect start
+git bisect bad
+git bisect good v1.0</code></pre>
+<pre data-mode="you should see"><code>Bisecting: 4 revisions left to test after this (roughly 2 steps)
+[4c42b15625786affdee895a959f04caa4bdedf71] README: contributing section</code></pre>
+    <p>You could now run <code>./test.sh</code> and type <code>git bisect good</code> or <code>git bisect bad</code>, and repeat. Or, since the test script exits 0 when it passes and 1 when it fails, let git do the repeating:</p>
+<pre data-mode="type this"><code>git bisect run ./test.sh</code></pre>
+<pre data-mode="you should see"><code>running &#x27;./test.sh&#x27;
+ok    100 -&gt; 212
+ok    0 -&gt; 32
+ok    -40 -&gt; -40
+FAIL  212 f -&gt; 195 (wanted 100)
+FAIL  32 f -&gt; 15 (wanted 0)
+Bisecting: 2 revisions left to test after this (roughly 1 step)
+[08e14b18418e2643c52e5745cac2af59b5f3a741] Simplify f_to_c arithmetic
+running &#x27;./test.sh&#x27;
+  ... FAIL again ...
+Bisecting: 0 revisions left to test after this (roughly 0 steps)
+[4708ac82c07ad96fb9bb936cb96999c00aafe06d] Refactor: one function per conversion
+running &#x27;./test.sh&#x27;
+  ... all five ok ...
+08e14b18418e2643c52e5745cac2af59b5f3a741 is the first bad commit
+commit 08e14b18418e2643c52e5745cac2af59b5f3a741
+Author: Maja Lindqvist &lt;maja@example.com&gt;
+Date:   Tue Mar 3 04:00:00 2026 +0000
+
+    Simplify f_to_c arithmetic
+
+ temp.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+bisect found first bad commit</code></pre>
+    <p>Three test runs, and it names the commit: <code>08e14b1 Simplify f_to_c arithmetic</code>. Look at what it changed with <code>git show 08e14b1</code> if you like (a dropped pair of parentheses: <code>$1 - 32 * 5 / 9</code>). Now leave bisect mode, which puts you back on <code>main</code>, and undo that commit with a new commit rather than by editing history:</p>
+<pre data-mode="type this"><code>git bisect reset
+git revert --no-edit 08e14b1
+./test.sh</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>bisect run</code> ended with <code>08e14b18418e2643c52e5745cac2af59b5f3a741 is the first bad commit</code>. After the revert, <code>git log --oneline -1</code> shows <code>Revert "Simplify f_to_c arithmetic"</code> on top (your hash, not ours: you are the author) and <code>./test.sh</code> prints <code>all tests passed</code>.</p></div>
+    <p><strong>Talk about it:</strong> why revert and not reset? (The bad commit was pushed, in the story; revert adds history, reset rewrites it.) How many runs would bisect need for a thousand commits? (Ten.) What would you do if some commit in the middle did not build at all? (Exit 125 from the script tells bisect to skip it; stretch goal.)</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>Interactive rebase: four WIP commits into one</h3><span class="time">15 min</span></header>
+    <p>Ola added Kelvin support on a branch, in four commits called WIP, wip kelvin, fix, and WIP tests and help. The feature is fine; the history is not something you would open a pull request with. Squash the four into one commit with a message that says what it does.</p>
+<pre data-mode="type this"><code>git switch feature/kelvin
+git log --oneline main..
+git rebase -i HEAD~4</code></pre>
+    <p><code>main..</code> means "commits on this branch that main does not have": the four. <code>rebase -i HEAD~4</code> opens your editor with a to-do list, oldest commit first:</p>
+<pre data-mode="you should see"><code>pick cb1d805 WIP
+pick 1096f61 wip kelvin
+pick c0ecc06 fix
+pick 037ffcf WIP tests and help
+
+# Rebase 4708ac8..037ffcf onto 4708ac8 (4 commands)
+#
+# Commands:
+# p, pick &lt;commit&gt; = use commit
+# r, reword &lt;commit&gt; = use commit, but edit the commit message
+# ...
+# s, squash &lt;commit&gt; = use commit, but meld into previous commit
+# f, fixup [-C | -c] &lt;commit&gt; = like &quot;squash&quot; but keep only the previous
+#                    commit&#x27;s log message ...
+# d, drop &lt;commit&gt; = remove commit
+# ...
+# If you remove a line here THAT COMMIT WILL BE LOST.</code></pre>
+    <p>Change the verb on lines 2, 3 and 4 from <code>pick</code> to <code>squash</code> (leave line 1 alone: squash melds a commit into the one above it, so the first must stay). Do not touch the hashes. Save and close (nano: Ctrl-O, Enter, Ctrl-X; VS Code: Ctrl-S or Cmd-S, then close the tab):</p>
+<pre data-mode="you should see"><code>pick cb1d805 WIP
+squash 1096f61 wip kelvin
+squash c0ecc06 fix
+squash 037ffcf WIP tests and help</code></pre>
+    <p>Git replays the four commits and opens the editor again, now with all four messages pasted together. Delete everything that is not a comment and write one message: first line <code>Add Kelvin conversion</code>, a blank line, then a sentence such as <code>./temp.sh 300 k prints 27, and test.sh checks it.</code> Save and close the same way. Then look:</p>
+<pre data-mode="type this"><code>git log --oneline -3</code></pre>
+<pre data-mode="you should see"><code>33c9f80 (HEAD -&gt; feature/kelvin) Add Kelvin conversion
+4708ac8 Refactor: one function per conversion
+707e21a (tag: v1.0) Release 1.0</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>The branch has one commit above <code>4708ac8</code>, titled <code>Add Kelvin conversion</code> (your hash differs from <code>33c9f80</code>). <code>git show --stat HEAD</code> lists <code>temp.sh</code> and <code>test.sh</code>, and the author is still Ola Berg: squash keeps the first commit's author. <code>./test.sh</code> prints six <code>ok</code> lines including <code>300 k -&gt; 27</code>.</p></div>
+    <div class="call inst"><p class="lbl">If the editor fights you</p><p>The whole edit can be done without an editor. Paste this and the rebase happens with lines 2–4 as <code>fixup</code> (like squash, but the message is discarded), then the message is set afterwards:</p>
+<pre data-mode="paste this"><code>GIT_SEQUENCE_EDITOR=&quot;sed -i.bak &#x27;2,4s/^pick/fixup/&#x27;&quot; GIT_EDITOR=true git rebase -i HEAD~4
+git commit --amend -m &quot;Add Kelvin conversion&quot;</code></pre>
+    <p>Use it to get a stuck student to the checkpoint, then have them run <code>git reflog</code> and <code>git show cb1d805</code> to see that the WIP commits are still there. If a rebase goes wrong halfway, <code>git rebase --abort</code> returns to exactly where the branch was.</p></div>
+    <p><strong>Common mistakes:</strong> squashing line 1 ("cannot squash without a previous commit"; abort and retry); deleting a line, which drops that commit (the to-do list warns you in capitals); the editor opened, the student closed the terminal instead, and git is now waiting: <code>git rebase --abort</code>. And the question that always comes: the old commits <code>cb1d805</code> to <code>037ffcf</code> are not in the log any more, but <code>git show 037ffcf</code> still works. Rebase made new commits and moved the label.</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>Two accidents and the reflog</h3><span class="time">10 min</span></header>
+    <p>Back on <code>main</code>, go and look at the colour experiment, come back, and delete the branch, as someone tidying up on a Friday would:</p>
+<pre data-mode="type this"><code>git switch main
+git switch experiment/color
+git switch main
+git branch -D experiment/color</code></pre>
+<pre data-mode="you should see"><code>Deleted branch experiment/color (was 54ad38b).</code></pre>
+    <p>(<code>-d</code>, lower case, would have refused: "not fully merged". <code>-D</code> is the "I know what I am doing" spelling, and you did not.) Now the second accident. You meant to undo one local change and typed this:</p>
+<pre data-mode="type this"><code>git reset --hard HEAD~3</code></pre>
+<pre data-mode="you should see"><code>HEAD is now at 95d7f26 Fix typo in README</code></pre>
+    <p>Three commits, including your revert from step 1, are gone from <code>git log</code>, and <code>./test.sh</code> fails again. Nothing was deleted. The label <code>main</code> moved three commits down, and git wrote down where it was:</p>
+<pre data-mode="type this"><code>git reflog</code></pre>
+<pre data-mode="you should see"><code>95d7f26 HEAD@{0}: reset: moving to HEAD~3
+f108af5 HEAD@{1}: checkout: moving from experiment/color to main
+54ad38b HEAD@{2}: checkout: moving from main to experiment/color
+f108af5 HEAD@{3}: checkout: moving from feature/kelvin to main
+33c9f80 HEAD@{4}: rebase (finish): returning to refs/heads/feature/kelvin
+33c9f80 HEAD@{5}: rebase (squash): Add Kelvin conversion
+  ...
+f108af5 HEAD@{10}: revert: Revert &quot;Simplify f_to_c arithmetic&quot;
+f063a35 HEAD@{11}: checkout: moving from 4708ac82c07ad96fb9bb936cb96999c00aafe06d to main
+  ... one line per bisect step ...
+f063a35 HEAD@{15}: commit: CHANGELOG: prepare 1.1
+  ... every commit the script made ...
+2d9e498 HEAD@{51}: commit (initial): Initial commit</code></pre>
+    <p>Newest first (git says <code>checkout</code> even when you typed <code>switch</code>; they are the same move). <code>HEAD@{0}</code> is the reset. <code>HEAD@{1}</code> is where HEAD was before it: the revert commit, on <code>main</code>. And <code>HEAD@{2}</code> is the moment you looked at <code>experiment/color</code>, with the hash of its tip, <code>54ad38b</code>. Both rescues are one command each:</p>
+<pre data-mode="type this"><code>git reset --hard HEAD@{1}
+git branch experiment/color 54ad38b</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>git log --oneline --graph --all</code> looks exactly as it did at the end of step 2: the revert on top of <code>main</code>, and <code>experiment/color</code> back on <code>54ad38b</code>. <code>./test.sh</code> passes again.</p></div>
+    <p><strong>Talk about it:</strong> why did <code>HEAD@{2}</code> know about the experiment branch? (Because you had switched to it; had you deleted it without ever checking it out, the reflog would not help, but the "was 54ad38b" in the delete message would.) What is the one thing the reflog cannot bring back? (Changes you never committed. <code>reset --hard</code> throws those away for real.) How long do you have? (30 days: both rescues here are unreachable commits, and <code>gc.reflogExpireUnreachable</code> defaults to 30 days; entries for commits still on a branch last 90.)</p>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>A merge conflict, by hand</h3><span class="time">15 min</span></header>
+    <p><code>feature/tagline</code> rewrote the README's first sentence. On <code>main</code>, meanwhile, somebody fixed a typo in that same sentence. Merge it:</p>
+<pre data-mode="type this"><code>git merge feature/tagline
+git status</code></pre>
+<pre data-mode="you should see"><code>Auto-merging README.md
+CONFLICT (content): Merge conflict in README.md
+Automatic merge failed; fix conflicts and then commit the result.</code></pre>
+    <p><code>git status</code> says <code>both modified: README.md</code> under "Unmerged paths", and tells you the two ways out: fix and commit, or <code>git merge --abort</code>. Open <code>README.md</code> in your editor (<code>nano README.md</code>, or <code>code README.md</code>; VS Code offers "Accept Current / Incoming / Both Changes" buttons above the markers, and "Both" would keep two lines, so edit by hand this once):</p>
+<pre data-mode="you should see"><code># tempconv
+
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+A tiny temperature converter.
+=======
+A tiny temperture converter for the shell.
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/tagline
+
+## Usage</code></pre>
+    <p>Three marker lines. Between <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> and <code>=======</code> is your side, <code>main</code>: the typo is fixed. Between <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/tagline</code> is theirs: longer, typo intact. Everything else in the file merged on its own; the second usage example from the branch is already there. The right answer is both: replace the five lines with the single line <code>A tiny temperature converter for the shell.</code> and save. Then tell git you have resolved it, and finish the merge:</p>
+<pre data-mode="type this"><code>git add README.md
+git commit --no-edit
+git log --oneline --graph -6</code></pre>
+<pre data-mode="you should see"><code>*   e5db6cf (HEAD -&gt; main) Merge branch &#x27;feature/tagline&#x27;
+|\
+| * 5fed98d (feature/tagline) README: second usage example
+| * eb748f7 README: longer tagline
+* | f108af5 Revert &quot;Simplify f_to_c arithmetic&quot;
+* | f063a35 CHANGELOG: prepare 1.1
+* | 4128a3a Bump version to 1.1 in --help</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>A merge commit on top of <code>main</code> with two parents, drawn as a fork in the graph. <code>grep -c '&lt;&lt;&lt;&lt;' README.md</code> prints <code>0</code>: no markers survived. The first sentence of the README reads "A tiny temperature converter for the shell."</p></div>
+    <p><strong>Common mistakes:</strong> committing with the markers still in the file (git lets you; the hook in step 5 would not); resolving by keeping one side when both were needed; running <code>git commit -a</code> and sweeping in an unrelated change. <strong>Stretch, five minutes:</strong> <code>git config rerere.enabled true</code>, then <code>git reset --hard HEAD~1</code>, merge again and resolve again: git prints <code>Recorded resolution for 'README.md'</code>. Reset and merge a third time: <code>Resolved 'README.md' using previous resolution</code>, and the file is already fixed; you only <code>git add</code> and commit. Reuse recorded resolution is what makes long-lived branches bearable.</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>A pre-commit hook that says no</h3><span class="time">10 min</span></header>
+    <p>A hook is a script git runs at a fixed moment. <code>pre-commit</code> runs before the commit exists; if it exits non-zero, there is no commit. Ours runs the tests and refuses any commit that adds a line containing <code>TODO</code>. Paste it into a new file at exactly <code>.git/hooks/pre-commit</code> (no extension; the folder already exists and contains <code>.sample</code> files, which are ignored):</p>
+    <h4>.git/hooks/pre-commit</h4>
+<pre data-mode="paste this"><code>#!/usr/bin/env bash
+# pre-commit: refuse the commit if the tests fail or if it adds a TODO.
+# Git runs this before every commit. Exit 0 = go ahead, anything else = refuse.
+bad=0
+if ! ./test.sh &gt;/dev/null; then
+  echo &quot;pre-commit: ./test.sh fails. Fix it, or --no-verify if you really must.&quot; &gt;&amp;2
+  bad=1
+fi
+if git diff --cached | grep -E &#x27;^\+.*TODO&#x27; &gt;/dev/null; then
+  echo &quot;pre-commit: this commit adds a TODO. Do it or drop it:&quot; &gt;&amp;2
+  git diff --cached | grep -E &#x27;^\+.*TODO&#x27; &gt;&amp;2
+  bad=1
+fi
+exit $bad</code></pre>
+    <p>Make it executable, then make a change that breaks both rules at once and try to commit it:</p>
+<pre data-mode="type this"><code>chmod +x .git/hooks/pre-commit
+echo &#x27;echo done # TODO: remove this&#x27; &gt;&gt; temp.sh
+git commit -am &quot;Debug output&quot;</code></pre>
+<pre data-mode="you should see"><code>pre-commit: ./test.sh fails. Fix it, or --no-verify if you really must.
+pre-commit: this commit adds a TODO. Do it or drop it:
++echo done # TODO: remove this</code></pre>
+    <p>No commit was made; <code>git log --oneline -1</code> still shows the merge. Throw the change away and confirm the tree is clean:</p>
+<pre data-mode="type this"><code>git restore temp.sh</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p>The commit was refused with both messages, <code>git log --oneline -1</code> still shows <code>Merge branch 'feature/tagline'</code>, and after <code>git restore</code>, <code>git status</code> says <code>nothing to commit, working tree clean</code>. On Windows, <code>chmod</code> prints nothing and changes nothing, and the hook runs anyway.</p></div>
+    <p><strong>Talk about it:</strong> <code>git commit --no-verify</code> would have gone through. When is that right? (A work-in-progress commit on your own branch that you will squash, when the tests take twenty minutes.) When is it wrong? (Any time the answer to "why?" is "the hook was annoying".) Why is the hook not in the repository? (It lives in <code>.git</code>, which is never pushed, so every clone needs it installed: teams do that with a tool such as pre-commit or a one-line <code>core.hooksPath</code> setting pointing at a committed folder.) The hook greps the staged diff, not the files: an old TODO already in the project does not block you, only a new one.</p>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>Stash, worktree, and where did this line come from</h3><span class="time">10 min</span></header>
+    <p>Start a change on <code>main</code>, then try to go and look at the kelvin branch:</p>
+<pre data-mode="type this"><code>echo &quot;Half a sentence about&quot; &gt;&gt; README.md
+git switch feature/kelvin</code></pre>
+<pre data-mode="you should see"><code>error: Your local changes to the following files would be overwritten by checkout:
+	README.md
+Please commit your changes or stash them before you switch branches.</code></pre>
+    <p>Two answers. <code>stash</code> puts the change on a shelf; <code>stash pop</code> brings it back. <code>worktree add</code> checks out the other branch into a second folder that shares this repository, so you can look at it without shelving anything:</p>
+<pre data-mode="type this"><code>git stash
+git worktree add ../kelvin feature/kelvin
+git stash pop</code></pre>
+    <p><code>git stash</code> says <code>Saved working directory and index state WIP on main: …</code> and <code>git status</code> is clean. <code>worktree add</code> prints <code>HEAD is now at 33c9f80 Add Kelvin conversion</code> (your hash), and <code>../kelvin/temp.sh 300 k</code> prints <code>27</code> while this folder is still on <code>main</code>. <code>stash pop</code> restores the README change. Now the archaeology. Which commits ever added or removed the buggy expression from step 1?</p>
+<pre data-mode="type this"><code>git log -S&#x27;$1 - 32 * 5&#x27; --oneline</code></pre>
+<pre data-mode="you should see"><code>f108af5 Revert &quot;Simplify f_to_c arithmetic&quot;
+08e14b1 Simplify f_to_c arithmetic</code></pre>
+    <p><code>-S</code> (the "pickaxe") finds the two commits whose diff contains that string: the one that introduced it and your revert. That is the history of the words, which is a different question from who last touched the line.</p>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p>The folder <code>kelvin</code> exists next to <code>git-lab</code> and <code>git status</code> shows <code>README.md</code> modified again after the pop. <code>log -S</code> prints exactly two commits, <code>08e14b1</code> and your revert.</p></div>
+    <p><strong>Talk about it:</strong> run <code>git blame -L 6,8 temp.sh</code>. Line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally:</p>
+<pre data-mode="you should see"><code>4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 6) c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
+4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 8)</code></pre>
+    <p>Blame tells you the last hand on a line; <code>-S</code> tells you the history of the words. And <code>git log -S273 --oneline --all</code> finds only your squashed commit, not the four WIP ones. Why? (<code>--all</code> means "reachable from any label"; the WIP commits are unreachable now. <code>git show cb1d805</code> still works.) Clean up with <code>git worktree remove ../kelvin</code> and <code>git restore README.md</code>.</p>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
+    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>Six things went wrong today and the repair each time was "find the hash, put a label on it". Commits are never deleted by reset, rebase or branch -D; the reflog has the hashes for 30 days.</li>
+      <li>The one thing git cannot recover is what you never committed. Commit early and ugly; <code>rebase -i</code> is how you tidy before anyone sees it, and only before anyone sees it.</li>
+      <li>Bisect is binary search: give it a script and it finds the culprit alone. Write your tests so they can be that script (exit 0 or not).</li>
+      <li>A conflict is a question with three markers. Answer it, delete the markers, <code>add</code>, <code>commit</code>. <code>--abort</code> always exists.</li>
+      <li>A hook is a seatbelt. <code>--no-verify</code> unbuckles it; know why when you do.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>Rebase versus merge, as policy.</strong> Bring <code>experiment/color</code> into <code>main</code> twice (it merges cleanly; <code>feature/kelvin</code> does not, it conflicts in <code>temp.sh</code> and <code>test.sh</code> next to the 1.1 lines). First <code>git merge experiment/color</code>: a merge commit with two parents. Note the hash, <code>git reset --hard HEAD~1</code>, then on the branch <code>git rebase main</code> and back on <code>main</code> a <code>git merge --ff-only experiment/color</code>: a straight line, and the two colour commits have new hashes. Compare <code>git log --graph</code>. (<code>./test.sh</code> fails either way: the colour codes wrap the number, which is why it was an experiment.) Which shape would your team choose, and who tidies WIP commits under each policy?</li>
+      <li><strong>Bisect with a script that builds.</strong> Exit code 125 means "cannot test this commit, skip it". Pretend that documentation-only commits do not build: save this as <code>../check.sh</code>, <code>chmod +x</code> it, then <code>git bisect start</code>, <code>git bisect bad</code>, <code>git bisect good v1.0</code>, <code>git bisect run ../check.sh</code>. Three commits are skipped ("Add CONTRIBUTING.md", "docs: examples", "CHANGELOG: note the refactor") and it still ends on <code>08e14b1</code>. <code>git bisect log</code> shows the skips.
+<pre data-mode="paste this"><code>#!/usr/bin/env bash
+# check.sh: pretend that a commit which touched documentation cannot be built, and skip it.
+git diff --quiet HEAD~1 HEAD -- &#x27;*.md&#x27; || exit 125
+./test.sh</code></pre></li>
+      <li><strong>Signed commits.</strong> Git can sign commits with your SSH key: <code>git config --global gpg.format ssh</code>, <code>git config --global user.signingkey ~/.ssh/id_ed25519.pub</code>, <code>git commit -S</code>, then <code>git log --show-signature</code>. Discuss what a signature proves that the author line does not (the script forged Maja's name today with two environment variables).</li>
+      <li><strong>switch and restore, properly.</strong> The old <code>git checkout</code> does both "change branch" and "throw away my changes to this file", which is how people lose work. Practise the split: <code>git switch -c</code>, <code>git restore --staged</code>, <code>git restore --source=v1.0 temp.sh</code>. Look at what each one does to <code>git status</code>.</li>
+      <li><strong>Find the commit by message, then by content.</strong> <code>git log --grep=typo</code>, then <code>git log -G'temp[a-z]*ture' -p</code> to see every change to a misspelt word, then <code>git log --follow docs/usage.md</code>. Then the one people forget: <code>git log -p -- README.md</code>.</li>
+      <li><strong>Make the hook shared.</strong> Move the hook into a committed folder, <code>git config core.hooksPath .githooks</code>, commit it. Now every clone can opt in with one command. Discuss why git does not do this by default (a cloned repository must not be able to run code on your machine without you asking).</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. There is no solution code: the lab produces a repository, not a program. These are the two files students paste. The setup script was run twice in the authoring environment (git 2.43 on Linux) and the two histories compared hash for hash; every command in steps 0–6 was then run in the order above against the result, and the outputs on this page are those outputs. Hashes made by the script (<code>f063a35</code>, <code>08e14b1</code>, <code>54ad38b</code>, <code>4708ac8</code>, …) are the same on every machine; hashes of commits students make themselves (the revert, the squash, the merge) are not.</p>
+  <div class="dlrow"><a href="code/make-repo.sh" download>make-repo.sh</a><a href="code/pre-commit" download>pre-commit</a></div>
+  <details class="sol"><summary>make-repo.sh<a class="dl" href="code/make-repo.sh" download>download</a></summary><pre><code>#!/usr/bin/env bash
+# make-repo.sh: builds the practice repository for TechBytes workshop 5.
+# Run it once:  bash make-repo.sh   (Terminal on macOS/Linux, Git Bash on Windows)
+# It creates a folder called git-lab next to this script. Every commit has a
+# fixed author, committer and date, so everyone in the room gets the same hashes.
+# Needs only bash and git 2.23 or newer.
+set -eu
+
+if [ -e git-lab ]; then
+  echo &quot;git-lab already exists. Delete it first (rm -rf git-lab) or run this somewhere else.&quot; &gt;&amp;2
+  exit 1
+fi
+git --version &gt;/dev/null 2&gt;&amp;1 || { echo &quot;git is not installed or not on PATH&quot; &gt;&amp;2; exit 1; }
+
+T=1772442000     # 2026-03-02 09:00 UTC; each commit lands one hour after the previous one
+
+commit() {       # commit &quot;subject&quot; [ola]   -- Maja is the default author, Ola the other one
+  T=$((T + 3600))
+  export GIT_AUTHOR_DATE=&quot;$T +0000&quot; GIT_COMMITTER_DATE=&quot;$T +0000&quot;
+  if [ &quot;${2:-}&quot; = &quot;ola&quot; ]; then
+    export GIT_AUTHOR_NAME=&quot;Ola Berg&quot; GIT_AUTHOR_EMAIL=&quot;ola@example.com&quot;
+  else
+    export GIT_AUTHOR_NAME=&quot;Maja Lindqvist&quot; GIT_AUTHOR_EMAIL=&quot;maja@example.com&quot;
+  fi
+  export GIT_COMMITTER_NAME=&quot;Maja Lindqvist&quot; GIT_COMMITTER_EMAIL=&quot;maja@example.com&quot;
+  git add -A
+  for f in temp.sh test.sh; do   # keep the scripts executable even on Windows filesystems
+    git ls-files --error-unmatch &quot;$f&quot; &gt;/dev/null 2&gt;&amp;1 &amp;&amp; git update-index --chmod=+x &quot;$f&quot;
+  done
+  git commit -q -m &quot;$1&quot;
+}
+
+mkdir git-lab &amp;&amp; cd git-lab
+git init -q
+git symbolic-ref HEAD refs/heads/main     # name the first branch &quot;main&quot; on any git version
+git config core.autocrlf false
+git config commit.gpgsign false
+git config tag.gpgsign false
+
+# ---------------------------------------------------------------- main, part 1
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperture converter.
+EOF
+commit &quot;Initial commit&quot;
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert degrees Celsius to Fahrenheit.
+# Usage: ./temp.sh DEGREES
+c=$1
+echo $(( c * 9 / 5 + 32 ))
+EOF
+chmod +x temp.sh
+commit &quot;Add temp.sh: Celsius to Fahrenheit&quot;
+
+cat &gt; test.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# test.sh: run the converter against known answers. Exits 1 if anything fails.
+fail=0
+check() {
+  got=$(./temp.sh $1)
+  if [ &quot;$got&quot; = &quot;$2&quot; ]; then echo &quot;ok    $1 -&gt; $got&quot;
+  else echo &quot;FAIL  $1 -&gt; $got (wanted $2)&quot;; fail=1; fi
+}
+check 100 212
+check 0 32
+check -40 -40
+exit $fail
+EOF
+chmod +x test.sh
+commit &quot;Add test.sh with three known answers&quot;
+
+cat &gt; LICENSE &lt;&lt;&#x27;EOF&#x27;
+MIT License
+
+Copyright (c) 2026 Maja Lindqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+EOF
+commit &quot;Add MIT license&quot;
+
+printf &#x27;*.log\n*.tmp\n&#x27; &gt; .gitignore
+commit &quot;Add .gitignore&quot;
+
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperture converter.
+
+## Usage
+
+    ./temp.sh 100      # prints 212
+EOF
+commit &quot;README: usage section&quot;
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+n=$1
+unit=${2:-c}
+case $unit in
+  c) echo $(( n * 9 / 5 + 32 )) ;;
+  f) echo $(( (n - 32) * 5 / 9 )) ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;Add Fahrenheit to Celsius (./temp.sh 212 f)&quot; ola
+
+cat &gt; test.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# test.sh: run the converter against known answers. Exits 1 if anything fails.
+fail=0
+check() {
+  got=$(./temp.sh $1)
+  if [ &quot;$got&quot; = &quot;$2&quot; ]; then echo &quot;ok    $1 -&gt; $got&quot;
+  else echo &quot;FAIL  $1 -&gt; $got (wanted $2)&quot;; fail=1; fi
+}
+check 100 212
+check 0 32
+check -40 -40
+check &quot;212 f&quot; 100
+check &quot;32 f&quot; 0
+exit $fail
+EOF
+commit &quot;test.sh: cover Fahrenheit to Celsius&quot; ola
+
+cat &gt; CHANGELOG.md &lt;&lt;&#x27;EOF&#x27;
+# Changelog
+
+## Unreleased
+
+- Convert from Fahrenheit with `./temp.sh N f`.
+- Convert from Celsius with `./temp.sh N`.
+EOF
+commit &quot;Add CHANGELOG&quot;
+
+mkdir -p docs
+cat &gt; docs/usage.md &lt;&lt;&#x27;EOF&#x27;
+# Using tempconv
+
+`temp.sh` takes a whole number of degrees and a unit letter.
+
+| command            | prints |
+|--------------------|--------|
+| `./temp.sh 100`    | 212    |
+| `./temp.sh 212 f`  | 100    |
+EOF
+commit &quot;docs: usage table&quot;
+
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperture converter.
+
+## Usage
+
+    ./temp.sh 100      # prints 212
+
+## Install
+
+Copy `temp.sh` anywhere on your PATH. It needs bash and nothing else.
+EOF
+commit &quot;README: install section&quot;
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) echo $(( n * 9 / 5 + 32 )) ;;
+  f) echo $(( (n - 32) * 5 / 9 )) ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;Add --help&quot;
+
+cat &gt; CHANGELOG.md &lt;&lt;&#x27;EOF&#x27;
+# Changelog
+
+## 1.0
+
+- Convert from Fahrenheit with `./temp.sh N f`.
+- Convert from Celsius with `./temp.sh N`.
+EOF
+commit &quot;Release 1.0&quot;
+git tag v1.0
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;Refactor: one function per conversion&quot;
+
+# ------------------------- feature/kelvin: four messy commits, for the rebase
+git switch -q -c feature/kelvin
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
+k_to_c() { echo $(( $1 - 272 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;WIP&quot; ola
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
+k_to_c() { echo $(( $1 - 272 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  k) k_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;wip kelvin&quot; ola
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
+k_to_c() { echo $(( $1 - 273 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  k) k_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;fix&quot; ola
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f|k]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+#   k = from Kelvin to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
+k_to_c() { echo $(( $1 - 273 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f|k]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  k) k_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+cat &gt; test.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# test.sh: run the converter against known answers. Exits 1 if anything fails.
+fail=0
+check() {
+  got=$(./temp.sh $1)
+  if [ &quot;$got&quot; = &quot;$2&quot; ]; then echo &quot;ok    $1 -&gt; $got&quot;
+  else echo &quot;FAIL  $1 -&gt; $got (wanted $2)&quot;; fail=1; fi
+}
+check 100 212
+check 0 32
+check -40 -40
+check &quot;212 f&quot; 100
+check &quot;32 f&quot; 0
+check &quot;300 k&quot; 27
+exit $fail
+EOF
+commit &quot;WIP tests and help&quot; ola
+git switch -q main
+
+# ---------------------------------- main, part 2: the commit that breaks a test
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( $1 - 32 * 5 / 9 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;Simplify f_to_c arithmetic&quot;
+
+cat &gt; CHANGELOG.md &lt;&lt;&#x27;EOF&#x27;
+# Changelog
+
+## Unreleased
+
+- Internal: one function per conversion.
+
+## 1.0
+
+- Convert from Fahrenheit with `./temp.sh N f`.
+- Convert from Celsius with `./temp.sh N`.
+EOF
+commit &quot;CHANGELOG: note the refactor&quot;
+
+cat &gt; docs/usage.md &lt;&lt;&#x27;EOF&#x27;
+# Using tempconv
+
+`temp.sh` takes a whole number of degrees and a unit letter.
+
+| command            | prints |
+|--------------------|--------|
+| `./temp.sh 100`    | 212    |
+| `./temp.sh 212 f`  | 100    |
+
+## Examples
+
+Body temperature in Fahrenheit: `./temp.sh 37` prints 98 (whole degrees only).
+EOF
+commit &quot;docs: examples&quot; ola
+
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperture converter.
+
+## Usage
+
+    ./temp.sh 100      # prints 212
+
+## Install
+
+Copy `temp.sh` anywhere on your PATH. It needs bash and nothing else.
+
+## Contributing
+
+Run `./test.sh` before you push. Every conversion needs a line in it.
+EOF
+commit &quot;README: contributing section&quot;
+
+# ------------------------------ experiment/color: the branch somebody deletes
+git switch -q -c experiment/color
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( $1 - 32 * 5 / 9 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.0&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) printf &#x27;\033[1;31m%s\033[0m\n&#x27; &quot;$(c_to_f &quot;$n&quot;)&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;Print Fahrenheit in red&quot; ola
+cat &gt;&gt; docs/usage.md &lt;&lt;&#x27;EOF&#x27;
+
+Fahrenheit results are printed in red on terminals that support colour.
+EOF
+commit &quot;docs: mention the colour&quot; ola
+git switch -q main
+
+cat &gt; test.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# test.sh: run the converter against known answers. Exits 1 if anything fails.
+fail=0
+check() {
+  got=$(./temp.sh $1)
+  if [ &quot;$got&quot; = &quot;$2&quot; ]; then echo &quot;ok    $1 -&gt; $got&quot;
+  else echo &quot;FAIL  $1 -&gt; $got (wanted $2)&quot;; fail=1; fi
+}
+check 100 212
+check 0 32
+check -40 -40
+check &quot;212 f&quot; 100
+check &quot;32 f&quot; 0
+if [ $fail = 0 ]; then echo &quot;all tests passed&quot;; else echo &quot;some tests FAILED&quot;; fi
+exit $fail
+EOF
+commit &quot;test.sh: print a summary line&quot;
+
+cat &gt; CONTRIBUTING.md &lt;&lt;&#x27;EOF&#x27;
+# Contributing
+
+1. Make a branch.
+2. Add a test in `test.sh` for anything you change.
+3. Run `./test.sh`; it must print `all tests passed`.
+4. Open a pull request. Squash your WIP commits first.
+EOF
+commit &quot;Add CONTRIBUTING.md&quot;
+
+# ------------------ feature/tagline: edits the same README line as main will
+git switch -q -c feature/tagline
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperture converter for the shell.
+
+## Usage
+
+    ./temp.sh 100      # prints 212
+
+## Install
+
+Copy `temp.sh` anywhere on your PATH. It needs bash and nothing else.
+
+## Contributing
+
+Run `./test.sh` before you push. Every conversion needs a line in it.
+EOF
+commit &quot;README: longer tagline&quot; ola
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperture converter for the shell.
+
+## Usage
+
+    ./temp.sh 100      # prints 212
+    ./temp.sh 212 f    # prints 100
+
+## Install
+
+Copy `temp.sh` anywhere on your PATH. It needs bash and nothing else.
+
+## Contributing
+
+Run `./test.sh` before you push. Every conversion needs a line in it.
+EOF
+commit &quot;README: second usage example&quot; ola
+git switch -q main
+
+cat &gt; README.md &lt;&lt;&#x27;EOF&#x27;
+# tempconv
+
+A tiny temperature converter.
+
+## Usage
+
+    ./temp.sh 100      # prints 212
+
+## Install
+
+Copy `temp.sh` anywhere on your PATH. It needs bash and nothing else.
+
+## Contributing
+
+Run `./test.sh` before you push. Every conversion needs a line in it.
+EOF
+commit &quot;Fix typo in README&quot;
+
+cat &gt; temp.sh &lt;&lt;&#x27;EOF&#x27;
+#!/usr/bin/env bash
+# temp.sh: convert temperatures.
+# Usage: ./temp.sh DEGREES [c|f]
+#   c = from Celsius to Fahrenheit (default)
+#   f = from Fahrenheit to Celsius
+c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+f_to_c() { echo $(( $1 - 32 * 5 / 9 )); }
+
+if [ &quot;${1:-}&quot; = &quot;--help&quot; ]; then
+  echo &quot;tempconv 1.1&quot;
+  echo &quot;usage: temp.sh DEGREES [c|f]&quot;
+  exit 0
+fi
+n=$1
+unit=${2:-c}
+case $unit in
+  c) c_to_f &quot;$n&quot; ;;
+  f) f_to_c &quot;$n&quot; ;;
+  *) echo &quot;unknown unit: $unit&quot; &gt;&amp;2; exit 2 ;;
+esac
+EOF
+commit &quot;Bump version to 1.1 in --help&quot;
+
+cat &gt; CHANGELOG.md &lt;&lt;&#x27;EOF&#x27;
+# Changelog
+
+## Unreleased
+
+- Internal: one function per conversion.
+- `--help` reports 1.1.
+
+## 1.0
+
+- Convert from Fahrenheit with `./temp.sh N f`.
+- Convert from Celsius with `./temp.sh N`.
+EOF
+commit &quot;CHANGELOG: prepare 1.1&quot;
+
+echo
+echo &quot;Built git-lab: $(git rev-list --all --count) commits on 4 branches.&quot;
+echo &quot;Top of main:   $(git log --oneline -1)&quot;
+echo &quot;Now run:       cd git-lab&quot;</code></pre></details>
+  <details class="sol"><summary>pre-commit<a class="dl" href="code/pre-commit" download>download</a></summary><pre><code>#!/usr/bin/env bash
+# pre-commit: refuse the commit if the tests fail or if it adds a TODO.
+# Git runs this before every commit. Exit 0 = go ahead, anything else = refuse.
+bad=0
+if ! ./test.sh &gt;/dev/null; then
+  echo &quot;pre-commit: ./test.sh fails. Fix it, or --no-verify if you really must.&quot; &gt;&amp;2
+  bad=1
+fi
+if git diff --cached | grep -E &#x27;^\+.*TODO&#x27; &gt;/dev/null; then
+  echo &quot;pre-commit: this commit adds a TODO. Do it or drop it:&quot; &gt;&amp;2
+  git diff --cached | grep -E &#x27;^\+.*TODO&#x27; &gt;&amp;2
+  bad=1
+fi
+exit $bad</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>Step 2 is the one that can run away: the editor. Anyone whose editor does not open, or opens without waiting, loses ten minutes, which is why the prep insists on <code>core.editor</code> and why the non-interactive <code>GIT_SEQUENCE_EDITOR</code> line is on the page. Use it without hesitation to get a student to the checkpoint. Steps 1 and 3 are quick and reliable; step 4 takes longer than it looks because people read the markers twice. If you are behind after step 4, cut the rerere stretch and the "talk about it" in step 5. Step 7's stretch goals absorb whatever is left. The lab has no network dependency and no long-running command, so the timings on this page are close to real.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"My hash is different."</em> For a commit the script made: the script was edited after download; nothing in a global git config changes them (tested with <code>core.autocrlf</code>, <code>commit.gpgsign</code>, another identity and no config at all), and a CRLF-mangled script does not run at all. A git older than 2.23 fails at the first <code>git switch</code> rather than producing other hashes. Re-download and rebuild. For a commit they made themselves: correct, they are the author and it is now.</li>
+    <li><em>"Does this work on GitHub?"</em> Everything here is local. GitHub sees commits when you push; a rewritten branch needs <code>git push --force-with-lease</code>, and that is exactly the case the "never rewrite shared history" rule is about. Reflog and bisect never leave your laptop.</li>
+    <li><em>"Why revert instead of just fixing the line?"</em> Fixing the line by hand is fine too and yields the same file. Revert records <em>why</em> ("this reverts commit 08e14b1") and is mechanical, which matters when the bad commit touched twelve files.</li>
+    <li><em>"Can I squash after pushing?"</em> Yes, and then you force-push, and anyone who pulled the old commits has a mess. On a branch only you work on, before the review, it is normal; on <code>main</code>, never.</li>
+    <li><em>"Is the reflog backed up?"</em> No. It is in <code>.git/logs</code>, on this laptop, and a fresh clone has an empty one. It is a safety net for your own moves, not a backup.</li>
+    <li><em>"Why Git Bash and not PowerShell?"</em> Only because the setup script, the test script and the hook are bash. Every git command on this page is the same in PowerShell; students can switch back after today.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://git-scm.com/install/windows">Git for Windows downloads</a> (2.55.0, 2026-08-20; the <code>winget</code> line) and <a href="https://gitforwindows.org/">gitforwindows.org</a>, which states that the package includes Git BASH. <a href="https://git-scm.com/install/mac">macOS</a> and <a href="https://git-scm.com/install/linux">Linux</a> install pages for the prep's commands.</li>
+    <li><a href="https://git-scm.com/docs/git-bisect">git bisect</a>: <code>bisect run</code> exit codes (0 good, 1–127 bad, 125 skip) and the "is the first bad commit" output, steps 1 and 7.</li>
+    <li><a href="https://git-scm.com/docs/git-rebase">git rebase</a>: the interactive to-do verbs, <code>GIT_SEQUENCE_EDITOR</code> / <code>sequence.editor</code>, <code>--abort</code>, and that squashed commits keep the first commit's author (step 2).</li>
+    <li><a href="https://git-scm.com/docs/git-reflog">git reflog</a>: <code>HEAD@{n}</code> notation and the defaults of 90 days (<code>gc.reflogExpire</code>) and 30 days for unreachable entries (<code>gc.reflogExpireUnreachable</code>), slides 2 and 4, step 3.</li>
+    <li><a href="https://git-scm.com/docs/githooks">githooks</a>: pre-commit runs before the message is obtained, a non-zero exit aborts, <code>--no-verify</code> bypasses, hooks live in <code>$GIT_DIR/hooks</code> or <code>core.hooksPath</code>, and hooks without the executable bit are ignored (step 5).</li>
+    <li><a href="https://git-scm.com/docs/git-rerere">git rerere</a> (<code>rerere.enabled</code>, step 4 stretch), <a href="https://git-scm.com/docs/git-worktree">git worktree</a> (<code>add</code>, <code>list</code>, <code>remove</code>; a branch cannot be checked out in two worktrees), and <a href="https://git-scm.com/docs/git-log">git log</a> (<code>-S</code>, <code>-G</code>, <code>--all</code>) for step 6.</li>
+    <li><a href="https://docs.github.com/en/get-started/getting-started-with-git/associating-text-editors-with-git">Associating text editors with Git</a>: <code>git config --global core.editor "code --wait"</code> for the prep.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/05-git-hero.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

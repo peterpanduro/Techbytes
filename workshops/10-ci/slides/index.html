@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A CI Pipeline That Builds Your Image · slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../../assets/style.css">
+<link rel="stylesheet" href="../../../assets/deck.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body data-deck="10-ci">
+<svg width="0" height="0" style="position:absolute"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs></svg>
+<div class="stage">
+<section class="slide" id="s1" data-minutes="1" data-title="The same no, for the whole team" data-notes="&lt;p&gt;In workshop five you installed a pre-commit hook: a script that runs your tests and says no to a commit that breaks them. And I told you its weakness. It lives in the dot-git folder, so it is never pushed, every clone has to install it again, and anyone can skip it by typing dash dash no-verify. A seatbelt, not a lock.&lt;/p&gt;&lt;p&gt;Today is the lock. Continuous integration is the same no, but it runs on a machine that none of our laptops control, on every push, for everyone on the team. And because this is the last workshop of the year, what it builds is the first thing we made: workshop one&amp;#x27;s Go server and its image. By the end of the afternoon a machine will test it, scan it, build it and publish it every time you push, and refuse to let a broken change into main.&lt;/p&gt;">
+<div class="s-title">
+  <p class="s-kicker">TechBytes · Workshop 10</p>
+  <h1>A CI Pipeline That Builds Your Image</h1>
+  <p class="s-big">The same no, for the whole team.</p>
+</div></section><section class="slide" id="s2" data-minutes="2" data-title="A workflow is a file GitHub runs" data-notes="&lt;p&gt;Here is the whole idea in one picture. You push. GitHub looks in your repository for files in dot-github slash workflows, and every file whose on line matches the event starts a run. Ours says on push, so every push to any branch starts one.&lt;/p&gt;&lt;p&gt;A run is made of jobs, and a job is made of steps. On the right is the file you will have at the end of the afternoon, all of it. Two jobs, test and build. Each says runs-on ubuntu-latest, which means: give me a fresh Ubuntu virtual machine. Each has a list of steps, and a step is one of two things. Either uses, which runs an action, a small program somebody published, at the version you name after the at sign: checkout, setup-go, the Docker login, build and push. Or run, which is a shell command, exactly as you would type it: go test, govulncheck.&lt;/p&gt;&lt;p&gt;The thing I want you to notice is where this file lives. It is in the repository, next to the code. It goes through the same pull request, the same review, the same history. If someone weakens the pipeline, it is a diff with their name on it. That is the difference between a pipeline and a build server somebody configured by clicking, once, years ago. In step one you type the first fifteen lines of it yourself, and you will see that it is less magic than it looks.&lt;/p&gt;">
+<h2>A workflow is a file GitHub runs</h2>
+<div class="s-cols" style="grid-template-columns:1fr 1.25fr;gap:36px">
+  <ul class="s-list s-list-big">
+    <li><b>push</b> <span class="s-muted">starts a run of every workflow whose <code>on:</code> matches</span></li>
+    <li><b>a run</b> <span class="s-muted">is jobs, in parallel unless one <code>needs</code> another</span></li>
+    <li><b>a job</b> <span class="s-muted">is steps, on one fresh VM</span></li>
+    <li><b>a step</b> <span class="s-muted">is <code>uses:</code> an action, or <code>run:</code> a command</span></li>
+  </ul>
+  <div class="s-code"><pre style="font-size:16px;line-height:1.38;padding:12px 18px">name: ci
+on: <b>push</b>
+jobs:
+  <b>test</b>:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+      - run: go test ./...
+      - run: go run …/govulncheck@v1.8.0 ./...
+  <b>build</b>:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+      - uses: docker/metadata-action@v6
+      - uses: docker/build-push-action@v7</pre></div>
+</div>
+<p class="s-line">In the repository, next to the code: <b>reviewed, versioned, diffed.</b></p></section><section class="slide" id="s3" data-minutes="1" data-title="Every job is a fresh machine" data-notes="&lt;p&gt;One fact explains half of the confusing things about CI. Every job gets a brand-new virtual machine, and the machine is thrown away when the job ends. Nothing carries over: not the files, not the Go you installed, not the image you built, unless you publish it somewhere.&lt;/p&gt;&lt;p&gt;That is why checkout appears twice in our file. The test job&amp;#x27;s copy of your code died with the test job&amp;#x27;s machine, so the build job fetches it again. And it is why the build job says needs. Without it, test and build would start at the same moment on two machines. With needs test, the build waits, and if the tests fail it never starts at all. You will see that grey skipped in step three.&lt;/p&gt;">
+<h2>Every job is a fresh machine</h2>
+<div class="s-one"><svg viewBox="0 0 1100 330" class="s-fig s-wide" role="img" aria-label="Two jobs on two virtual machines, the second needing the first">
+  <rect x="20" y="40" width="440" height="250" rx="10" class="w10f-vm"/>
+  <text x="240" y="28" class="f-cap">VM 1 · deleted after the job</text>
+  <g class="f-box"><rect x="60" y="70" width="360" height="190" rx="8"/><text x="240" y="108" class="f-t">test</text><text x="240" y="145" class="f-s">checkout</text><text x="240" y="173" class="f-s">setup-go · go1.27.2</text><text x="240" y="201" class="f-s">go test ./...</text><text x="240" y="229" class="f-s">govulncheck ./...</text></g>
+  <path d="M460 165 H630" class="f-arrow"/>
+  <text x="545" y="150" class="f-lbl">needs: test</text>
+  <rect x="640" y="40" width="440" height="250" rx="10" class="w10f-vm"/>
+  <text x="860" y="28" class="f-cap">VM 2 · starts empty</text>
+  <g class="f-box f-live"><rect x="680" y="70" width="360" height="190" rx="8"/><text x="860" y="108" class="f-t">build</text><text x="860" y="145" class="f-s">checkout, again</text><text x="860" y="173" class="f-s">login · ghcr.io</text><text x="860" y="201" class="f-s">metadata · tags</text><text x="860" y="229" class="f-s">build · push from main</text></g>
+  <text x="550" y="320" class="f-cap">red test → build skipped</text>
+</svg></div>
+<p class="s-line">Nothing carries over. <b>That is why checkout appears twice.</b></p></section><section class="slide" id="s4" data-minutes="2" data-title="The wait is the design constraint" data-notes="&lt;p&gt;This widget is the lab&amp;#x27;s pipeline. Let me push with the defaults: a branch called greeting, the fixed library, the current Go. Set up job: that is the queue and the machine. Checkout. Setup-go. Go test is quick. Govulncheck is the slow one, because go run compiles it first, on a machine that has never seen it. Then build, with its own setup, and the build itself is most of it. Nothing is pushed, because this is a branch. Now main, and push again: the same, and this time it publishes.&lt;/p&gt;&lt;p&gt;The seconds are made up, but the shape is real. A run is a minute or three, and you will wait for five of them today. So the wait is the thing you design around. Put the fast job first, so a broken test fails in seconds and the expensive build never starts. Turn on cancel-in-progress, so when you push twice in a row the first run is cancelled instead of wasting three minutes. And above all, never let CI be the first place a failure is seen. Every command in our pipeline is one you can run on your laptop, in the same form. When CI goes red today, you will reproduce it locally in seconds, instead of pushing guesses and waiting three minutes per guess.&lt;/p&gt;&lt;p&gt;And every wait in the lab has a task. You will not be watching spinners.&lt;/p&gt;">
+<h2>The wait is the design constraint</h2>
+<div class="s-widget s-widget-center"><div class="demo w10-demo">
+  <span class="eyebrow">Interactive · push and wait</span>
+  <div class="w10-app"></div>
+</div></div></section><section class="slide" id="s5" data-minutes="2" data-title="Who is GITHUB_TOKEN?" data-notes="&lt;p&gt;To push an image, the build job has to log in to the registry. With what? The answer most tutorials used to give is: make a personal access token and paste it into the repository&amp;#x27;s secrets. Today we do not create a single token.&lt;/p&gt;&lt;p&gt;Instead, GitHub mints a fresh token for every job, called GITHUB_TOKEN. It exists from the moment the job starts until the moment it ends, and then it is revoked. If it ends up in a log, it is worthless by the time anyone reads the log, and GitHub masks it anyway.&lt;/p&gt;&lt;p&gt;What it may do is written in the file. The permissions block on the build job says: contents read, packages write. Read the code, push packages, nothing else. Not delete the repository, not change settings, not push commits. The test job says nothing, so it gets the default for a new repository, which is read only. That is least privilege, the idea from the security workshops, as four lines of YAML.&lt;/p&gt;&lt;p&gt;Two things about the package it creates. It is linked to the repository and inherits who may access it. But it starts private, even though your repository is public. To pull it on your laptop you either make it public, which cannot be undone, or log Docker in with the GitHub command-line tool, which can. Both are on the page.&lt;/p&gt;">
+<h2>Who is <code>GITHUB_TOKEN</code>?</h2>
+<div class="s-cols" style="grid-template-columns:1.35fr 1fr;gap:36px">
+  <div class="s-code"><pre style="font-size:19px">  build:
+    needs: test
+    <b>permissions:</b>
+      <b>contents: read</b>
+      <b>packages: write</b>
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: <b>${{ secrets.GITHUB_TOKEN }}</b></pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-num-sm">one job</span><span class="s-muted">minted when it starts, revoked when it ends</span></div>
+    <div><span class="s-num s-num-sm">2 scopes</span><span class="s-muted">read the code, write packages; nothing else</span></div>
+    <div><span class="s-num s-num-sm">0 PATs</span><span class="s-muted">no personal access token, anywhere</span></div>
+  </div>
+</div>
+<p class="s-line">The package is linked to the repository. <b>It starts private.</b></p></section><section class="slide" id="s6" data-minutes="1" data-title="Tags are names, digests are facts" data-notes="&lt;p&gt;Every push to main publishes one image with two names. The tag main, which moves every time main changes. And sha-dash plus the first seven characters of the commit, which never moves, because that commit never changes. Both are labels. The fact underneath is the digest, the sha256 of the image itself: same bytes, same digest, on every machine. You have met this idea before; a git commit hash is content addressing too.&lt;/p&gt;&lt;p&gt;Branches build, but only main publishes, so the registry only ever holds code that passed. In workshop seven you rolled out api colon two. With this pipeline you would roll out a sha tag, because a rollback needs a name that still means the old image.&lt;/p&gt;">
+<h2>Tags are names, digests are facts</h2>
+<div class="s-one"><svg viewBox="0 0 1100 300" class="s-fig s-wide" role="img" aria-label="Two tags pointing at one digest, an older tag at an older digest">
+  <g class="w5f-tag"><rect x="40" y="40" width="240" height="44" rx="6"/><text x="160" y="70" class="w5f-tagt">main</text></g>
+  <g class="w5f-tag"><rect x="40" y="120" width="240" height="44" rx="6"/><text x="160" y="150" class="w5f-tagt">sha-3f9c2ab</text></g>
+  <g class="w5f-tag"><rect x="40" y="220" width="240" height="44" rx="6"/><text x="160" y="250" class="w5f-tagt">sha-8a41d07</text></g>
+  <path d="M280 62 Q450 62 580 112" class="f-arrow"/>
+  <path d="M280 142 H580" class="f-arrow"/>
+  <path d="M280 242 H580" class="f-arrow"/>
+  <path d="M280 62 Q430 160 580 232" class="f-arrow f-dash"/>
+  <g class="f-box f-live"><rect x="590" y="102" width="470" height="80" rx="8"/><text x="825" y="135" class="f-t">sha256:… the new image</text><text x="825" y="163" class="f-s">built from commit 3f9c2ab</text></g>
+  <g class="f-box f-gone"><rect x="590" y="208" width="470" height="70" rx="8"/><text x="825" y="238" class="f-t">sha256:… the previous image</text><text x="825" y="262" class="f-s">main pointed here until the merge</text></g>
+</svg></div>
+<p class="s-line"><code>main</code> moves. <code>sha-</code> does not. <b>The digest is the image.</b></p></section><section class="slide" id="s7" data-minutes="2" data-title="Your dependencies are your code" data-notes="&lt;p&gt;Your program is mostly other people&amp;#x27;s code, and in Go the list of it is go dot sum: every module at an exact version, with a hash. That is the lock. The Go team keeps a vulnerability database that knows, for each advisory, the module, the package and the exact functions affected. That is what makes govulncheck different. It reads your code, follows the calls, and sorts findings into called, imported and required, and it only fails on called.&lt;/p&gt;&lt;p&gt;Watch the widget. x/text zero point three point seven: red. GO-2022-1059, and the trace says hello dot greet calls language dot ParseAcceptLanguage. That is your code, in step three. Zero point three point eight: green, and two newer advisories in the same module are reported but do not fail, because we never import those packages.&lt;/p&gt;&lt;p&gt;Now the third toggle. The toolchain is a dependency too. Go 1.27.2 came out on the eighth of October 2026 with fixes in net slash http, and this server reaches five of them. A runner with a cached 1.27.1 goes red for a reason that has nothing to do with your change. One line, check-latest true, fixes the runner, and the prep fixed your laptop. The image is another matter: it is compiled by whatever golang 1.27 means on the day it is pulled. That one is a stretch goal.&lt;/p&gt;">
+<h2>Your dependencies are your code</h2>
+<div class="s-widget s-widget-center"><div class="demo w10-demo" data-xtext="0.3.7" data-go="1.27.1">
+  <span class="eyebrow">Called fails · imported and required are reported</span>
+  <div class="w10-app"></div>
+</div></div></section><section class="slide" id="s8" data-minutes="2" data-title="A check is only a no if main requires it" data-notes="&lt;p&gt;Here is the uncomfortable part. Everything so far is advice. A red cross on a pull request does not stop anyone pressing merge, and nothing stops anyone pushing straight to main and skipping the pull request entirely. CI that nobody is required to pass is a dashboard.&lt;/p&gt;&lt;p&gt;The fix is a ruleset on the default branch, with two rules. Require a pull request before merging, so main only changes through one; we set required approvals to zero because you work alone today, but on a team that is where review lives. And require status checks to pass, naming the check: test, the name of our job. Now red means the merge button is blocked. We leave the bypass list empty, so it applies to the owner of the repository as well, which is you: after step two, your own git push to main is refused, by your own rule.&lt;/p&gt;&lt;p&gt;That is the no from slide one, made binding. The hook in workshop five could be skipped by anyone, alone. This one cannot be skipped by anyone, including the person who wrote it. You create it during the wait in step two. It needs the name test, and it learns that name from your first run, which is why it comes after step one.&lt;/p&gt;">
+<h2>A check is only a no if main requires it</h2>
+<div class="s-cols s-cols-wide">
+  <div class="s-code"><pre><i># Settings → Rules → Rulesets</i>
+Ruleset   main            <b>Active</b>
+Target    default branch
+Bypass    <b>nobody, you included</b>
+
+✓ Restrict deletions
+✓ Block force pushes
+✓ Require a pull request   approvals: 0
+✓ Require status checks    <b>test</b></pre></div>
+  <div class="s-stat">
+    <div><span class="s-num s-num-sm">red test</span><span class="s-muted">the merge button is blocked</span></div>
+    <div><span class="s-num s-num-sm">git push</span><span class="s-muted">to main is refused, yours too</span></div>
+  </div>
+</div>
+<p class="s-line">Without the rule, red is advice. <b>With it, red is no.</b></p></section><section class="slide" id="s9" data-minutes="1" data-title="Pin what you run" data-notes="&lt;p&gt;Every uses line runs somebody else&amp;#x27;s code, with your token. And a tag like v7 is a pointer, like a branch in workshop five: whoever owns the repository can move it. In March 2025 that happened to a popular action, tj-actions changed-files. Its tags were moved to a commit that printed secrets into build logs, and thousands of repositories ran it without changing a line.&lt;/p&gt;&lt;p&gt;The defence is to pin the full forty-character commit hash, which cannot move, and let Dependabot open a pull request when there is a new version. Today we type major tags, for actions from GitHub and Docker, because nobody types forty hex characters. The stretch file shows the habit.&lt;/p&gt;">
+<h2>Pin what you run</h2>
+<div class="s-rows s-rows-big">
+  <div class="s-row"><code class="s-flag">@v7</code><div><b>a pointer</b> <span class="s-muted">like a branch: the owner can move it</span></div></div>
+  <div class="s-row"><code class="s-flag">@c3c9e26…91b0dc</code><div><b>a commit</b> <span class="s-muted">cannot move</span></div></div>
+  <div class="s-row"><code class="s-flag">dependabot.yml</code><div><b>moves the pins</b> <span class="s-muted">by pull request, through CI</span></div></div>
+</div>
+<p class="s-line">March 2025: a popular action's tags were moved. <b>CVE-2025-30066.</b></p></section><section class="slide" id="s10" data-minutes="1" data-title="The next 90 minutes" data-notes="&lt;p&gt;Here is the afternoon. Step zero, workshop one&amp;#x27;s server goes into your new repository, with a test. Step one, you type the first workflow and push, and the tests run on a machine in a data centre. Step two, a build job that publishes the image, and while it runs you create the ruleset. Step three, a feature on a branch, with a dependency pinned to a vulnerable version, and you watch it go red. Step four, reproduce the failure on your laptop, fix it, and merge. Step five, we wrap up while main builds, and then you run what the pipeline published.&lt;/p&gt;&lt;p&gt;Five runs, and every wait has a task. Every step ends in a checkpoint. Five-minute break, then step zero.&lt;/p&gt;">
+<h2>The next 90 minutes</h2>
+<ol class="s-steps">
+  <li><span>0</span>Workshop 1's server, with a test</li>
+  <li><span>1</span>A workflow that runs the tests</li>
+  <li><span>2</span>Build, push, and the ruleset</li>
+  <li><span>3</span>A feature that goes red</li>
+  <li><span>4</span>Reproduce, fix, merge</li>
+  <li><span>5</span>Wrap-up, then run what main built</li>
+</ol>
+<p class="s-line">Five runs, five tasks. Five-minute break, then step 0.</p></section>
+</div>
+<div class="pres"><div class="next"></div><div class="notes"><div class="txt"></div><div class="clock"></div></div></div>
+<div class="deck-ui"><i></i></div>
+<span class="deck-num"></span>
+<a class="deck-back" href="../index.html">← workshop page · press ? for keys</a>
+<div class="deck-help"><div><b>Keys</b><br><kbd>→</kbd> <kbd>space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd> <kbd>End</kbd><br><kbd>S</kbd> speaker view (manuscript, timer, next slide)<br><kbd>F</kbd> fullscreen · <kbd>T</kbd> dark / light · <kbd>Esc</kbd> close<br><br>Two windows of this deck stay in sync: open one on the projector and press <kbd>S</kbd> in the other.<br>The timer starts on the first advance.</div></div>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/10-ci-hero.js"></script>
+<script src="../../../assets/deck.js"></script>
+</body>
+</html>

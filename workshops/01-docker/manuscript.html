@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Containers From the Ground Up · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 1</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+  
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 1 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">Containers From the Ground Up</h1>
+  <p class="muted">Word for word, in first person. 1722 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  
+  <article class="ms">
+    <header><span class="num">1</span><h3>It works on my machine</h3><span class="time">0:00 → 1:00 · 1 min · 106 words</span></header>
+    <p>Hands up if you have lost an afternoon to this sentence. Something ran on your laptop, then not on your friend&#x27;s, or not on the server, or not on your own laptop after an update. Two projects that need two versions of the same runtime. A README that says &quot;install these fourteen things&quot; and one of them no longer exists.</p><p>That afternoon is the problem we are solving today. By the end you will have a small web server running in a container you built yourself, and you will know what every word in that sentence means. Fifteen minutes of talking, then ninety minutes of typing.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>A container is a process</h3><span class="time">1:00 → 3:00 · 2 min · 243 words</span></header>
+    <p>Here is the one sentence that everything else today hangs on. A container is an ordinary process. Not a machine, not a virtual machine. A process, like the terminal you have open, except that when it starts, the kernel has been asked to give it a private view of the world.</p><p>Private in four ways. It sees its own root filesystem, so slash is a different slash. It sees its own network interfaces, so port 8080 inside is not port 8080 outside unless we say so. It sees its own process list, so if you run p s inside it, you see two processes and not the four hundred on your laptop. And it has a limit on how much memory and CPU it can take.</p><p>What it does not have is its own kernel. Every container on the machine shares the host&#x27;s kernel. That is why a container starts in milliseconds and a virtual machine takes a minute: a VM has to boot an operating system, a container just has to start a process.</p><p>One practical consequence for most of you. On a Mac or on Windows, there is no Linux kernel to share, so Docker Desktop runs one small Linux virtual machine, and all your containers run inside that. When Docker feels slow on a Mac, or the clock inside a container is wrong after your laptop slept, that VM is the reason. On Linux there is no VM at all.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>Image versus container</h3><span class="time">3:00 → 5:00 · 2 min · 213 words</span></header>
+    <p>Two words you will use all afternoon, and people mix them up for years. An image and a container.</p><p>An image is a filesystem, frozen. It is stored as a stack of layers, each one read-only, and on top there is a small note that says: when you start this, run this program. That is all an image is. You can download one, you can build one, you can put one on a USB stick.</p><p>A container is one image, plus a thin writable layer on top, plus a running process. If the image is the class, the container is the instance. You can start ten containers from the same image and they share every read-only layer; each one only pays for the files it changes. When the process writes a file, the file lands in that writable layer. When you delete the container, the writable layer goes with it.</p><p>I am going to write this on the board and leave it there: image equals layers plus a start command; container equals image plus writable layer plus process. Every confusing thing that happens today, and there will be a few, is explained by that line. When the visit counter resets to one in step six, that is the writable layer being thrown away.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>Where images come from</h3><span class="time">5:00 → 6:00 · 1 min · 146 words</span></header>
+    <p>Where do images come from? From a registry, which is a web service that stores them. When you type docker run nginx, Docker expands that to docker dot io, slash library, slash nginx, colon latest. Docker Hub is the default registry, the library part means an official image, and latest is the tag.</p><p>The tag is the thing to be careful with. It is a label somebody put on a version, and latest moves every time they publish. So in anything you keep, pin a version, like golang one twenty-seven, so that your build next month is your build today.</p><p>You pulled three images for today. Look at the sizes: alpine is a few megabytes, nginx a couple of hundred, and the Go toolchain image is most of a gigabyte. Remember that last number, because in step five we are going to make it go away.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>The lifecycle</h3><span class="time">6:00 → 7:00 · 1 min · 118 words</span></header>
+    <p>Here is the whole lifecycle, and the lab does this loop by hand in step one and then never stops doing it. Run creates a container and starts it. While it runs, p s lists it, logs shows what it printed, and exec starts a second process inside it, which is how you look around. Stop ends the process; the container still exists, p s dash a shows it, and its files are intact. R m deletes it, files and all.</p><p>The habit to leave with: whenever anything is confusing, run docker p s dash a first. Nine times out of ten a container you forgot about is still there, holding the port or the name you want.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>Getting in and out</h3><span class="time">7:00 → 9:00 · 2 min · 196 words</span></header>
+    <p>A container with a private view of the world is not much use until we open three doors in it.</p><p>Ports. The container has its own network, so a server listening on port 80 inside is invisible until you publish it. Dash p eight-oh-eight-oh colon eighty means: host port eight-oh-eight-oh goes to container port eighty. Host on the left, container on the right. Every single person gets this backwards once; that is fine, just remember which side you are standing on.</p><p>Files. Dash v mounts a folder from your laptop into the container at a path you choose. Anything the program writes there is really written on your laptop, and it is the only thing that survives when the container is removed. Databases, uploads, anything you would cry about losing: mounted, always.</p><p>Settings. Dash e sets an environment variable, and a well-behaved program reads its settings from the environment when it starts. That is how the same image runs in testing and in production with different passwords and different addresses, without rebuilding.</p><p>Ports, files, settings. That is the entire interface between a container and the outside world, and step six is three experiments, one per door.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>Layers and the cache</h3><span class="time">9:00 → 11:00 · 2 min · 201 words</span></header>
+    <p>Now the recipe. A Dockerfile is a short list of instructions. FROM picks the starting filesystem. COPY adds your files. RUN executes a command and keeps whatever it left behind. CMD says what to start. Four words cover ninety percent of every Dockerfile you will ever read.</p><p>Each instruction produces one layer, and here is the rule that makes builds fast or slow: a layer is rebuilt when its input changed, or when anything above it was rebuilt. Everything below a rebuilt layer is rebuilt too.</p><p>So look at the widget. Two ways to write the same file. On the left we copy everything in first. Edit one line of main dot go, and the copy layer changes, and everything under it reruns, including downloading the dependencies again. On the right we copy only the manifest first, download, and then copy the code. Now an edit to the code only recompiles. The download is cached until the manifest itself changes, which is rare.</p><p>Same image at the end. Different afternoon. Order the file by how often things change: slow and stable at the top, fast and volatile at the bottom. You will see exactly this shape in Node, Python, Rust, everywhere.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>Multi-stage</h3><span class="time">11:00 → 12:00 · 1 min · 145 words</span></header>
+    <p>The Go toolchain image is most of a gigabyte. The program it produces is eight megabytes. Shipping the toolchain along with the program is like delivering a cake with the oven.</p><p>A multi-stage build fixes that with one idea: a second FROM starts a brand-new image, and COPY dash dash from reaches back into the first stage and takes only the file you want. Here the second stage starts from scratch, which is literally an empty image, and receives one file, the binary.</p><p>The result is thirteen megabytes and contains nothing else. No shell, so you cannot exec into it. No package manager, so an attacker who gets in cannot install anything. Nothing to update on Tuesday because there is nothing in there. And notice what else this bought us: the compiler ran inside the first stage, so nobody in this room installs Go today.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>More than one container</h3><span class="time">12:00 → 13:00 · 1 min · 121 words</span></header>
+    <p>Real applications are not one container: an app, a database, a cache, each wanting ports, volumes and settings, and nobody remembers the six docker run commands to start them in the right order.</p><p>Docker Compose writes those commands down. Each service gets a name, an image or a build, and exactly the flags you saw two slides ago. Then docker compose up starts all of them on a private network where they find each other by name: the app talks to redis by calling it redis.</p><p>Not today; you need the run flags in your fingers first. But the moment you find yourself retyping a run command, that command wants to be a compose file. Workshop six is built on it.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>What containers are not</h3><span class="time">13:00 → 14:00 · 1 min · 110 words</span></header>
+    <p>Three things containers are not, so that you do not learn them the hard way.</p><p>Not a virtual machine: same kernel, so a kernel bug is everyone&#x27;s bug. Not a sandbox by default: root inside a container is root on the host unless you configure otherwise, and a mounted folder is your real folder; delete files in it and they are deleted. And not portable across CPU architectures. Those of you on Apple silicon will build arm64 images this afternoon, and they will refuse to run on a typical amd64 server until you ask for the other platform. All three come back in later workshops. Today, just know they exist.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">11</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 123 words</span></header>
+    <p>Here is the afternoon. We start by running other people&#x27;s images and doing the lifecycle by hand until it is boring. Then we borrow a Go toolchain from an image to run a small web server without installing anything. Then we write the recipe down as a Dockerfile, watch the cache do its thing, shrink the image with a second stage, and finish with three experiments on ports, settings and volumes, where you will see with your own eyes what survives a restart and what does not.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; if you are stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

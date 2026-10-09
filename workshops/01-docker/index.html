@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Containers From the Ground Up · TechBytes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 1 · Containers from the ground up</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
+</div></div>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Software engineering workshop series · Workshop 1</span>
+      <h1>Containers From the Ground Up</h1>
+      <p class="lede">Run other people's software in containers, then put your own web server in one: a Dockerfile, a build without any toolchain on your laptop, and a multi-stage build that shrinks the result from close to a gigabyte to about ten megabytes.</p>
+      <ul class="facts">
+        <li><b>15 min</b> talk</li>
+        <li><b>90 min</b> guided lab</li>
+        <li><b>~20 min</b> student prep, one week before</li>
+        <li>No prior Docker knowledge</li>
+        <li>Go, built inside Docker</li>
+        <li>Any OS</li>
+      </ul>
+    </div>
+    <div class="demo" id="cache-demo">
+      <span class="eyebrow">Interactive · the layer cache</span>
+      <p class="note" style="margin:.3rem 0 .7rem">Each Dockerfile line is a layer. A layer is rebuilt when its input changed, or when any layer above it was rebuilt. Change a file and see what each ordering costs.</p>
+      <div class="seg" role="group" aria-label="What changed" style="margin-bottom:.8rem">
+        <button type="button" data-change="none" aria-pressed="true">Nothing changed</button>
+        <button type="button" data-change="main" aria-pressed="false">Edited main.go</button>
+        <button type="button" data-change="mod" aria-pressed="false">Edited go.mod</button>
+      </div>
+      <div class="layers">
+        <div><div class="lt">A · copy everything first</div><ol id="ly-a"></ol></div>
+        <div><div class="lt">B · copy go.mod first</div><ol id="ly-b"></ol></div>
+      </div>
+      <p class="note" id="ly-sum"></p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="#glance">At a glance</a></li>
+    <li><a href="#prep">Preparation</a>
+      <ol class="sub">
+        <li><a href="#prep-students">For students</a></li>
+        <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
+      </ol>
+    </li>
+    <li><a href="#talk">The 15-minute talk</a></li>
+    <li><a href="#lab">The 90-minute lab</a>
+      <ol class="sub">
+        <li><a href="#s0">0 · Hello</a></li>
+        <li><a href="#s1">1 · Someone else's image</a></li>
+        <li><a href="#s2">2 · Borrow a toolchain</a></li>
+        <li><a href="#s3">3 · First Dockerfile</a></li>
+        <li><a href="#s4">4 · Layers and cache</a></li>
+        <li><a href="#s5">5 · Multi-stage</a></li>
+        <li><a href="#s6">6 · Env, volumes, lifecycle</a></li>
+        <li><a href="#s7">7 · Wrap-up</a></li>
+      </ol>
+    </li>
+    <li><a href="#solution">Full solution</a></li>
+    <li class="inst-only"><a href="#instructor">Instructor notes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="glance">
+  <span class="eyebrow">Workshop 1</span>
+  <h2>At a glance</h2>
+  <div class="tbl"><table>
+    <tr><th>Outcome</th><td>Every student leaves with a working mental model of image vs container, the full container lifecycle in their fingers, and a repository containing a small Go web server plus a multi-stage Dockerfile that produces an image under 15 MB, built without Go installed on their laptop.</td></tr>
+    <tr><th>Why this topic</th><td>Every later workshop, and most jobs, assume it. Courses rarely teach it, and self-taught Docker tends to be cargo-culted: people copy a Dockerfile without knowing what a layer is or why their image is a gigabyte. This afternoon fixes that once.</td></tr>
+    <tr><th>Concepts</th><td>Images and containers, registries and tags, the run / ps / logs / exec / stop / rm lifecycle, port publishing, environment variables, bind mounts and what survives a restart, Dockerfile instructions, layers and the build cache, the build context and <code>.dockerignore</code>, multi-stage builds, and what containers are not (not VMs, not a security boundary by default, not CPU-architecture independent).</td></tr>
+    <tr><th>Assumed knowledge</th><td>Can open a terminal and run a command. Can read a short program in any language. No Go knowledge is needed: the server is pasted and read aloud, never edited beyond one string.</td></tr>
+    <tr><th>Language</th><td>Go, but only inside containers. The point of the lab is that the Go toolchain lives in an image, so nobody installs Go. Go was chosen over Deno for this one because a Go binary is a single static file, which makes the multi-stage build land: the final image contains one file and nothing else.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Docker Desktop (macOS, Windows) or Docker Engine (Linux), a browser, a text editor. The three images from the prep pack already pulled.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Wi-Fi only for students who skipped the prep; the instructor carries the images on a USB stick.</td></tr>
+    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+  </table></div>
+</section>
+
+<section id="prep">
+  <span class="eyebrow">Send one week before</span>
+  <h2>Preparation</h2>
+
+  <h3 id="prep-students">For students (about 20 minutes, plus a download)</h3>
+  <p>This is written to be pasted into an email or course page as-is.</p>
+
+  <h4>1. Install Docker</h4>
+  <p>On macOS or Windows install Docker Desktop from <a href="https://docs.docker.com/get-started/get-docker/">docs.docker.com/get-started/get-docker</a> and accept the defaults (on Windows it will set up WSL 2, which may need a restart). On Linux install Docker Engine for your distribution from the same page, then let your user run it without <code>sudo</code>:</p>
+<pre><code>sudo usermod -aG docker $USER
+newgrp docker      # or log out and in again</code></pre>
+  <p>Start Docker Desktop once so it finishes its setup. It must be running whenever you use the <code>docker</code> command.</p>
+
+  <h4>2. Confirm it works</h4>
+<pre><code>docker run --rm hello-world</code></pre>
+  <p>You should see a message beginning "Hello from Docker!". If you see "Cannot connect to the Docker daemon", Docker Desktop is not running.</p>
+
+  <h4>3. Download the three images we will use</h4>
+  <p>About 400 MB in total. Do this at home; it is the only part that needs a good connection.</p>
+<pre><code>docker pull alpine
+docker pull nginx
+docker pull golang:1.27</code></pre>
+
+  <h4>4. The readiness check</h4>
+  <p>Make a folder called <code>docker-lab</code> and open a terminal in it (Terminal on macOS, PowerShell on Windows). Run:</p>
+<pre><code>docker run --rm -v &quot;$PWD&quot;:/work -w /work alpine sh -c &quot;echo ready &gt; proof.txt &amp;&amp; cat proof.txt&quot;</code></pre>
+  <p>Windows users: in PowerShell replace <code>"$PWD"</code> with <code>"${PWD}"</code>; if you use Git Bash, paths get rewritten and this will fail, so use PowerShell for the workshop.</p>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>ready</code>, and a file <code>proof.txt</code> has appeared in your folder. If both happened, Docker can run containers and share files with your folder, which is everything the lab needs. If not, bring the error message to the workshop and arrive ten minutes early.</p></div>
+
+  <div class="call inst"><p class="lbl">If Docker will not install</p><p>The two common blockers are virtualisation disabled in the BIOS (Windows laptops from some vendors) and a university-managed laptop without admin rights. Neither is fixable in the room. Pair that student with a neighbour for the afternoon; everything in the lab works for two people at one keyboard.</p></div>
+
+  <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
+  <ul class="check">
+    <li>Run the whole lab yourself on each OS you expect in the room, with the exact commands on this page. Note the sizes and timings you get for step 3 and step 5 so you can say them out loud.</li>
+    <li>Save the three images to a USB stick for anyone whose pull failed: <code>docker save alpine nginx golang:1.27 -o images.tar</code> (about 1 GB), restored with <code>docker load -i images.tar</code>.</li>
+    <li>On Apple silicon, everything on this page works unchanged: the images are multi-architecture and the Go build produces an arm64 binary. Mention it only if someone asks why their image "would not run on the server": that is stretch goal 2.</li>
+    <li>The demo widget at the top of this page is your slide 7. Press the three buttons while talking about cache invalidation.</li>
+    <li>Have the <a href="#solution">full solution</a> ready. The Dockerfiles are short enough that a stuck student can retype them from the projector, but <code>main.go</code> should be pasted.</li>
+    <li>Ask the room to close other applications that listen on port 8080 (a previous container, a dev server). "address already in use" (older Docker: "port is already allocated") is the second most common error of the day, after a forgotten <code>-p</code>.</li>
+  </ul></div>
+</section>
+
+<section id="talk">
+  <span class="eyebrow">15 minutes · 11 slides</span>
+  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <h2>The talk: a process with its own view of the world</h2>
+  <p>The single idea to land: <strong>a container is an ordinary process that has been given its own filesystem, network and process list; an image is the frozen filesystem it starts from.</strong> Not a virtual machine, not magic. Everything in the lab is a consequence.</p>
+  <ol class="slides">
+    <li><span class="n">1</span><span class="t">"It works on my machine"</span><span class="d">1 min</span>
+      <span class="say">Title slide. Ask who has lost an afternoon to a dependency that was installed on one laptop and not another, or to two projects wanting different versions of the same runtime. That afternoon is the problem containers solve.</span></li>
+    <li><span class="n">2</span><span class="t">What a container is</span><span class="d">2 min</span>
+      <span class="say">A process. The kernel is asked to give it a private view: its own root filesystem, its own network interfaces, its own process IDs, and a limit on memory and CPU. It shares the host's kernel with every other container, which is why it starts in milliseconds and why a VM is a different thing entirely: a VM boots a whole operating system. On macOS and Windows, Docker Desktop runs one small Linux VM and all your containers run inside it; that is why the clock and the disk sometimes behave oddly there.</span></li>
+    <li><span class="n">3</span><span class="t">Image versus container</span><span class="d">2 min</span>
+      <span class="say">An image is a read-only filesystem, stored as a stack of layers, plus a note saying which program to start. A container is one image plus a thin writable layer plus a running process. Class and instance. You can run ten containers from one image; each has its own writable layer; delete the container and that layer is gone. Write this on the board and leave it there all afternoon.</span></li>
+    <li><span class="n">4</span><span class="t">Where images come from</span><span class="d">1 min</span>
+      <span class="say">Registries. Docker Hub is the default; <code>nginx</code> means <code>docker.io/library/nginx:latest</code>. The tag after the colon is a label, not a promise: <code>latest</code> moves. Pin versions. Show the three images from the prep and their sizes with <code>docker images</code>.</span></li>
+    <li><span class="n">5</span><span class="t">The lifecycle</span><span class="d">1 min</span>
+      <span class="say">run creates and starts. ps lists what is running, ps -a what exists. logs shows what the process printed. exec runs a second process inside the same container, which is how you look around. stop sends the process a signal; rm deletes the container and its writable layer. Draw it as a line. The lab does this loop by hand in step 1 and never stops doing it.</span></li>
+    <li><span class="n">6</span><span class="t">Getting in and out: ports, files, environment</span><span class="d">2 min</span>
+      <span class="say">The container's network is private, so <code>-p 8080:80</code> publishes a host port onto a container port; host first, container second, everyone gets it backwards once. Files: <code>-v</code> mounts a host folder into the container, and it is the only way data survives <code>rm</code>. Configuration goes in with <code>-e</code> environment variables; the app reads them at start. That is the whole interface between a container and the world.</span></li>
+    <li><span class="n">7</span><span class="t">Dockerfiles are layered, and the cache is why order matters</span><span class="d">2 min</span>
+      <span class="say">FROM picks the starting filesystem, COPY adds files, RUN executes a command and keeps the result, CMD says what to start. Each instruction makes a layer, and a layer is rebuilt when its input changed or when anything above it changed. Use the widget on this page: copy everything first and one edit to main.go re-downloads dependencies; copy go.mod first and the edit only recompiles. Same image, different afternoon.</span></li>
+    <li><span class="n">8</span><span class="t">Multi-stage: build in a big image, ship a small one</span><span class="d">1 min</span>
+      <span class="say">The Go toolchain image is close to a gigabyte; the compiled program is eight megabytes. A second FROM starts a new image, and <code>COPY --from</code> takes only the binary across. The result has no shell, no package manager, no toolchain, so there is nothing for an attacker to use and nothing to update. This is also why nobody in the room needs Go installed.</span></li>
+    <li><span class="n">9</span><span class="t">More than one container: Compose</span><span class="d">1 min</span>
+      <span class="say">Real applications are several containers, each wanting ports, volumes and settings. A compose.yaml writes those <code>docker run</code> flags down per service, and <code>docker compose up</code> starts them all on a private network where they find each other by name. Not for today; the point is that a run command you keep retyping wants to be a file. Workshop 6 is built on it.</span></li>
+    <li><span class="n">10</span><span class="t">What containers are not</span><span class="d">1 min</span>
+      <span class="say">Not a VM: same kernel. Not a sandbox by default: root inside is root on the host, and a mounted folder is the host's folder. Not portable across CPU architectures: an image built on an Apple-silicon laptop is arm64 and will not run on an amd64 server unless you ask for <code>--platform</code>. All three come back in later workshops.</span></li>
+    <li><span class="n">11</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+      <span class="say">Seven steps: run other people's images, borrow a Go toolchain from an image to run our server, write a Dockerfile, watch the cache, shrink the image with a second stage, then wire up ports, settings and a volume and prove what survives a restart. Five-minute break, then step 0.</span></li>
+  </ol>
+</section>
+
+<section id="lab">
+  <span class="eyebrow">90 minutes · 7 steps</span>
+  <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
+  <p>Students work in the <code>docker-lab</code> folder from the prep with one terminal open in it and a browser beside it. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the Dockerfiles and the commands, 26 lines of Dockerfile and about 35 short commands over the afternoon, more than the other workshops because typing a Docker command is the skill. <strong>Paste this</strong> is the Go program: it is read aloud and understood, but Go is not the topic and typing 40 lines of it would eat a third of the lab. Windows users type <code>${PWD}</code> wherever the page says <code>$PWD</code>.</p></div>
+  <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
+  <div class="timeline">
+    <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Hello, and the two commands you will run all day</span></div>
+    <div class="row" data-from="5" data-to="15"><span class="k">0:05–0:15</span><span>Step 1 · Someone else's image: the lifecycle by hand</span></div>
+    <div class="row" data-from="15" data-to="23"><span class="k">0:15–0:23</span><span>Step 2 · Borrow a toolchain to run the server</span></div>
+    <div class="row" data-from="23" data-to="35"><span class="k">0:23–0:35</span><span>Step 3 · First Dockerfile</span></div>
+    <div class="row" data-from="35" data-to="50"><span class="k">0:35–0:50</span><span>Step 4 · Layers, cache, and the build context</span></div>
+    <div class="row" data-from="50" data-to="65"><span class="k">0:50–1:05</span><span>Step 5 · Multi-stage build</span></div>
+    <div class="row" data-from="65" data-to="80"><span class="k">1:05–1:20</span><span>Step 6 · Ports, environment, volumes, what survives</span></div>
+    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+  </div>
+
+  <article class="step" id="s0">
+    <header><span class="num">Step 0</span><h3>Hello, and the two commands you will run all day</h3><span class="time">5 min</span></header>
+<pre data-mode="type this"><code>docker run --rm hello-world
+docker ps
+docker images</code></pre>
+    <p><code>docker ps</code> is empty because <code>hello-world</code> printed its message and exited, and <code>--rm</code> deleted the container. <code>docker images</code> lists the images from the prep. Keep both commands at your fingertips: from here on, whenever something is confusing, run <code>docker ps -a</code> first.</p>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p>"Hello from Docker!" printed, <code>docker ps</code> shows no containers, <code>docker images</code> shows at least <code>alpine</code>, <code>nginx</code> and <code>golang</code>.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. This step catches every installation problem at once, while there is still slack. Someone whose images are missing plugs in the USB stick now.</p></div>
+  </article>
+
+  <article class="step" id="s1">
+    <header><span class="num">Step 1</span><h3>Someone else's image: the lifecycle by hand</h3><span class="time">10 min</span></header>
+    <p>First a container you can look around in. <code>-it</code> gives you a terminal inside it; <code>alpine</code> is a five-megabyte Linux.</p>
+<pre data-mode="type this"><code>docker run --rm -it alpine sh
+# you are now inside the container:
+cat /etc/os-release
+ps
+exit</code></pre>
+    <p><code>ps</code> shows two processes: your shell and <code>ps</code> itself. That is the whole world as this container sees it. Now a real server, detached, with a port published and a name so you can refer to it:</p>
+<pre data-mode="type this"><code>docker run -d --name web -p 8080:80 nginx
+docker ps
+docker logs web
+docker exec -it web sh -c &quot;ls /usr/share/nginx/html&quot;
+docker stop web
+docker ps -a
+docker rm web</code></pre>
+    <p>Open <a href="http://localhost:8080">http://localhost:8080</a> in the browser after the first command and reload it a couple of times before <code>docker logs</code>, so there is something in the log. <code>-p 8080:80</code> reads "host port 8080 to container port 80".</p>
+    <div class="call check"><p class="lbl">Checkpoint 1</p><p>The nginx welcome page in the browser; the reloads visible in <code>docker logs web</code>; after <code>stop</code> the container still shows in <code>ps -a</code> with status Exited; after <code>rm</code> it is gone.</p></div>
+    <p><strong>Talk about it:</strong> what does <code>stop</code> do to the writable layer? (Nothing; <code>start web</code> would bring it back with its files, and plain <code>docker ps</code> would show it again.) What does <code>rm</code> do? (Deletes it.) Why did <code>ps</code> inside alpine show only two processes when the laptop is running hundreds?</p>
+  </article>
+
+  <article class="step" id="s2">
+    <header><span class="num">Step 2</span><h3>Borrow a toolchain to run the server</h3><span class="time">8 min</span></header>
+    <p>The app for the rest of the afternoon is a 40-line Go web server. Create these two files in <code>docker-lab</code>. Read <code>main.go</code> once, top to bottom: it greets you, says which machine it is running on, and counts visits in a file called <code>visits.txt</code>. Three things it does will matter later: it reads <code>GREETING</code> from the environment, it prints its hostname, and it writes a file in the current directory.</p>
+    <h4>go.mod</h4>
+<pre data-mode="paste this"><code>module hello
+
+go 1.24</code></pre>
+    <h4>main.go</h4>
+<pre data-mode="paste this"><code>// A tiny web server: says hello, tells you which machine it runs on,
+// and counts visits in a file so we can see what survives a restart.
+package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+)
+
+func main() {
+	greeting := os.Getenv(&quot;GREETING&quot;) // configuration comes from the environment
+	if greeting == &quot;&quot; {
+		greeting = &quot;Hello&quot;
+	}
+	host, _ := os.Hostname() // inside a container this is the container id
+
+	http.HandleFunc(&quot;/&quot;, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != &quot;/&quot; { // browsers also ask for /favicon.ico; do not count that
+			http.NotFound(w, r)
+			return
+		}
+		n := bump(&quot;visits.txt&quot;)
+		log.Printf(&quot;%s %s -&gt; visit %d&quot;, r.Method, r.URL.Path, n)
+		fmt.Fprintf(w, &quot;%s from %s! You are visit number %d.\n&quot;, greeting, host, n)
+	})
+
+	log.Println(&quot;listening on http://localhost:8080&quot;)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}
+
+// bump reads a number from the file, adds one, writes it back.
+func bump(path string) int {
+	b, _ := os.ReadFile(path)
+	n, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+	n++
+	if err := os.WriteFile(path, []byte(strconv.Itoa(n)), 0o644); err != nil {
+		log.Println(&quot;could not save the counter:&quot;, err)
+	}
+	return n
+}</code></pre>
+    <p>Nobody has Go installed. The <code>golang</code> image does. Mount the folder in, publish the port, and run it there:</p>
+<pre data-mode="type this"><code>docker run --rm -it -v &quot;$PWD&quot;:/app -w /app -p 8080:8080 golang:1.27 go run .</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 2</p><p>The browser at <a href="http://localhost:8080">localhost:8080</a> says "Hello from <em>some-hex-id</em>! You are visit number 1." and the number goes up on reload. <code>visits.txt</code> has appeared in your folder, because the folder is mounted. Ctrl-C stops it.</p></div>
+    <p><strong>Talk about it:</strong> the hostname it prints is the container ID. Where did the compiler run? Where is the compiled program now? (Inside a container that no longer exists.) What does the <code>-v</code> do that makes <code>visits.txt</code> appear on the laptop?</p>
+  </article>
+
+  <article class="step" id="s3">
+    <header><span class="num">Step 3</span><h3>First Dockerfile</h3><span class="time">12 min</span></header>
+    <p>Step 2 works but the recipe lives in a shell command. A Dockerfile writes it down, and the result is an image anyone can run. Create a file named exactly <code>Dockerfile</code>:</p>
+<pre data-mode="type this"><code>FROM golang:1.27
+WORKDIR /app
+COPY . .
+RUN go mod download
+RUN go build -o server .
+CMD [&quot;./server&quot;]</code></pre>
+    <p>Six lines, four kinds of instruction: <code>FROM</code> picks the starting image, <code>WORKDIR</code> chooses a folder, <code>COPY</code> brings the project in, <code>RUN</code> executes a command at build time (fetch dependencies, then compile), and <code>CMD</code> says what to start. Build it, then run it like nginx in step 1:</p>
+<pre data-mode="type this"><code>docker build -t hello:1 .
+docker images hello
+docker run --rm -p 8080:8080 hello:1</code></pre>
+    <p>The <code>.</code> at the end of <code>build</code> is the build context: the folder whose files <code>COPY</code> may see. <code>-t hello:1</code> is the name and tag.</p>
+    <div class="call check"><p class="lbl">Checkpoint 3</p><p>The build finishes, <code>docker images hello</code> shows <code>hello:1</code> at several hundred megabytes (close to a gigabyte, since the whole toolchain is in it), and the browser shows the greeting. Note the visit counter starts at 1 again: this container's filesystem is fresh.</p></div>
+    <p><strong>Common mistakes:</strong> the file is called <code>Dockerfile.txt</code> (Windows hides extensions); the <code>.</code> is missing from the build command; the build fails with "go.mod not found" because the command was run from the wrong folder.</p>
+  </article>
+
+  <article class="step" id="s4">
+    <header><span class="num">Step 4</span><h3>Layers, cache, and the build context</h3><span class="time">15 min</span></header>
+    <p>Change the word <code>Hello</code> in <code>main.go</code> to anything else and rebuild:</p>
+<pre data-mode="type this"><code>docker build -t hello:1 .
+docker history hello:1</code></pre>
+    <p>Watch the output: <code>FROM</code> and <code>WORKDIR</code> say <code>CACHED</code>; from <code>COPY . .</code> downwards everything ran again, including <code>go mod download</code>, which on a real project is the slow, network-bound step. <code>docker history</code> lists the layers with their sizes, newest first. Now reorder so that the part that rarely changes (dependencies) comes before the part that changes constantly (code):</p>
+<pre data-mode="type this"><code>FROM golang:1.27
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN go build -o server .
+CMD [&quot;./server&quot;]</code></pre>
+    <p>Same six lines plus one: <code>COPY go.mod</code> before the download. Build once, change the greeting again, build again. The <code>go mod download</code> layer is now cached; only <code>COPY . .</code> and <code>go build</code> rerun. Our program has no dependencies so the saving is small here; on a real project this is the difference between a five-second and a five-minute rebuild. The same layout appears in every language's Dockerfiles: package manifest first, install, then the code.</p>
+    <p>One more thing: <code>COPY . .</code> copies <em>everything</em> in the folder, including <code>visits.txt</code> from step 2 and, from step 6 on, the whole <code>data</code> folder. A <code>.dockerignore</code> keeps them out of the build context. Create it next to the Dockerfile; on Windows make sure the editor does not save it as <code>.dockerignore.txt</code>.</p>
+    <h4>.dockerignore</h4>
+<pre data-mode="type this"><code>visits.txt
+data/</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>After changing the greeting, the rebuild shows <code>CACHED</code> for <code>COPY go.mod</code> and <code>go mod download</code>, and only the last two layers run. <code>docker history hello:1</code> shows a layer per instruction.</p></div>
+    <p><strong>Talk about it:</strong> use the widget at the top of the page. Why is a change to <code>go.mod</code> expensive in both layouts? What would happen if <code>RUN go build</code> came before <code>COPY . .</code>?</p>
+  </article>
+
+  <article class="step" id="s5">
+    <header><span class="num">Step 5</span><h3>Multi-stage build</h3><span class="time">15 min</span></header>
+    <p><code>hello:1</code> ships a compiler, a shell, a package manager and Debian, to run an eight-megabyte program. A multi-stage Dockerfile builds in the big image and copies only the result into an empty one. Replace the whole Dockerfile:</p>
+<pre data-mode="type this"><code># Stage 1: build, in an image that has the Go toolchain (about 800 MB)
+FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+# Stage 2: run, in an image that has nothing at all
+FROM scratch
+WORKDIR /data
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD [&quot;/server&quot;]</code></pre>
+    <p><code>scratch</code> is the empty image: no files at all. <code>CGO_ENABLED=0</code> makes Go produce a binary that needs no system libraries, which is why it can run on nothing. <code>WORKDIR /data</code> creates the one directory the program needs for its counter file.</p>
+<pre data-mode="type this"><code>docker build -t hello:2 .
+docker images hello
+docker run -d --name app -p 8080:8080 hello:2
+docker exec -it app sh
+docker rm -f app</code></pre>
+    <div class="call check"><p class="lbl">Checkpoint 5</p><p><code>hello:2</code> is under 15 MB (the <code>DISK USAGE</code> column) next to <code>hello:1</code>'s several hundred, the browser still shows the greeting, and <code>docker exec -it app sh</code> fails with "sh: executable file not found": there is no shell in this image, or anything else, only <code>/server</code>.</p></div>
+    <p><strong>Talk about it:</strong> what can an attacker who gets into this container do? (Very little; there is no shell to run, no package manager to install one.) What is the cost? (No <code>exec</code> for debugging; the stretch goals mention distroless as the middle ground.) Why did nobody need Go on their laptop at any point today?</p>
+  </article>
+
+  <article class="step" id="s6">
+    <header><span class="num">Step 6</span><h3>Ports, environment, volumes: what survives</h3><span class="time">15 min</span></header>
+    <p>Three experiments, each a question the program was written to answer. First, configuration through the environment:</p>
+<pre data-mode="type this"><code>docker run -d --name app -p 8080:8080 -e GREETING=Hej hello:2
+docker logs -f app</code></pre>
+    <p>Reload the browser a few times; the greeting changed without a rebuild, and <code>logs -f</code> follows the log live. Ctrl-C leaves the container running. Second, what a restart keeps and what <code>rm</code> destroys:</p>
+<pre data-mode="type this"><code>docker restart app
+docker rm -f app
+docker run -d --name app -p 8080:8080 hello:2</code></pre>
+    <p>Reload after each command. After <code>restart</code> the counter continues (the writable layer survived). After <code>rm</code> and a new <code>run</code> it is back to 1 (new container, new layer). Third, a volume:</p>
+<pre data-mode="type this"><code>docker rm -f app
+docker run -d --name app -p 8080:8080 -v &quot;$PWD/data&quot;:/data hello:2
+docker rm -f app
+docker run -d --name app -p 8080:8080 -v &quot;$PWD/data&quot;:/data hello:2
+docker rm -f app</code></pre>
+    <p>Reload between the runs. The counter now continues across <code>rm</code>, because <code>visits.txt</code> lives in the <code>data</code> folder on your laptop, mounted over the container's <code>/data</code>.</p>
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>-e GREETING=Hej</code> changes the text; <code>restart</code> keeps the count; <code>rm</code> resets it; with <code>-v</code> the count survives <code>rm</code> and <code>data/visits.txt</code> exists on the laptop.</p></div>
+    <p><strong>Talk about it:</strong> which of the three (env, writable layer, volume) would you use for a database's files? For an API key? For a cache? Why is "the container's filesystem" the wrong place for anything you want to keep?</p>
+  </article>
+
+  <article class="step" id="s7">
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
+    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <h4>Wrap-up points</h4>
+    <ul>
+      <li>Back to the board: image = read-only layers + a start command; container = image + writable layer + process. Everything today was one of: making an image (build), making a container from it (run), or getting things in and out (<code>-p</code>, <code>-e</code>, <code>-v</code>).</li>
+      <li>Order the Dockerfile by how often things change. Copy manifests, install, then copy code.</li>
+      <li>Ship what runs, not what builds. Multi-stage is the default for compiled languages and increasingly for the others.</li>
+      <li>Nothing in a container is kept unless you mounted it somewhere. Say it twice.</li>
+    </ul>
+    <h4>Stretch goals (pick one)</h4>
+    <ul>
+      <li><strong>Publish it.</strong> Tag the image with your GitHub username (<code>docker tag hello:2 ghcr.io/&lt;you&gt;/hello:2</code>), log in to GHCR with a token, push, and have a neighbour <code>docker run</code> it. That is the whole distribution story.</li>
+      <li><strong>Architecture.</strong> Run <code>docker image inspect hello:2 --format '{{.Architecture}}'</code>. On Apple silicon it says <code>arm64</code>. Rebuild with <code>docker build --platform linux/amd64 -t hello:amd64 .</code> and inspect again. Which one runs on a typical cloud server?</li>
+      <li><strong>A shell when you need one.</strong> Replace <code>FROM scratch</code> with <code>FROM gcr.io/distroless/static-debian12</code> (still no shell, but proper certificates, time zones and a non-root user) and then with <code>FROM alpine</code> (a shell, five megabytes). Compare sizes and <code>docker exec</code> behaviour.</li>
+      <li><strong>Run as nobody.</strong> Add <code>USER 65534:65534</code> before <code>CMD</code>. What breaks with the volume, and why? Fix it.</li>
+      <li><strong>Cheap health.</strong> Add <code>HEALTHCHECK CMD ["/server", "-check"]</code> and make the program exit 0 when started with <code>-check</code>. Watch <code>docker ps</code> show "(healthy)". This becomes a liveness probe in the Kubernetes workshop.</li>
+      <li><strong>Write it down.</strong> Put the step 6 <code>docker run</code> into a <code>compose.yaml</code> (one service, its port, environment and volume) and start it with <code>docker compose up</code>. Then add <code>redis:7</code> as a second service and confirm the app container can reach it by name with <code>docker compose exec</code>. This is the seed of workshop 6.</li>
+      <li><strong>Where did the disk go?</strong> <code>docker system df</code>, then <code>docker system prune</code>. Read the prompt before answering it.</li>
+    </ul>
+  </article>
+</section>
+
+<section id="solution">
+  <span class="eyebrow">Reference</span>
+  <h2>Full solution</h2>
+  <p>Paste only. The final state of the <code>docker-lab</code> folder. The program was built with <code>CGO_ENABLED=0</code> and run from a <code>scratch</code> image with the exact commands in steps 5 and 6 (ports, environment, logs, the failing <code>exec</code>, restart, <code>rm</code>, and the volume) before publishing; the resulting image was 13 MB.</p>
+  <div class="dlrow"><a href="code/Dockerfile" download>Dockerfile</a><a href="code/.dockerignore" download>.dockerignore</a><a href="code/go.mod" download>go.mod</a><a href="code/main.go" download>main.go</a><a href="code/Dockerfile.v1" download>Dockerfile.v1 (step 3)</a><a href="code/Dockerfile.v2" download>Dockerfile.v2 (step 4)</a></div>
+  <details class="sol"><summary>Dockerfile (final)<a class="dl" href="code/Dockerfile" download>download</a></summary><pre><code># Stage 1: build, in an image that has the Go toolchain (about 800 MB)
+FROM golang:1.27 AS build
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server .
+
+# Stage 2: run, in an image that has nothing at all
+FROM scratch
+WORKDIR /data
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD [&quot;/server&quot;]</code></pre></details>
+  <details class="sol"><summary>.dockerignore<a class="dl" href="code/.dockerignore" download>download</a></summary><pre><code>visits.txt
+data/</code></pre></details>
+  <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module hello
+
+go 1.24</code></pre></details>
+  <details class="sol"><summary>main.go<a class="dl" href="code/main.go" download>download</a></summary><pre><code>// A tiny web server: says hello, tells you which machine it runs on,
+// and counts visits in a file so we can see what survives a restart.
+package main
+
+import (
+	&quot;fmt&quot;
+	&quot;log&quot;
+	&quot;net/http&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+)
+
+func main() {
+	greeting := os.Getenv(&quot;GREETING&quot;) // configuration comes from the environment
+	if greeting == &quot;&quot; {
+		greeting = &quot;Hello&quot;
+	}
+	host, _ := os.Hostname() // inside a container this is the container id
+
+	http.HandleFunc(&quot;/&quot;, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != &quot;/&quot; { // browsers also ask for /favicon.ico; do not count that
+			http.NotFound(w, r)
+			return
+		}
+		n := bump(&quot;visits.txt&quot;)
+		log.Printf(&quot;%s %s -&gt; visit %d&quot;, r.Method, r.URL.Path, n)
+		fmt.Fprintf(w, &quot;%s from %s! You are visit number %d.\n&quot;, greeting, host, n)
+	})
+
+	log.Println(&quot;listening on http://localhost:8080&quot;)
+	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
+}
+
+// bump reads a number from the file, adds one, writes it back.
+func bump(path string) int {
+	b, _ := os.ReadFile(path)
+	n, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+	n++
+	if err := os.WriteFile(path, []byte(strconv.Itoa(n)), 0o644); err != nil {
+		log.Println(&quot;could not save the counter:&quot;, err)
+	}
+	return n
+}</code></pre></details>
+</section>
+
+<section id="instructor" class="inst-only">
+  <span class="eyebrow">Running the room</span>
+  <h2>Instructor notes</h2>
+  <h4>Timing reality</h4>
+  <p>Step 3's first build is the slow moment: every build recompiles Go's standard library inside the container (the Go build cache does not survive between builds), so expect 30–60 seconds per build under Docker Desktop, and on a laptop that skipped the prep the <code>golang</code> pull is minutes on top; that student needs the USB stick immediately. Step 4 has three builds in it, which is why it got fifteen minutes. Step 5 and step 6 are the ones to protect; if you are behind after step 4, cut the "talk about it" questions in steps 2 and 3. Step 7's stretch goals absorb any time left over.</p>
+  <h4>Things students ask</h4>
+  <ul>
+    <li><em>"Is this how production works?"</em> Yes for building the image. Running it in production is what workshops 6 and 7 are about; nobody types <code>docker run</code> on a server.</li>
+    <li><em>"Why is my image huge even with multi-stage?"</em> Almost always a <code>COPY . .</code> that brought in <code>node_modules</code>, a data folder or a virtual environment. <code>.dockerignore</code>, then <code>docker history</code> to find the layer.</li>
+    <li><em>"Docker Desktop is slow / asks for a licence."</em> Docker Desktop is free for education and small companies; Docker Engine on Linux is always free. Alternatives with the same command line exist (Podman, OrbStack, Colima); the lab is compatible with all of them but has only been tested on Docker.</li>
+    <li><em>"I cannot delete the data folder."</em> On Linux the files a container writes into a bind mount are owned by root, because the process in the container ran as root. <code>sudo rm -rf data</code>, and see stretch goal 4 for the real fix.</li>
+    <li><em>"Can I use this for Python / Node?"</em> Same shape: <code>python:3.13-slim</code> or <code>node:22-slim</code> as the base, manifest first, install, copy code. Multi-stage helps less because the runtime is needed at run time, but the manifest-first ordering matters even more.</li>
+  </ul>
+  <h4>Sources</h4>
+  <ul>
+    <li><a href="https://docs.docker.com/get-started/get-docker/">Get Docker</a> and <a href="https://docs.docker.com/engine/install/linux-postinstall/">Linux post-install steps</a>: the prep pack's install lines.</li>
+    <li><a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/">What is a container?</a>: Docker's own definition, used in slide 2 ("an isolated process with all of the files it needs to run", sharing the host kernel).</li>
+    <li><a href="https://docs.docker.com/build/building/multi-stage/">Multi-stage builds</a>: <code>AS</code>, <code>COPY --from</code>, and the Go-into-<code>scratch</code> example step 5 follows.</li>
+    <li><a href="https://docs.docker.com/build/concepts/context/">Build context</a> and <code>.dockerignore</code>: step 4.</li>
+    <li><a href="https://go.dev/dl/">Go downloads</a>: 1.27 is the current release, hence <code>golang:1.27</code>.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<script src="../../assets/cache-widget.js"></script>
+
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

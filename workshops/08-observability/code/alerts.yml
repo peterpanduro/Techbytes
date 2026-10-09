@@ -1,0 +1,10 @@
+groups:
+  - name: api
+    rules:
+      - alert: CheckoutSlow
+        expr: histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_bucket[1m]))) > 1
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "p95 latency on {{ $labels.path }} is {{ $value }} s"

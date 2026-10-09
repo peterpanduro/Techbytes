@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Log in with GitHub (OAuth 2) · manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<script>try{var v=localStorage.getItem('tb-view');if(v)document.documentElement.dataset.view=v}catch(e){}</script>
+</head>
+<body>
+<div class="sitebar"><div class="wrap">
+  <a class="brand" href="../../index.html">TechBytes</a>
+  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><a href="index.html">Workshop 9</a><span>›</span><span>Manuscript</span></div>
+  <div class="spacer"></div>
+
+</div></div>
+
+<div class="wrap" style="padding-block:2rem 4rem"><main>
+  <span class="eyebrow">TechBytes · Workshop 9 · manuscript</span>
+  <h1 style="margin-bottom:.6rem">Log in with GitHub (OAuth 2)</h1>
+  <p class="muted">Word for word, in first person. 1662 words over 15 minutes: about 13 minutes at a comfortable 130 words per minute, which leaves room for the live widget and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  <article class="ms">
+    <header><span class="num">1</span><h3>&quot;Log in with GitHub&quot;: what actually happens?</h3><span class="time">0:00 → 1:00 · 1 min · 119 words</span></header>
+    <p>Hands up if you have ever clicked a &quot;Log in with GitHub&quot; button. Keep it up if you could draw what happened between the click and the page that said hello. That is the gap we close today.</p><p>It feels like one click. It is about six HTTP requests between three parties, two of them redirects, and one of them a request your browser never sees. Today you build the server behind that button, by hand, in about fifty lines of TypeScript. You develop it against a fake GitHub on your own laptop, then point the same code at the real one and log in with your own account. Fifteen minutes of talking first, then ninety minutes of building.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">2</span><h3>Let an app act as you, without your password</h3><span class="time">1:00 → 3:00 · 2 min · 244 words</span></header>
+    <p>Start with the problem OAuth was invented for. Some app wants to do something with your GitHub account: read your profile, list your repositories. The old answer was: give it your password. Think about what that means. The app can now do everything you can do, until you change your password, and when you do, every other app you gave it to breaks as well. You cannot give it less, and you cannot take it back from just that one.</p><p>OAuth&#x27;s answer is delegation. You never give the app your password. You go to GitHub, you sign in there, and GitHub asks you: this app wants to read your profile, is that all right? If you say yes, GitHub gives the app a token. The token is scoped: it can read your profile and nothing else. And it can be revoked: there is a page in your GitHub settings that lists every app you have authorized, with a button next to each.</p><p>Notice what OAuth is about: authorization, permission to act. &quot;Log in with GitHub&quot; borrows it for something slightly different, which is finding out who you are. We come back to that gap on slide seven, because it is exactly where GitHub differs from Google.</p><p>And workshop four, in one line: a certificate proves that a server holds the key for a name, and trust is a list you choose. That question was &quot;encrypted to whom?&quot;. Today&#x27;s question is &quot;logged in as whom?&quot;.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">3</span><h3>Three parties and a redirect</h3><span class="time">3:00 → 4:00 · 1 min · 122 words</span></header>
+    <p>Three parties. Your browser. Your app, the server you write today. And GitHub. Who holds what? The browser holds you: your GitHub session, and whatever cookie the app gives it. The app holds a client ID, which is public, and a client secret, which is not. GitHub holds your password and decides what to hand out.</p><p>The whole protocol is who redirects whom where, carrying what. Every hop that passes through the browser is visible: it is in the address bar, in the history, in server logs. That is the front channel. One request goes straight from your app to GitHub and never touches the browser: the back channel. Keep those two words. The secret only ever travels on the back channel.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">4</span><h3>Step one: send the user to GitHub</h3><span class="time">4:00 → 6:00 · 2 min · 193 words</span></header>
+    <p>Step one. The user clicks the button, and your app does not show a form. It answers with a redirect to github dot com, slash login, slash oauth, slash authorize, with four values in the query string.</p><p>Client ID: which app is asking. GitHub looks it up, and that is how its consent page knows to say &quot;TechBytes OAuth lab&quot;. Redirect URI: where to send the user back afterwards. It must match, exactly, the callback URL you registered in the prep. Hold on to that; it is one of today&#x27;s three checks. Scope: what you are asking for. We ask for read colon user, permission to read the profile, and nothing else. Ask for the least you need, because the consent page shows the user exactly what you asked for.</p><p>And state, a random string that your app makes up for this one login. That is the next slide.</p><p>Then the user is on GitHub. They sign in there, not on your page. A password manager, a passkey, the six-digit codes from workshop two: all of that happens on GitHub&#x27;s page, and your app never sees any of it. That is the point.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">5</span><h3>state: the string that ties the trip together</h3><span class="time">6:00 → 7:00 · 1 min · 106 words</span></header>
+    <p>State. Before the redirect, your app makes a long random value, puts it in the URL, and also puts it in a cookie in the user&#x27;s browser. GitHub hands it back unchanged on the return trip. Your app compares the two, and if they differ, or the cookie is missing, it stops. GitHub&#x27;s documentation is blunt about it: if they don&#x27;t match, abort.</p><p>What it proves: this callback belongs to a login that this browser started, here, a few minutes ago. We will compare it in constant time, out of habit from workshop three. But it is not a password. The exact match is what matters.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">6</span><h3>Step two: the code comes back; trade it for a token</h3><span class="time">7:00 → 9:00 · 2 min · 227 words</span></header>
+    <p>Step two. The user says yes. GitHub redirects the browser back to your callback with two values in the query string: state, which you check, and a code.</p><p>The code is not the token. It is a claim ticket. It travelled through the browser, so assume it has been seen: it is in the address bar, in the history, maybe in a log. So it is deliberately weak. GitHub says it expires after ten minutes, and on its own it buys nothing.</p><p>To turn it into a token, your server makes a request of its own, straight to GitHub: a POST to login, slash oauth, slash access token, carrying the code, your client ID, the same redirect URI again, and the client secret. That is the back channel. The browser is not involved, the user cannot see it, and the secret never leaves your server.</p><p>One detail that will bite you otherwise: ask for JSON. By default GitHub answers in form encoding. Send an Accept header of application slash json, and you get an access token, a token type of bearer, the scope, and, because Expire user access tokens is on by default, an expiry of eight hours and a refresh token. If anything is wrong, a bad secret or a spent code, you get an error field instead, and your code has to look for it.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">7</span><h3>Step three: who is this? There is no ID token</h3><span class="time">9:00 → 11:00 · 2 min · 209 words</span></header>
+    <p>Step three, and this is where GitHub surprises people. You have a token. Who is the user?</p><p>If you have built &quot;Sign in with Google&quot;, you may expect an ID token: a signed statement, a JSON Web Token, that says &quot;this is user so-and-so&quot;, signed by Google, which you verify with Google&#x27;s public key. That is OpenID Connect, a layer on top of OAuth, and the signature is the same idea as workshop four&#x27;s certificates.</p><p>GitHub does not do OpenID Connect for logging users in. There is no ID token. So we do the only thing we can: we use the token. We call api dot github dot com, slash user, with an Authorization header that says Bearer and the token, and GitHub answers with the profile of whoever the token belongs to. A login, a numeric id, a name.</p><p>So &quot;logged in with GitHub&quot; means: GitHub gave us a token in exchange for a code we asked for, the token works, and slash user says it is octocat. That is the whole proof of identity. It is good enough, because we checked every step that led to the token. Which is why the checks matter. And one habit: store the numeric id, not the login. People rename themselves.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">8</span><h3>PKCE: bind the code to the app that asked</h3><span class="time">11:00 → 12:00 · 1 min · 120 words</span></header>
+    <p>PKCE, pronounced pixie: Proof Key for Code Exchange. Before the redirect, the app makes a second random value, the verifier, and keeps it. It sends GitHub only a hash of it, the challenge. When the app redeems the code on the back channel, it sends the verifier itself, and GitHub checks that its hash matches the challenge.</p><p>So a code is now bound to whoever started the login. Someone who sees the code in a URL cannot redeem it, because they never had the verifier. GitHub supports it with SHA-256 only, recommends it, and still wants your client secret. PKCE does not replace the secret, and it does not replace state. It is a third lock, on a different door.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">9</span><h3>Three checks that make it safe</h3><span class="time">12:00 → 14:00 · 2 min · 210 words</span></header>
+    <p>Here is the whole flow, and where the three checks sit. Let me step through it.</p><p>Hop one: the browser asks for the app&#x27;s front page. Hop two: the app answers with the redirect. State and the verifier go into a cookie; state and the challenge go into the URL. And GitHub runs check two right here: is this redirect URI exactly the registered one? If not, no code is issued.</p><p>Hop three is between you and GitHub only. Hop four: back to the callback with the code and state. Check one, the app&#x27;s own: does state match the cookie? Then the app clears the cookie, and the browser drops it.</p><p>Hop five, the back channel: secret, code, the redirect URI again, and the verifier. GitHub runs check two again, and check three: does the verifier hash to the challenge? Only then is there a token. Hop six: slash user.</p><p>Two of the three checks are run by GitHub, but each one depends on something your app does: making state and comparing it, registering exactly one callback and sending it both times, keeping the verifier. Each check is one line of code you will be able to point at, and in step seven you prove each one with a test.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+  <article class="ms">
+    <header><span class="num">10</span><h3>What we build in the next 90 minutes</h3><span class="time">14:00 → 15:00 · 1 min · 112 words</span></header>
+    <p>Here is the afternoon. Step zero: a project, and a fake GitHub that runs on your laptop. It is pasted, so that everything works offline and the tests run on their own. Then the authorize URL with state; the callback server; the token exchange; slash user, and you are signed in as octocat. Step five: change four lines of configuration and log in with your real GitHub account. Step six: PKCE. Step seven: tests that prove each of the three checks.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes. Stuck for five minutes, wave, and there is a reference version to paste. Five-minute break, then step zero.</p>
+    <p class="cue">→ next slide</p>
+  </article>
+</main></div>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

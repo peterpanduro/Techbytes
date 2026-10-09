@@ -1,0 +1,12 @@
+# Save as .github/dependabot.yml. Once a week, Dependabot opens a pull request
+# for each Go module or action that has a newer version; CI runs on it like any other.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
