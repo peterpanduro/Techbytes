@@ -19,14 +19,23 @@
   <span class="eyebrow">Software engineering workshop series · 10 workshops</span>
   <h1 style="margin-bottom:.6rem">One narrow topic per workshop</h1>
   <p>TechBytes is a series of hands-on workshops on topics every working developer meets sooner or later: containers, passwords, HTTPS, Git, observability, OAuth, CI. Each one has the same shape: a 15-minute talk for the mental model, then a 90-minute lab where everyone types the same code together.</p>
-  <p>Each lab has a small typed-line budget, about <strong>50–65 hand-typed lines</strong> (code plus commands), so the whole room can keep pace. Everything else is copied from the page, which marks what to type and what to paste. Every workshop comes with:</p>
+  <p>Each lab has a small typed-line budget, roughly <strong>40–65 hand-typed lines</strong> (code plus commands), so the whole room can keep pace. Everything else is copied from the page, which marks what to type and what to paste. Every workshop comes with:</p>
   <ul>
     <li>a workshop page with prep pack, lab, solution and instructor notes;</li>
-    <li>a 10-slide deck with speaker view;</li>
+    <li>a slide deck with speaker view;</li>
     <li>a printable manuscript;</li>
     <li>runnable code in <code>code/</code>.</li>
   </ul>
-  <p><strong>What you need.</strong> The labs use TypeScript on Deno and Go, each a single binary on every OS, and some also use Docker. The Kubernetes and Git workshops are language-neutral. Workshop 1 builds its Go server inside a container, so Go is not needed for it. Each workshop page lists its own prep.</p>
+  <p><strong>What you need.</strong> A laptop, a terminal and a text editor, plus the tools below. Workshop 1 builds its Go server inside a container, so it needs no Go. Each workshop page lists its full prep.</p>
+  <ul>
+    <li><strong>Docker</strong> (Desktop or Engine): workshops 1, 6, 7, 8 and 10.</li>
+    <li><strong>Go</strong>: 1.24 or newer for workshop 3 (the prep installs 1.27); Go 1.27 for workshops 4, 6, 8 and 10.</li>
+    <li><strong>Deno</strong>: Deno 2 for workshops 2, 6 and 9, and Deno 2.9 for workshop 8.</li>
+    <li><strong>kind and kubectl</strong>: workshop 7.</li>
+    <li><strong>openssl, curl and Firefox</strong>: workshop 4. Workshops 6 and 9 also use curl.</li>
+    <li><strong>Git</strong> 2.23 or newer: workshop 5. Workshop 10 also needs git.</li>
+    <li><strong>A GitHub account</strong>: workshop 10 needs a personal account with a public repository. Workshop 9 uses one for its real-login step; the rest of that lab runs against a local fake GitHub.</li>
+  </ul>
   <div class="series">
     <article class="ws">
       <h3>1 · Containers from the ground up</h3>
@@ -50,7 +59,7 @@
     </article>
     <article class="ws">
       <h3>5 · Git for the things that go wrong</h3>
-      <p>Break a prepared repository six ways and repair it each time: bisect names the commit that broke the test, interactive rebase squashes four WIP commits, the reflog undoes a hard reset and a deleted branch, a conflict is resolved by hand, and a pre-commit hook says no. No code, just commands. <strong>You type 38 lines, code and commands</strong>; the rest is copied from the page.</p>
+      <p>Break a prepared repository six ways and repair it each time: bisect names the commit that broke the test, interactive rebase squashes four WIP commits, the reflog undoes a hard reset and a deleted branch, a conflict is resolved by hand, and a pre-commit hook says no. No code to write. <strong>You type 38 commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/05-git/index.html">Open the workshop →</a><a class="open" href="workshops/05-git/slides/index.html">Slides</a><a class="open" href="workshops/05-git/manuscript.html">Manuscript</a><span class="tag">standalone</span><span class="tag">tooling</span></div>
     </article>
     <article class="ws">
@@ -60,7 +69,7 @@
     </article>
     <article class="ws">
       <h3>7 · Kubernetes on a laptop</h3>
-      <p>Deploy workshop 6’s three containers to a kind cluster on your laptop: one typed Deployment plus a generated Service, scale to three, kill a pod and watch it return, roll out api:2 and roll it back. 19 lines of YAML and about 33 commands. <strong>You type 53 lines, code and commands</strong>; the rest is copied from the page.</p>
+      <p>Deploy workshop 6’s three containers to a kind cluster on your laptop: one typed Deployment plus a generated Service, scale to three, kill a pod and watch it return, roll out api:2 and roll it back. <strong>You type 53 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/07-kubernetes/index.html">Open the workshop →</a><a class="open" href="workshops/07-kubernetes/slides/index.html">Slides</a><a class="open" href="workshops/07-kubernetes/manuscript.html">Manuscript</a><span class="tag">YAML</span><span class="tag">builds on 6</span><span class="tag">infra</span></div>
     </article>
     <article class="ws">
@@ -75,13 +84,13 @@
     </article>
     <article class="ws">
       <h3>10 · A CI pipeline that builds your image</h3>
-      <p>GitHub Actions on workshop 1’s Go server: a test job on every push, a build job that pushes the image to ghcr.io with the workflow’s own short-lived token (no personal access token anywhere), and govulncheck failing a branch that pins <code>golang.org/x/text</code> v0.3.7 and calls the vulnerable function. A ruleset turns the red check into a blocked merge, and the fixed image runs on your laptop. Five runs, each wait with a job to do. <strong>You type 60 lines, code and commands</strong>; the rest is copied from the page.</p>
+      <p>GitHub Actions on workshop 1’s Go server: a test job on every push, a build job that pushes the image to ghcr.io with the workflow’s own short-lived token (no personal access token anywhere), and govulncheck failing a branch that pins <code>golang.org/x/text</code> v0.3.7 and calls the vulnerable function. A ruleset turns the red check into a blocked merge, and the fixed image runs on your laptop. <strong>You type 60 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/10-ci/index.html">Open the workshop →</a><a class="open" href="workshops/10-ci/slides/index.html">Slides</a><a class="open" href="workshops/10-ci/manuscript.html">Manuscript</a><span class="tag">YAML + Go</span><span class="tag">builds on 1, 3–5</span><span class="tag">devops</span></div>
     </article>
   </div>
 </section>
 </main></div>
-<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; steps that could not be run in the authoring environment are marked on the page. The live widgets use example secrets and made-up data, so never reuse them for anything real.</p></div></footer>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Each lab was run end to end before publishing; steps that could not be run are marked on the page. The live widgets use example secrets and made-up data, so never reuse them for anything real.</p></div></footer>
 <script src="assets/site.js"></script>
 </body>
 </html>
