@@ -11,7 +11,7 @@
 <body>
 <div class="sitebar"><div class="wrap">
   <a class="brand" href="../../index.html">TechBytes</a>
-  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 10 · A CI Pipeline That Builds Your Image</span></div>
+  <div class="crumbs"><a href="../../index.html">Workshops</a><span>›</span><span>Workshop 10 · A CI Pipeline That Builds Your Image</span></div>
   <div class="spacer"></div>
   <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
 </div></div>
@@ -42,7 +42,7 @@
 <div class="wrap page">
 <nav class="toc" aria-label="Contents">
   <ol>
-    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="../../index.html">← All workshops</a></li>
     <li><a href="#glance">At a glance</a></li>
     <li><a href="#prep">Preparation</a>
       <ol class="sub">
@@ -73,7 +73,7 @@
   <h2>At a glance</h2>
   <div class="tbl"><table>
     <tr><th>Outcome</th><td>Every student leaves with a public GitHub repository, <code>ci-lab</code>, whose workflow tests workshop 1's server on every push, scans it with govulncheck, builds its image on every branch and publishes it to ghcr.io from <code>main</code> only; a ruleset that makes a red check a blocked merge; and the fixed image running on their laptop, pulled from the registry the pipeline pushed it to. They can read a workflow file, a run log and a govulncheck report, and say what the job's token was allowed to do.</td></tr>
-    <tr><th>Why this topic</th><td>Workshop 5's pre-commit hook is a "no" that one person can skip with <code>--no-verify</code>. CI is the same "no" for the whole team, run on a machine nobody's laptop can talk out of it. Everyone has seen a red cross on a pull request; few have written the file that puts it there, or know why the token that pushed the image is harmless in a log an hour later. As the last workshop of the year it ties the others together: workshop 1's image, built, scanned and published by a machine on every push.</td></tr>
+    <tr><th>Why this topic</th><td>Workshop 5's pre-commit hook is a "no" that one person can skip with <code>--no-verify</code>. CI is the same "no" for the whole team, run on a machine nobody's laptop can talk out of it. Everyone has seen a red cross on a pull request; few have written the file that puts it there, or know why the token that pushed the image is harmless in a log an hour later. As the last workshop of the series it ties the others together: workshop 1's image, built, scanned and published by a machine on every push.</td></tr>
     <tr><th>Concepts</th><td>Workflows, events, jobs, steps and runners (a fresh VM per job); <code>needs</code> and <code>concurrency</code>; <code>GITHUB_TOKEN</code> and least-privilege <code>permissions</code>; a container registry, package linking and default-private visibility; tags versus digests; <code>go.sum</code> as the lock file, the Go vulnerability database and govulncheck's three levels (called, imported, required); the toolchain as a dependency; rulesets and required status checks; pinning the actions you run.</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 1: a Dockerfile, <code>docker run</code>, <code>--platform</code>. Workshops 3–4: a little Go and <code>go test</code>. Workshop 5: branches, push, the pre-commit hook. No GitHub Actions, YAML or registry knowledge is assumed.</td></tr>
     <tr><th>Language</th><td>YAML for the workflow (21 typed lines), Go for one small feature (12 typed lines), one Dockerfile line. govulncheck runs with <code>go run</code>, so there is nothing new to install.</td></tr>
@@ -158,7 +158,7 @@ go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
   <p>The single idea to land: <strong>CI is a "no" that applies to everyone, and it is only worth what main requires.</strong> A workflow is a file that GitHub runs on a fresh machine for every push; the token it uses lives for one job; a vulnerable dependency is a failing test like any other; and none of it stops anything until a ruleset makes the check required.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">The same no, for the whole team</span><span class="d">1 min</span>
-      <span class="say">Title slide. Callback to workshop 5: the pre-commit hook lives in <code>.git</code>, is never pushed, and <code>--no-verify</code> skips it. CI is the hook nobody can skip, because it runs on a machine nobody's laptop controls. Today it builds workshop 1's image, the year's first workshop, on every push.</span></li>
+      <span class="say">Title slide. Callback to workshop 5: the pre-commit hook lives in <code>.git</code>, is never pushed, and <code>--no-verify</code> skips it. CI is the hook nobody can skip, because it runs on a machine nobody's laptop controls. Today it builds workshop 1's image, the series' first workshop, on every push.</span></li>
     <li><span class="n">2</span><span class="t">A workflow is a file GitHub runs</span><span class="d">2 min</span>
       <span class="say">Push event → workflow → jobs → steps. Walk through today's <code>ci.yml</code> on the slide: <code>on: push</code>, two jobs, <code>runs-on</code>, steps that either <code>uses:</code> an action (someone else's code, at a version) or <code>run:</code> a command. The file lives in the repository, so the pipeline is reviewed and versioned like the code.</span></li>
     <li><span class="n">3</span><span class="t">Every job is a fresh machine</span><span class="d">1 min</span>

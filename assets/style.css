@@ -84,14 +84,10 @@ section>.eyebrow{display:block;margin-bottom:.4rem}
 /* series grid */
 .series{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;margin-top:1.2rem}
 .ws{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem}
-.ws.done{border-style:dashed}
-.ws.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .ws h3{margin:0;font-size:1.05rem}
 .ws p{font-size:.9rem;margin:0;color:var(--muted)}
 .ws .meta{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:auto;padding-top:.4rem}
 .tag{font:500 .7rem var(--mono);border:1px solid var(--line);border-radius:4px;padding:.15rem .4rem;color:var(--muted)}
-.tag.ok{border-color:var(--accent);color:var(--accent)}
-.tag.now{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 
 /* tables */
 .tbl{overflow-x:auto;margin:.8rem 0;max-width:100%}
@@ -162,6 +158,8 @@ html{color-scheme:light dark}
 :root[data-view="student"] .slides .say{display:none}
 .ws a.open{font:600 .8rem var(--body);color:var(--accent);text-decoration:none}
 .ws a.open:hover{text-decoration:underline}
+.ws h3 a{color:inherit;text-decoration:none}
+.ws h3 a:hover,.ws h3 a:focus-visible{color:var(--accent);text-decoration:underline}
 .ws .soon{font:500 .75rem var(--body);color:var(--muted)}
 .call.check .done{display:inline-flex;align-items:center;gap:.4rem;font:500 .8rem var(--body);color:var(--accent);margin-left:auto;cursor:pointer}
 .call.check .lblrow{display:flex;align-items:center;gap:.6rem}

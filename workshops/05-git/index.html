@@ -11,7 +11,7 @@
 <body>
 <div class="sitebar"><div class="wrap">
   <a class="brand" href="../../index.html">TechBytes</a>
-  <div class="crumbs"><a href="../../index.html">The year</a><span>›</span><span>Workshop 5 · Git for the Things That Go Wrong</span></div>
+  <div class="crumbs"><a href="../../index.html">Workshops</a><span>›</span><span>Workshop 5 · Git for the Things That Go Wrong</span></div>
   <div class="spacer"></div>
   <div class="seg" role="group" aria-label="View"><button type="button" data-view="instructor" aria-pressed="true">Instructor</button><button type="button" data-view="student" aria-pressed="false">Student</button></div>
 </div></div>
@@ -50,7 +50,7 @@
 <div class="wrap page">
 <nav class="toc" aria-label="Contents">
   <ol>
-    <li><a href="../../index.html">← The year</a></li>
+    <li><a href="../../index.html">← All workshops</a></li>
     <li><a href="#glance">At a glance</a></li>
     <li><a href="#prep">Preparation</a>
       <ol class="sub">
@@ -83,7 +83,7 @@
   <h2>At a glance</h2>
   <div class="tbl"><table>
     <tr><th>Outcome</th><td>Every student leaves having repaired six git "disasters" with their own hands, and with the model that makes them unfrightening: a commit is a snapshot with a parent, a branch is a label on a commit, HEAD is a label on a branch, and nothing committed is deleted by reset, rebase or branch deletion. They can find a breaking commit with <code>bisect</code>, tidy a branch with <code>rebase -i</code>, recover from the reflog, resolve a conflict, and install a hook.</td></tr>
-    <tr><th>Why this topic</th><td>Everyone in the room uses git daily and most have only ever used add, commit, push and pull. The first time something goes wrong they delete the folder and clone again, and the second time they lose a day's work. One afternoon of breaking a repository on purpose, in a safe copy, replaces that fear with a handful of habits. It is also the breather of the year: no runtime to install, no code to type, placed between the security block and the infrastructure block.</td></tr>
+    <tr><th>Why this topic</th><td>Everyone in the room uses git daily and most have only ever used add, commit, push and pull. The first time something goes wrong they delete the folder and clone again, and the second time they lose a day's work. One afternoon of breaking a repository on purpose, in a safe copy, replaces that fear with a handful of habits. It is also a light one: no runtime to install and no code to type.</td></tr>
     <tr><th>Concepts</th><td>Commits as content-addressed snapshots, the parent chain, why hashes are the same on every laptop today; branches and HEAD as pointers; reachable versus unreachable, and the reflog; <code>bisect</code> as binary search and <code>bisect run</code>; interactive rebase (pick, squash, reword, fixup) and the rule about rewriting shared history; <code>revert</code> versus <code>reset</code>; merge conflicts and the three markers; hooks and <code>--no-verify</code>; stash, worktrees, <code>log -S</code>, <code>blame -L</code>.</td></tr>
     <tr><th>Assumed knowledge</th><td>Has used git before: knows what a commit and a branch are for, has run <code>git add</code>, <code>git commit</code> and <code>git push</code>. Can open a terminal. No knowledge of git internals, rebase, bisect or hooks is assumed.</td></tr>
     <tr><th>Language</th><td>None. The practice project is a five-line shell script with a shell test script, both pasted by the setup script and never edited beyond one appended line. Every command is a git command.</td></tr>

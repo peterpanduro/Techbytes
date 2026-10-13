@@ -4,13 +4,13 @@ A static site: open `index.html` in a browser, no server needed.
 
 Live at https://peterpanduro.github.io/Techbytes/ (GitHub Pages, deployed from `main`, root folder). `.nojekyll` makes Pages serve the files as-is. Keep links relative: the site lives under `/Techbytes/`, and Pages is case-sensitive.
 
-- `index.html` – the year plan: ten workshops in order, typed-line budgets.
+- `index.html` – the visitor-facing landing page: what TechBytes is, the ten workshops with their typed-line counts and links.
 - `workshops/03-passwords`, `04-https`, `05-git`, `06-compose`, `07-kubernetes`, `08-observability`, `09-oauth`, `10-ci` – workshops 3–10, same layout: `index.html`, `slides/`, `manuscript.html`, `code/`.
 - `workshops/01-docker/index.html` – workshop 1, Containers from the ground up (Go, built inside Docker): prep pack, talk, lab, solution, instructor notes, with a layer-cache widget.
 - `workshops/01-docker/code/` – the final Dockerfile, the two intermediate ones, `.dockerignore`, `go.mod`, `main.go`.
 - `workshops/02-totp/index.html` – workshop 2, TOTP from scratch (Deno / TypeScript): prep pack, 15-minute talk, 90-minute lab, full solution, instructor notes.
 - `workshops/02-totp/code/` – the lab files exactly as tested (`deno test` passes all RFC 4226 / RFC 6238 vectors).
-- `workshops/*/slides/index.html` – the 10-slide deck for the talk (arrow keys; `S` for speaker view with manuscript, timer and next slide; `F` fullscreen; `T` dark; two open windows stay in sync).
+- `workshops/*/slides/index.html` – the slide deck for the talk (arrow keys; `S` for speaker view with manuscript, timer and next slide; `F` fullscreen; `T` dark; two open windows stay in sync).
 - `workshops/*/manuscript.html` – the word-for-word script with per-slide timing; printable.
 - `assets/` – shared stylesheet and scripts (site, deck, cache widget).
 
