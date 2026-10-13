@@ -2,7 +2,7 @@
 
 A static site: open `index.html` in a browser, no server needed.
 
-- `index.html` – the year plan: ten workshops in order, typed-line budgets.
+- `index.html` – the visitor-facing landing page: what TechBytes is, the ten workshops with their typed-line counts and links.
 - `workshops/03-passwords`, `04-https`, `05-git`, `06-compose`, `07-kubernetes`, `08-observability`, `09-oauth`, `10-ci` – workshops 3–10, same layout: `index.html`, `slides/`, `manuscript.html`, `code/`.
 - `workshops/01-docker/index.html` – workshop 1, Containers from the ground up (Go, built inside Docker): prep pack, talk, lab, solution, instructor notes, with a layer-cache widget.
 - `workshops/01-docker/code/` – the final Dockerfile, the two intermediate ones, `.dockerignore`, `go.mod`, `main.go`.

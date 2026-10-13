@@ -3,7 +3,7 @@
 Static workshop site; no build step. Open `index.html` in a browser. See `README.md` for the layout.
 
 ## Structure
-- `index.html` – year plan (10 workshops). New workshops are appended at the end; never renumber.
+- `index.html` – visitor-facing landing page listing the 10 workshops. New workshops are appended at the end; never renumber.
 - `workshops/NN-name/` – `index.html`, `slides/index.html`, `manuscript.html`, `code/` (code must match the page character for character).
 - `assets/` – shared `style.css`, `site.js`, `deck.js`/`deck.css`, per-workshop `NN-name-hero.js`. Per-workshop CSS is an appended block with prefix `wN-`.
 
@@ -25,6 +25,7 @@ node --check assets/10-ci-hero.js
 ```
 
 ## Rules
+- Landing page (`index.html`) is for visitors: no status tags, no scheduling or timeline text.
 - Lab budget: ~50–65 hand-typed lines (code + commands); the card states the exact count.
 - Anything not run while authoring is marked on the page ("not run in the authoring environment").
 - No time-relative wording ("yesterday", "this year"); state versions and dates.
