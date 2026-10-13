@@ -2,6 +2,8 @@
 
 A static site: open `index.html` in a browser, no server needed.
 
+Live at https://peterpanduro.github.io/Techbytes/ (GitHub Pages, deployed from `main`, root folder). `.nojekyll` makes Pages serve the files as-is. Keep links relative: the site lives under `/Techbytes/`, and Pages is case-sensitive.
+
 - `index.html` – the year plan: ten workshops in order, typed-line budgets.
 - `workshops/03-passwords`, `04-https`, `05-git`, `06-compose`, `07-kubernetes`, `08-observability`, `09-oauth`, `10-ci` – workshops 3–10, same layout: `index.html`, `slides/`, `manuscript.html`, `code/`.
 - `workshops/01-docker/index.html` – workshop 1, Containers from the ground up (Go, built inside Docker): prep pack, talk, lab, solution, instructor notes, with a layer-cache widget.
