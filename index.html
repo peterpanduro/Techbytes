@@ -38,52 +38,52 @@
   </ul>
   <div class="series">
     <article class="ws">
-      <h3>1 · Containers from the ground up</h3>
+      <h3><a href="workshops/01-docker/index.html">1 · Containers from the ground up</a></h3>
       <p>Image vs container, the run / ps / logs / exec / stop / rm lifecycle, ports, environment and volumes. Then you write a Dockerfile for a small Go web server without installing Go, use the layer cache, and finish with a multi-stage build that shrinks the image from close to a gigabyte to about thirteen megabytes. <strong>You type 27 lines of Dockerfile and 40 commands</strong>; the Go program is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/01-docker/index.html">Open the workshop →</a><a class="open" href="workshops/01-docker/slides/index.html">Slides</a><a class="open" href="workshops/01-docker/manuscript.html">Manuscript</a><span class="tag">Go, inside Docker</span><span class="tag">foundation</span></div>
     </article>
     <article class="ws">
-      <h3>2 · TOTP from scratch</h3>
+      <h3><a href="workshops/02-totp/index.html">2 · TOTP from scratch</a></h3>
       <p>RFC 6238 in TypeScript on the built-in WebCrypto API, checked against the RFC test vectors with <code>deno test</code>, then against your own phone. <strong>You type 45 lines</strong> in seven functions and one class; the Base32 encoder, the test file and two small scripts are copied from the page. No Docker, no dependencies.</p>
       <div class="meta"><a class="open" href="workshops/02-totp/index.html">Open the workshop →</a><a class="open" href="workshops/02-totp/slides/index.html">Slides</a><a class="open" href="workshops/02-totp/manuscript.html">Manuscript</a><span class="tag">Deno</span><span class="tag">security</span></div>
     </article>
     <article class="ws">
-      <h3>3 · Storing passwords properly</h3>
+      <h3><a href="workshops/03-passwords/index.html">3 · Storing passwords properly</a></h3>
       <p>Plaintext, SHA-256, per-user salt, then PBKDF2 at OWASP’s 600,000 rounds. You write the dictionary attack, crack 9 of 10 hashes in under a second, then make the same attack too expensive and add a constant-time compare and self-upgrading hashes. Go, standard library only. <strong>You type 64 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/03-passwords/index.html">Open the workshop →</a><a class="open" href="workshops/03-passwords/slides/index.html">Slides</a><a class="open" href="workshops/03-passwords/manuscript.html">Manuscript</a><span class="tag">Go</span><span class="tag">security</span></div>
     </article>
     <article class="ws">
-      <h3>4 · HTTPS: be your own certificate authority</h3>
+      <h3><a href="workshops/04-https/index.html">4 · HTTPS: be your own certificate authority</a></h3>
       <p>Two openssl commands make a CA, two more and a six-line extension file make a certificate for localhost. A ten-line Go server serves it over TLS, and Firefox and curl refuse it until the CA is trusted. A Go client with its own root pool and openssl s_client show trust as code, and you produce the three ways a padlock fails on purpose. <strong>You type 55 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/04-https/index.html">Open the workshop →</a><a class="open" href="workshops/04-https/slides/index.html">Slides</a><a class="open" href="workshops/04-https/manuscript.html">Manuscript</a><span class="tag">Go</span><span class="tag">security</span></div>
     </article>
     <article class="ws">
-      <h3>5 · Git for the things that go wrong</h3>
+      <h3><a href="workshops/05-git/index.html">5 · Git for the things that go wrong</a></h3>
       <p>Break a prepared repository six ways and repair it each time: bisect names the commit that broke the test, interactive rebase squashes four WIP commits, the reflog undoes a hard reset and a deleted branch, a conflict is resolved by hand, and a pre-commit hook says no. No code to write. <strong>You type 38 commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/05-git/index.html">Open the workshop →</a><a class="open" href="workshops/05-git/slides/index.html">Slides</a><a class="open" href="workshops/05-git/manuscript.html">Manuscript</a><span class="tag">standalone</span><span class="tag">tooling</span></div>
     </article>
     <article class="ws">
-      <h3>6 · Two services and a queue with Docker Compose</h3>
+      <h3><a href="workshops/06-compose/index.html">6 · Two services and a queue with Docker Compose</a></h3>
       <p>An API in Go that enqueues jobs, a worker in Deno that consumes them from a Redis list, and one compose.yaml that starts all three on a private network. Then scale the worker to three and kill one mid-job to see what a plain queue loses. <strong>You type 56 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/06-compose/index.html">Open the workshop →</a><a class="open" href="workshops/06-compose/slides/index.html">Slides</a><a class="open" href="workshops/06-compose/manuscript.html">Manuscript</a><span class="tag">Deno + Go</span><span class="tag">builds on 1</span><span class="tag">microservices</span></div>
     </article>
     <article class="ws">
-      <h3>7 · Kubernetes on a laptop</h3>
+      <h3><a href="workshops/07-kubernetes/index.html">7 · Kubernetes on a laptop</a></h3>
       <p>Deploy workshop 6’s three containers to a kind cluster on your laptop: one typed Deployment plus a generated Service, scale to three, kill a pod and watch it return, roll out api:2 and roll it back. <strong>You type 53 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/07-kubernetes/index.html">Open the workshop →</a><a class="open" href="workshops/07-kubernetes/slides/index.html">Slides</a><a class="open" href="workshops/07-kubernetes/manuscript.html">Manuscript</a><span class="tag">YAML</span><span class="tag">builds on 6</span><span class="tag">infra</span></div>
     </article>
     <article class="ws">
-      <h3>8 · Logs and metrics you can actually use</h3>
+      <h3><a href="workshops/08-observability/index.html">8 · Logs and metrics you can actually use</a></h3>
       <p>Structured JSON logs with log/slog, a hand-written Prometheus /metrics page (a counter and a histogram in thirty lines), and Prometheus and Grafana in Compose. Three PromQL expressions and a two-panel dashboard find the deliberately slow endpoint, and a request id joins the graph to the log line that says why. <strong>You type 55 lines, code and commands</strong>; the rest is copied from the page.</p>
-      <div class="meta"><a class="open" href="workshops/08-observability/index.html">Open the workshop →</a><a class="open" href="workshops/08-observability/slides/index.html">Slides</a><a class="open" href="workshops/08-observability/manuscript.html">Manuscript</a><span class="tag">Go</span><span class="tag">builds on 6</span><span class="tag">operations</span></div>
+      <div class="meta"><a class="open" href="workshops/08-observability/index.html">Open the workshop →</a><a class="open" href="workshops/08-observability/slides/index.html">Slides</a><a class="open" href="workshops/08-observability/manuscript.html">Manuscript</a><span class="tag">Go + Deno</span><span class="tag">builds on 6</span><span class="tag">operations</span></div>
     </article>
     <article class="ws">
-      <h3>9 · Log in with GitHub (OAuth 2)</h3>
+      <h3><a href="workshops/09-oauth/index.html">9 · Log in with GitHub (OAuth 2)</a></h3>
       <p>The redirect dance by hand with <code>Deno.serve</code>: an authorize URL with <code>state</code>, a callback that checks it, the code traded for a token server-to-server, then <code>/user</code>, because GitHub issues no OpenID Connect ID token for user login, so identity is an API call. A local fake GitHub, copied from the page, runs the lab offline and lets the tests run themselves. The same code then logs in with your real account, PKCE binds the code to the app that asked for it, and a test proves each of the three checks (state, exact redirect, PKCE). <strong>You type 60 lines, code and commands</strong>; the fake GitHub, the HTML helpers and the tests are copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/09-oauth/index.html">Open the workshop →</a><a class="open" href="workshops/09-oauth/slides/index.html">Slides</a><a class="open" href="workshops/09-oauth/manuscript.html">Manuscript</a><span class="tag">Deno</span><span class="tag">builds on 2–4</span><span class="tag">security</span></div>
     </article>
     <article class="ws">
-      <h3>10 · A CI pipeline that builds your image</h3>
+      <h3><a href="workshops/10-ci/index.html">10 · A CI pipeline that builds your image</a></h3>
       <p>GitHub Actions on workshop 1’s Go server: a test job on every push, a build job that pushes the image to ghcr.io with the workflow’s own short-lived token (no personal access token anywhere), and govulncheck failing a branch that pins <code>golang.org/x/text</code> v0.3.7 and calls the vulnerable function. A ruleset turns the red check into a blocked merge, and the fixed image runs on your laptop. <strong>You type 60 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><a class="open" href="workshops/10-ci/index.html">Open the workshop →</a><a class="open" href="workshops/10-ci/slides/index.html">Slides</a><a class="open" href="workshops/10-ci/manuscript.html">Manuscript</a><span class="tag">YAML + Go</span><span class="tag">builds on 1, 3–5</span><span class="tag">devops</span></div>
     </article>
