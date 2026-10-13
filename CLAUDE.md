@@ -6,6 +6,7 @@ Static workshop site; no build step. Open `index.html` in a browser. See `README
 - `index.html` – visitor-facing landing page listing the 10 workshops. New workshops are appended at the end; never renumber.
 - `workshops/NN-name/` – `index.html`, `slides/index.html`, `manuscript.html`, `code/` (code must match the page character for character).
 - `assets/` – shared `style.css`, `site.js`, `deck.js`/`deck.css`, per-workshop `NN-name-hero.js`. Per-workshop CSS is an appended block with prefix `wN-`.
+- `.nojekyll` – GitHub Pages serves `main` as-is at https://peterpanduro.github.io/Techbytes/. Links stay relative and case-exact.
 
 ## Commands
 ```bash
