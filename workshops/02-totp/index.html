@@ -152,8 +152,10 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
 
 <section id="talk">
   <span class="eyebrow">15 minutes · 10 slides</span>
-  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
   <h2>The talk: a phone and a server that share a secret</h2>
+  <div class="deck-embed"><iframe src="slides/index.html" title="TOTP From Scratch: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
+  <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
   <p>The single idea to land: <strong>the code is not sent to the phone; the phone and the server compute it independently from a shared secret and the current time.</strong> Everything else in the lab is the mechanics of that sentence. Keep slides sparse; the speaker notes below carry the content.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Your phone and the server share a secret</span><span class="d">1 min</span>

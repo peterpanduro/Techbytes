@@ -41,7 +41,11 @@
     var b=document.getElementById('clk-reset');if(b)b.onclick=function(){t0=null;try{sessionStorage.removeItem('tb-deck-t0:'+deckId)}catch(e){}tick()};
   }
   setInterval(tick,1000);
-  function togglePresenter(){document.body.classList.toggle('presenter');renderPresenter();tick();fit()}
+  var embedded=false;try{embedded=window.self!==window.top}catch(e){embedded=true}
+  if(embedded)document.documentElement.classList.add('embedded');
+  function togglePresenter(){
+    if(embedded&&!document.body.classList.contains('presenter')){window.open(location.pathname+'?presenter#'+(i+1),'_blank','noopener');return}
+    document.body.classList.toggle('presenter');renderPresenter();tick();fit()}
   var help=document.querySelector('.deck-help');
   addEventListener('keydown',function(e){
     if(e.target&&/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)&&e.key!=='Escape')return;
@@ -56,10 +60,15 @@
       case 'Escape':if(help.classList.contains('on'))help.classList.remove('on');else if(document.body.classList.contains('presenter'))togglePresenter();break;
     }
   });
+  document.querySelector('.stage').addEventListener('click',function(e){
+    if(e.target.closest('a,button')||String(getSelection()))return;
+    var r=this.getBoundingClientRect();show(e.clientX-r.left<r.width/3?i-1:i+1,false,true)
+  });
   help.addEventListener('click',function(){help.classList.remove('on')});
-  if(chan)chan.onmessage=function(m){if(m.data&&typeof m.data.i==='number'&&m.data.i!==i)show(m.data.i,true)};
-  addEventListener('storage',function(e){if(e.key==='tb-deck-pos:'+deckId&&e.newValue){try{var v=JSON.parse(e.newValue);if(v.i!==i)show(v.i,true)}catch(x){}}});
+  if(chan)chan.onmessage=function(m){if(m.data&&typeof m.data.i==='number'&&m.data.i!==i){show(m.data.i,true);if(i>0)startClock()}};
+  addEventListener('storage',function(e){if(e.key==='tb-deck-pos:'+deckId&&e.newValue){try{var v=JSON.parse(e.newValue);if(v.i!==i){show(v.i,true);if(i>0)startClock()}}catch(x){}}});
   addEventListener('resize',fit);
   addEventListener('hashchange',function(){var h=parseInt((location.hash||'#1').slice(1),10);if(!isNaN(h)&&h-1!==i)show(h-1)});
-  var h=parseInt((location.hash||'#1').slice(1),10);show(isNaN(h)?0:h-1,true);fit();
+  if(/[?&]presenter(=|&|$)/.test(location.search))document.body.classList.add('presenter');
+  var h=parseInt((location.hash||'#1').slice(1),10);show(isNaN(h)?0:h-1,true);fit();tick();
 })();

@@ -10,7 +10,7 @@ Live at https://peterpanduro.github.io/Techbytes/ (GitHub Pages, deployed from `
 - `workshops/01-docker/code/` – the final Dockerfile, the two intermediate ones, `.dockerignore`, `go.mod`, `main.go`.
 - `workshops/02-totp/index.html` – workshop 2, TOTP from scratch (Deno / TypeScript): prep pack, 15-minute talk, 90-minute lab, full solution, instructor notes.
 - `workshops/02-totp/code/` – the lab files exactly as tested (`deno test` passes all RFC 4226 / RFC 6238 vectors).
-- `workshops/*/slides/index.html` – the slide deck for the talk (arrow keys; `S` for speaker view with manuscript, timer and next slide; `F` fullscreen; `T` dark; two open windows stay in sync).
+- `workshops/*/slides/index.html` – the talk's slide deck, embedded in each workshop page and usable standalone. Tap/click or arrow keys to move; `S` speaker view (manuscript, timer, next slide; opens a new window when embedded); `F` fullscreen; `T` dark; open windows stay in sync.
 - `workshops/*/manuscript.html` – the word-for-word script with per-slide timing; printable.
 - `assets/` – shared stylesheet and scripts (site, deck, cache widget).
 

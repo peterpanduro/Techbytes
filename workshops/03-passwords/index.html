@@ -165,8 +165,10 @@ go run ready.go</code></pre>
 
 <section id="talk">
   <span class="eyebrow">15 minutes · 10 slides</span>
-  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
   <h2>The talk: make the leak worthless</h2>
+  <div class="deck-embed"><iframe src="slides/index.html" title="Storing Passwords Properly: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
+  <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
   <p>The single idea to land: <strong>a stored password must be useless to whoever steals the database; everything we do is raising the cost of turning a stolen hash back into a password from microseconds to centuries.</strong> The lab is the mechanics of that sentence, attacked from both sides.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Assume the database will leak</span><span class="d">1 min</span>
