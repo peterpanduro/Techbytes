@@ -41,7 +41,11 @@
     var b=document.getElementById('clk-reset');if(b)b.onclick=function(){t0=null;try{sessionStorage.removeItem('tb-deck-t0:'+deckId)}catch(e){}tick()};
   }
   setInterval(tick,1000);
-  function togglePresenter(){document.body.classList.toggle('presenter');renderPresenter();tick();fit()}
+  var embedded=false;try{embedded=window.self!==window.top}catch(e){embedded=true}
+  if(embedded)document.documentElement.classList.add('embedded');
+  function togglePresenter(){
+    if(embedded&&!document.body.classList.contains('presenter')){window.open(location.pathname+'?presenter#'+(i+1),'_blank','noopener');return}
+    document.body.classList.toggle('presenter');renderPresenter();tick();fit()}
   var help=document.querySelector('.deck-help');
   addEventListener('keydown',function(e){
     if(e.target&&/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)&&e.key!=='Escape')return;
@@ -61,5 +65,6 @@
   addEventListener('storage',function(e){if(e.key==='tb-deck-pos:'+deckId&&e.newValue){try{var v=JSON.parse(e.newValue);if(v.i!==i)show(v.i,true)}catch(x){}}});
   addEventListener('resize',fit);
   addEventListener('hashchange',function(){var h=parseInt((location.hash||'#1').slice(1),10);if(!isNaN(h)&&h-1!==i)show(h-1)});
-  var h=parseInt((location.hash||'#1').slice(1),10);show(isNaN(h)?0:h-1,true);fit();
+  if(/[?&]presenter\b/.test(location.search))document.body.classList.add('presenter');
+  var h=parseInt((location.hash||'#1').slice(1),10);show(isNaN(h)?0:h-1,true);fit();tick();
 })();

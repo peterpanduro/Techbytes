@@ -96,6 +96,7 @@ body{background:var(--paper)}
 .deck-help div{background:var(--surface);color:var(--ink);border-radius:10px;padding:1.4rem 1.8rem;max-width:26rem;font-size:.95rem;line-height:1.7}
 .deck-help kbd{font:600 .8rem var(--mono);border:1px solid var(--line);border-radius:4px;padding:.1rem .4rem;background:var(--paper)}
 .deck-back{position:fixed;left:14px;bottom:10px;font:500 12px var(--body);color:var(--muted);text-decoration:none;z-index:3}
+.embedded .deck-back{display:none}
 /* one-idea layouts */
 .s-one{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:34px}
 .s-one .s-fig{max-height:100%;width:auto;max-width:100%}

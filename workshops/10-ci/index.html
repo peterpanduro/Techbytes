@@ -153,8 +153,10 @@ go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
 
 <section id="talk">
   <span class="eyebrow">15 minutes · 10 slides</span>
-  <div class="dlrow" style="margin:.2rem 0 .8rem"><a href="slides/index.html">Open the slides →</a><a href="manuscript.html">Read the manuscript →</a></div>
   <h2>The talk: the hook nobody can skip</h2>
+  <div class="deck-embed"><iframe src="slides/index.html" title="A CI Pipeline That Builds Your Image: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
+  <div class="dlrow"><a href="slides/index.html" target="_blank" rel="noopener">Present in a new window →</a><a href="manuscript.html">Read the manuscript →</a></div>
+  <p class="deck-hint">Click the slides, then use the arrow keys. F for fullscreen, S for speaker view, T for dark.</p>
   <p>The single idea to land: <strong>CI is a "no" that applies to everyone, and it is only worth what main requires.</strong> A workflow is a file that GitHub runs on a fresh machine for every push; the token it uses lives for one job; a vulnerable dependency is a failing test like any other; and none of it stops anything until a ruleset makes the check required.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">The same no, for the whole team</span><span class="d">1 min</span>
