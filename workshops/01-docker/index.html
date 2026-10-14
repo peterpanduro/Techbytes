@@ -23,9 +23,9 @@
       <h1>Containers From the Ground Up</h1>
       <p class="lede">Run other people's software in containers, then put your own web server in one: a Dockerfile, a build without any toolchain on your laptop, and a multi-stage build that shrinks the result from close to a gigabyte to about ten megabytes.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~20 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~20 min</b> student prep, one week before</li>
         <li>No prior Docker knowledge</li>
         <li>Go, built inside Docker</li>
         <li>Any OS</li>
@@ -59,8 +59,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · Hello</a></li>
         <li><a href="#s1">1 · Someone else's image</a></li>
@@ -84,21 +84,21 @@
   <h2>At a glance</h2>
   <div class="tbl"><table>
     <tr><th>Outcome</th><td>Every student leaves with a working mental model of image vs container, the full container lifecycle in their fingers, and a repository containing a small Go web server plus a multi-stage Dockerfile that produces an image under 15 MB, built without Go installed on their laptop.</td></tr>
-    <tr><th>Why this topic</th><td>Every later workshop, and most jobs, assume it. Courses rarely teach it, and self-taught Docker tends to be cargo-culted: people copy a Dockerfile without knowing what a layer is or why their image is a gigabyte. This afternoon fixes that once.</td></tr>
+    <tr><th>Why this topic</th><td>Every later workshop, and most jobs, assume it. Courses rarely teach it, and self-taught Docker tends to be cargo-culted: people copy a Dockerfile without knowing what a layer is or why their image is a gigabyte. This workshop fixes that once.</td></tr>
     <tr><th>Concepts</th><td>Images and containers, registries and tags, the run / ps / logs / exec / stop / rm lifecycle, port publishing, environment variables, bind mounts and what survives a restart, Dockerfile instructions, layers and the build cache, the build context and <code>.dockerignore</code>, multi-stage builds, and what containers are not (not VMs, not a security boundary by default, not CPU-architecture independent).</td></tr>
     <tr><th>Assumed knowledge</th><td>Can open a terminal and run a command. Can read a short program in any language. No Go knowledge is needed: the server is pasted and read aloud, never edited beyond one string.</td></tr>
     <tr><th>Language</th><td>Go, but only inside containers. The point of the lab is that the Go toolchain lives in an image, so nobody installs Go. Go was chosen over Deno for this one because a Go binary is a single static file, which makes the multi-stage build land: the final image contains one file and nothing else.</td></tr>
     <tr><th>Students need</th><td>Laptop with Docker Desktop (macOS, Windows) or Docker Engine (Linux), a browser, a text editor. The three images from the prep pack already pulled.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi only for students who skipped the prep; the instructor carries the images on a USB stick.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 20 minutes, plus a download)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 20 minutes, plus a download)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Install Docker</h4>
@@ -121,9 +121,9 @@ docker pull golang:1.27</code></pre>
   <p>Make a folder called <code>docker-lab</code> and open a terminal in it (Terminal on macOS, PowerShell on Windows). Run:</p>
 <pre><code>docker run --rm -v &quot;$PWD&quot;:/work -w /work alpine sh -c &quot;echo ready &gt; proof.txt &amp;&amp; cat proof.txt&quot;</code></pre>
   <p>Windows users: in PowerShell replace <code>"$PWD"</code> with <code>"${PWD}"</code>; if you use Git Bash, paths get rewritten and this will fail, so use PowerShell for the workshop.</p>
-  <div class="call check"><p class="lbl">Expected output</p><p><code>ready</code>, and a file <code>proof.txt</code> has appeared in your folder. If both happened, Docker can run containers and share files with your folder, which is everything the lab needs. If not, bring the error message to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>ready</code>, and a file <code>proof.txt</code> has appeared in your folder. If both happened, Docker can run containers and share files with your folder, which is everything the lab needs. If not, bring the error message to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
 
-  <div class="call inst"><p class="lbl">If Docker will not install</p><p>The two common blockers are virtualisation disabled in the BIOS (Windows laptops from some vendors) and a university-managed laptop without admin rights. Neither is fixable in the room. Pair that student with a neighbour for the afternoon; everything in the lab works for two people at one keyboard.</p></div>
+  <div class="call inst"><p class="lbl">If Docker will not install</p><p>The two common blockers are virtualisation disabled in the BIOS (Windows laptops from some vendors) and a university-managed laptop without admin rights. Neither is fixable in the room. Pair that student with a neighbour for the lab; everything in the lab works for two people at one keyboard.</p></div>
 
   <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
   <ul class="check">
@@ -137,11 +137,11 @@ docker pull golang:1.27</code></pre>
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 11 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>11 slides</span>
   <h2>The talk: a process with its own view of the world</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="Containers From the Ground Up: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>a container is an ordinary process that has been given its own filesystem, network and process list; an image is the frozen filesystem it starts from.</strong> Not a virtual machine, not magic. Everything in the lab is a consequence.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">"It works on my machine"</span><span class="d">1 min</span>
@@ -149,7 +149,7 @@ docker pull golang:1.27</code></pre>
     <li><span class="n">2</span><span class="t">What a container is</span><span class="d">2 min</span>
       <span class="say">A process. The kernel is asked to give it a private view: its own root filesystem, its own network interfaces, its own process IDs, and a limit on memory and CPU. It shares the host's kernel with every other container, which is why it starts in milliseconds and why a VM is a different thing entirely: a VM boots a whole operating system. On macOS and Windows, Docker Desktop runs one small Linux VM and all your containers run inside it; that is why the clock and the disk sometimes behave oddly there.</span></li>
     <li><span class="n">3</span><span class="t">Image versus container</span><span class="d">2 min</span>
-      <span class="say">An image is a read-only filesystem, stored as a stack of layers, plus a note saying which program to start. A container is one image plus a thin writable layer plus a running process. Class and instance. You can run ten containers from one image; each has its own writable layer; delete the container and that layer is gone. Write this on the board and leave it there all afternoon.</span></li>
+      <span class="say">An image is a read-only filesystem, stored as a stack of layers, plus a note saying which program to start. A container is one image plus a thin writable layer plus a running process. Class and instance. You can run ten containers from one image; each has its own writable layer; delete the container and that layer is gone. Write this on the board and leave it there throughout the lab.</span></li>
     <li><span class="n">4</span><span class="t">Where images come from</span><span class="d">1 min</span>
       <span class="say">Registries. Docker Hub is the default; <code>nginx</code> means <code>docker.io/library/nginx:latest</code>. The tag after the colon is a label, not a promise: <code>latest</code> moves. Pin versions. Show the three images from the prep and their sizes with <code>docker images</code>.</span></li>
     <li><span class="n">5</span><span class="t">The lifecycle</span><span class="d">1 min</span>
@@ -164,16 +164,16 @@ docker pull golang:1.27</code></pre>
       <span class="say">Real applications are several containers, each wanting ports, volumes and settings. A compose.yaml writes those <code>docker run</code> flags down per service, and <code>docker compose up</code> starts them all on a private network where they find each other by name. Not for today; the point is that a run command you keep retyping wants to be a file. Workshop 6 is built on it.</span></li>
     <li><span class="n">10</span><span class="t">What containers are not</span><span class="d">1 min</span>
       <span class="say">Not a VM: same kernel. Not a sandbox by default: root inside is root on the host, and a mounted folder is the host's folder. Not portable across CPU architectures: an image built on an Apple-silicon laptop is arm64 and will not run on an amd64 server unless you ask for <code>--platform</code>. All three come back in later workshops.</span></li>
-    <li><span class="n">11</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">11</span><span class="t">What we build<span class="inst-only"> in the next 90 minutes</span></span><span class="d">1 min</span>
       <span class="say">Seven steps: run other people's images, borrow a Go toolchain from an image to run our server, write a Dockerfile, watch the cache, shrink the image with a second stage, then wire up ports, settings and a volume and prove what survives a restart. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 7 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in the <code>docker-lab</code> folder from the prep with one terminal open in it and a browser beside it. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
-  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the Dockerfiles and the commands, 26 lines of Dockerfile and about 35 short commands over the afternoon, more than the other workshops because typing a Docker command is the skill. <strong>Paste this</strong> is the Go program: it is read aloud and understood, but Go is not the topic and typing 40 lines of it would eat a third of the lab. Windows users type <code>${PWD}</code> wherever the page says <code>$PWD</code>.</p></div>
+  <p>Students work in the <code>docker-lab</code> folder from the prep with one terminal open in it and a browser beside it. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the Dockerfiles and the commands, 26 lines of Dockerfile and about 35 short commands across the lab, more than the other workshops because typing a Docker command is the skill. <strong>Paste this</strong> is the Go program: it is read aloud and understood, but Go is not the topic and typing 40 lines of it would eat a third of the lab. Windows users type <code>${PWD}</code> wherever the page says <code>$PWD</code>.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
     <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Hello, and the two commands you will run all day</span></div>
@@ -219,7 +219,7 @@ docker rm web</code></pre>
 
   <article class="step" id="s2">
     <header><span class="num">Step 2</span><h3>Borrow a toolchain to run the server</h3><span class="time">8 min</span></header>
-    <p>The app for the rest of the afternoon is a 40-line Go web server. Create these two files in <code>docker-lab</code>. Read <code>main.go</code> once, top to bottom: it greets you, says which machine it is running on, and counts visits in a file called <code>visits.txt</code>. Three things it does will matter later: it reads <code>GREETING</code> from the environment, it prints its hostname, and it writes a file in the current directory.</p>
+    <p>The app for the rest of the lab is a 40-line Go web server. Create these two files in <code>docker-lab</code>. Read <code>main.go</code> once, top to bottom: it greets you, says which machine it is running on, and counts visits in a file called <code>visits.txt</code>. Three things it does will matter later: it reads <code>GREETING</code> from the environment, it prints its hostname, and it writes a file in the current directory.</p>
     <h4>go.mod</h4>
 <pre data-mode="paste this"><code>module hello
 
@@ -364,7 +364,7 @@ docker rm -f app</code></pre>
 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
-    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>Back to the board: image = read-only layers + a start command; container = image + writable layer + process. Everything today was one of: making an image (build), making a container from it (run), or getting things in and out (<code>-p</code>, <code>-e</code>, <code>-v</code>).</li>

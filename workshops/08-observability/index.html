@@ -23,9 +23,9 @@
       <h1>Logs and Metrics You Can Actually Use</h1>
       <p class="lede">Give a small Go API structured logs and a hand-written Prometheus endpoint, scrape it, graph it in Grafana, and find the deliberately slow endpoint from the graph alone. Then use a request id to jump from the graph to the one log line that says why.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~25 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~25 min</b> student prep, one week before</li>
         <li>No monitoring knowledge assumed</li>
         <li>Go standard library, Deno, Compose</li>
         <li>Any OS</li>
@@ -61,8 +61,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · Run the API and the load</a></li>
         <li><a href="#s1">1 · Logs are data</a></li>
@@ -92,15 +92,15 @@
     <tr><th>Language</th><td>Go, standard library only: <code>log/slog</code> for the logs and <code>fmt</code> for the metrics page. The load generator and the log filter are two tiny Deno scripts, pasted. Prometheus and Grafana run from their official images; nothing is installed on the laptop beyond what earlier workshops installed.</td></tr>
     <tr><th>Students need</th><td>Laptop with Go 1.27 or later, Deno 2.9 or later and Docker from the earlier workshops, the three images from the prep pack pulled, a browser, a text editor, and three terminal windows.</td></tr>
     <tr><th>Room needs</th><td>Projector. No Wi-Fi is needed for anyone who did the prep; the instructor carries the images on a USB stick.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 25 minutes, mostly downloads)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 25 minutes, mostly downloads)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Go, Deno and Docker</h4>
@@ -117,7 +117,7 @@ docker pull grafana/grafana:13.2.2</code></pre>
 <pre><code>go version
 deno eval &quot;console.log(JSON.stringify({ready: true, status: 504}))&quot;
 docker compose version</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (1.27 or later is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole afternoon is built on. If any line fails, bring the error to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (1.27 or later is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole workshop is built on. If any line fails, bring the error to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
   <p>Optional but nice: install <a href="https://jqlang.org/download/">jq</a>, the command-line JSON tool. The lab works without it; there is a Deno script that does the same job.</p>
 
   <div class="call inst"><p class="lbl">If an image will not pull</p><p>The Prometheus and Grafana images are about 100 MB and 450 MB. Both are on the USB stick together with <code>golang:1.27</code>; <code>docker load -i images.tar</code> restores them in a minute. There is no other blocker: no accounts, no tokens, no cloud.</p></div>
@@ -134,15 +134,15 @@ docker compose version</code></pre>
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 11 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>11 slides</span>
   <h2>The talk: where, then why</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="Logs and Metrics You Can Actually Use: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>a log line answers "what happened to this request", a metric answers "how is the system doing", and you need both, because you cannot grep a thousand pods.</strong> Metrics find the where; logs find the why; a request id connects them.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">"It's slow." Which part?</span><span class="d">1 min</span>
-      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh in and tail a log? That works for one server. The afternoon is about what works for a thousand.</span></li>
+      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh in and tail a log? That works for one server. The workshop is about what works for a thousand.</span></li>
     <li><span class="n">2</span><span class="t">Two questions, two tools</span><span class="d">2 min</span>
       <span class="say">"What happened to this request?" is a log question: one record per event, with everything you knew at the time. "How is the system doing?" is a metric question: a few numbers, updated constantly, cheap enough to keep forever. Logs are wide and expensive per event; metrics are narrow and free. A system that has only one of them has a blind spot. Today the API gets both.</span></li>
     <li><span class="n">3</span><span class="t">A log line is data, not prose</span><span class="d">2 min</span>
@@ -161,15 +161,15 @@ docker compose version</code></pre>
       <span class="say">The graph cannot tell you why checkout is slow. Take one slow log line, copy its request id, filter the log for it, and there is a second line from inside the handler: "payment provider timed out". Metrics tell you where to look; logs tell you what you find there; the id is the join key. In step 6 you also write the alert rule so that next time nobody has to be watching the graph.</span></li>
     <li><span class="n">10</span><span class="t">What we are not doing</span><span class="d">1 min</span>
       <span class="say">Traces: the third pillar, one record per request that crosses several services; OpenTelemetry plus a collector is a workshop of its own. The Prometheus client library, which does what our thirty lines do and much more; we write it by hand once so the library is never magic. Log levels and sampling, and SLOs. All four are stretch goals on the page.</span></li>
-    <li><span class="n">11</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">11</span><span class="t"><span class="inst-only">The next 90 minutes</span><span class="stu-only">The lab</span></span><span class="d">1 min</span>
       <span class="say">Seven steps: run the API and a load generator, switch the log to JSON and filter it, write the metrics page, bring up Prometheus and Grafana with Compose, ask three PromQL questions, build the two-panel dashboard and find the slow endpoint, then correlate with a request id and add the alert. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 7 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in the <code>obs-lab</code> folder from the prep with three terminals open in it: one for the API, one for the load generator, one for everything else. A browser sits beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <p>Students work in the <code>obs-lab</code> folder from the prep with three terminals open in it: one for the API, one for the load generator, one for everything else. A browser sits beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
   <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the observability code and configuration: 42 lines of Go (the <code>slog</code> changes, the two metrics functions, the warning line) and 9 lines of YAML (<code>prometheus.yml</code> and one Compose line), 51 lines in all, plus about a dozen commands. <strong>Paste this</strong> is the API itself, the two Deno scripts, the Dockerfile, the Compose file and the alert rule: they are read aloud and understood, but they are not the topic. Windows users: everything on this page runs unchanged in PowerShell; where the page pipes into <code>deno run filter.ts</code>, so do you.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
@@ -185,7 +185,7 @@ docker compose version</code></pre>
 
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Run the API and the load generator</h3><span class="time">8 min</span></header>
-    <p>The app for the afternoon is a 47-line Go web server with three endpoints. Create these two files in <code>obs-lab</code> and read <code>main.go</code> once, top to bottom. <code>wrap</code> runs around every handler, times it and prints one line; the <code>recorder</code> exists only to remember the status code. <code>/checkout</code> is the interesting one: it always sleeps 300 ms, and one call in ten hangs for two more seconds and answers 504. That is the "payment provider" we will find later without being told.</p>
+    <p>The app for the lab is a 47-line Go web server with three endpoints. Create these two files in <code>obs-lab</code> and read <code>main.go</code> once, top to bottom. <code>wrap</code> runs around every handler, times it and prints one line; the <code>recorder</code> exists only to remember the status code. <code>/checkout</code> is the interesting one: it always sleeps 300 ms, and one call in ten hangs for two more seconds and answers 504. That is the "payment provider" we will find later without being told.</p>
     <h4>go.mod</h4>
 <pre data-mode="paste this"><code>module obs
 
@@ -258,7 +258,7 @@ await Promise.all([1, 2, 3].map(loop));</code></pre>
 deno run --allow-net load.ts
 curl -i localhost:8080/checkout</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p>Terminal 1 prints <code>listening on :8080</code> and then a line per request such as <code>GET /checkout 200 300.5ms</code>. Terminal 2 scrolls lines like <code>loop 2  200  /products  1 ms</code> and, every ten checkouts or so, <code>504  /checkout  2302 ms</code>. <code>curl</code> answers <code>paid</code> after about 300 ms, or <code>payment provider timed out</code> with a 504 after 2.3 s if you were unlucky.</p></div>
-    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Someone will have port 8080 taken by a container from workshop 6 or 7: <code>docker ps</code>, then <code>docker rm -f</code>. Leave the load generator running for the rest of the afternoon; every later step needs traffic.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Someone will have port 8080 taken by a container from workshop 6 or 7: <code>docker ps</code>, then <code>docker rm -f</code>. Leave the load generator running for the rest of the lab; every later step needs traffic.</p></div>
   </article>
 
   <article class="step" id="s1">
@@ -483,7 +483,7 @@ docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">6 min</span></header>
-    <p>Bring the room back together for three minutes, then let the fast students pick a stretch goal. <code>docker compose down</code> when you leave.</p>
+    <p>Bring the room back together<span class="inst-only"> for three minutes</span>, then let the fast students pick a stretch goal. <code>docker compose down</code> when you leave.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>A log line is a record: name every field, stamp a request id on it, and the log becomes something you query, not something you read.</li>
@@ -494,7 +494,7 @@ docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
     <h4>Stretch goals (pick one)</h4>
     <ul>
       <li><strong>The library.</strong> Replace <code>metrics.go</code> with <code>github.com/prometheus/client_golang</code>: <code>promauto.NewCounterVec</code>, <code>promauto.NewHistogramVec</code>, and <code>promhttp.Handler()</code> on <code>/metrics</code>. Compare its output with yours: same names, same lines, plus forty Go-runtime metrics for free. (Needs <code>go get</code> and a network; run it at home if the venue has none.)</li>
-      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the SDK and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are the next afternoon.</li>
+      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the SDK and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are a workshop of their own.</li>
       <li><strong>Levels and sampling.</strong> Give the handler a <code>slog.Debug</code> line per request and turn it on with <code>slog.HandlerOptions{Level: slog.LevelDebug}</code> only when an environment variable is set. Then log only every tenth 200 but every 5xx: that is sampling, and it is how a busy service keeps its log bill sane.</li>
       <li><strong>An SLO.</strong> "99% of checkouts under one second over 30 days." Write the PromQL for the fraction that met it (<code>_bucket{le="1"}</code> over <code>_count</code>) and compute how many slow requests the month can afford before the objective is broken. That number is an error budget.</li>
       <li><strong>Alertmanager.</strong> Add <code>prom/alertmanager</code> to Compose, point Prometheus at it with an <code>alerting:</code> block, and route the alert to a webhook receiver (a ten-line <code>Deno.serve</code> that prints the JSON). Watch the page arrive.</li>

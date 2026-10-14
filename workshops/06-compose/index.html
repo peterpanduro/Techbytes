@@ -23,9 +23,9 @@
       <h1>Two Services and a Queue</h1>
       <p class="lede">An API in Go that accepts jobs, a worker in TypeScript that does them, and a Redis list between them. First each piece runs by itself on your laptop; then one <code>compose.yaml</code> starts all three as containers on a private network, scales the worker to three, and shows what a plain queue loses when a worker dies.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~25 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~25 min</b> student prep, one week before</li>
         <li>Needs workshop 1 (Docker)</li>
         <li>Deno + Go, deliberately both</li>
         <li>Any OS</li>
@@ -67,8 +67,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · Hello</a></li>
         <li><a href="#s1">1 · Redis alone</a></li>
@@ -98,15 +98,15 @@
     <tr><th>Language</th><td>Both, on purpose. The API is Go (pasted, read aloud, never edited) because its standard library speaks TCP and HTTP and workshop 1's Dockerfile builds it unchanged. The worker is TypeScript on Deno (typed) because a 15-line blocking loop is the whole idea and the Deno image needs no build stage. The two never share a line of code; they share a list in Redis. That is what "microservices" means at the smallest useful size.</td></tr>
     <tr><th>Students need</th><td>Laptop with Docker Desktop or Docker Engine (workshop 1), Deno 2.9 or later (workshop 2), Go 1.27 or later (workshops 3–4), <code>curl</code>, a text editor, and the three images from the prep pack already pulled: <code>redis:7</code>, <code>denoland/deno:2.9.7</code>, <code>golang:1.27</code>.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi only for step 3's one-time <code>npm:redis</code> download (a few hundred kilobytes) and for anyone who skipped the prep; the instructor carries the images on a USB stick.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on). The heaviest lab in the series: two terminals open from step 1 and nothing optional before step 7.</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on). The heaviest lab in the series: two terminals open from step 1 and nothing optional before step 7.</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 25 minutes, mostly downloads)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 25 minutes, mostly downloads)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. You need three tools from earlier workshops</h4>
@@ -124,7 +124,7 @@ docker pull golang:1.27</code></pre>
 docker run --rm redis:7 sh -c &quot;redis-server --daemonize yes &amp;&amp; sleep 1 &amp;&amp; redis-cli LPUSH jobs ready &amp;&amp; redis-cli BRPOP jobs 0&quot;
 deno eval &quot;console.log([...&#x27;ydaer&#x27;].reverse().join(&#x27;&#x27;))&quot;
 go version</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p>A line starting <code>Docker Compose version v5</code> (v2 or later is fine); then the three lines <code>1</code>, <code>jobs</code>, <code>ready</code> from Redis; then <code>ready</code> from Deno; then a line starting <code>go version go1.27</code>. The Redis line is the whole workshop in miniature: it put one job on a list and took it off again. If all four work, bring the laptop. If not, bring the error message and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p>A line starting <code>Docker Compose version v5</code> (v2 or later is fine); then the three lines <code>1</code>, <code>jobs</code>, <code>ready</code> from Redis; then <code>ready</code> from Deno; then a line starting <code>go version go1.27</code>. The Redis line is the whole workshop in miniature: it put one job on a list and took it off again. If all four work, bring the laptop. If not, bring the error message<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
 
   <div class="call inst"><p class="lbl">If Compose is missing</p><p>The only realistic case is Docker Engine on Linux installed without the plugin, so <code>docker compose</code> says "not a docker command". The fix is <code>sudo apt-get install docker-compose-plugin</code> (or the dnf equivalent) from Docker's own repository, two minutes on Wi-Fi. The older standalone <code>docker-compose</code> (with a hyphen) also works for everything on this page.</p></div>
 
@@ -141,11 +141,11 @@ go version</code></pre>
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 10 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>10 slides</span>
   <h2>The talk: the compose file is the architecture, written down</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="Two Services and a Queue: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>services are separate processes that only ever meet over the network, so the file that says which processes exist, how they find each other and what they are told is the whole architecture.</strong> Everything in the lab, including the lost job, follows from it.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Two services and a queue</span><span class="d">1 min</span>
@@ -166,16 +166,16 @@ go version</code></pre>
       <span class="say">The widget from the top of this page. Post eight jobs with one worker: they queue and drain one a second. Switch to three workers: same list, three times faster. <code>--scale worker=3</code> is three containers from the same image, all blocked on the same list; Redis wakes the one that has been waiting longest, so the jobs go round-robin: in the lab ten jobs took about four seconds instead of ten. Nothing in the code knows it was scaled. Press the red button once and say "hold that thought".</span></li>
     <li><span class="n">9</span><span class="t">What gets lost</span><span class="d">2 min</span>
       <span class="say">Kill a worker while it is holding a job. The job was popped, so it is not in the list; the worker is dead, so it is not in the result either. It is gone. That is at-most-once delivery, and it is what a plain <code>BRPOP</code> gives you. The alternative, at-least-once, moves the job to a "working" list instead of popping it (<code>BLMOVE</code>) and puts it back if the worker dies; the price is that a job can then run twice, so the work has to be safe to repeat: idempotent. Every queue system you will ever use is one of these two, and the lab shows you the loss with your own eyes so you never forget which one you chose.</span></li>
-    <li><span class="n">10</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">10</span><span class="t">What we build<span class="inst-only"> in the next 90 minutes</span></span><span class="d">1 min</span>
       <span class="say">Seven steps: Redis alone, the queue by hand; the API natively; the worker natively; all three in Compose; scale; kill; wrap-up. Two terminals from step 1. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 7 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in the <code>compose-lab</code> folder from the prep with <strong>two terminals</strong> open in it and a browser beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
-  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the worker (15 lines of TypeScript), <code>compose.yaml</code> (15 lines of YAML, in two instalments) and about 25 commands: 55 lines over the afternoon. The worker and the compose file are the topic; typing a Compose command is the skill. <strong>Paste this</strong> is the Go API, both Dockerfiles and the two job-posting loops: read aloud and understood, but not the topic. Windows users use PowerShell, type <code>curl.exe</code> wherever the page says <code>curl</code> (plain <code>curl</code> is an alias for something else there), and use the PowerShell version of each loop.</p></div>
+  <p>Students work in the <code>compose-lab</code> folder from the prep with <strong>two terminals</strong> open in it and a browser beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the worker (15 lines of TypeScript), <code>compose.yaml</code> (15 lines of YAML, in two instalments) and about 25 commands: 55 lines across the lab. The worker and the compose file are the topic; typing a Compose command is the skill. <strong>Paste this</strong> is the Go API, both Dockerfiles and the two job-posting loops: read aloud and understood, but not the topic. Windows users use PowerShell, type <code>curl.exe</code> wherever the page says <code>curl</code> (plain <code>curl</code> is an alias for something else there), and use the PowerShell version of each loop.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
     <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Hello, Compose is there, the images are there</span></div>
@@ -212,7 +212,7 @@ docker compose exec redis redis-cli
 BRPOP jobs 0</code></pre>
     <p>The prompt hangs. <code>BRPOP jobs 0</code> means "take one element from the right end of the list called <code>jobs</code>, and if there is none, wait forever". Nothing is there, so it waits. In your <strong>second terminal</strong>, put something on the left end:</p>
 <pre data-mode="type this"><code>docker compose exec redis redis-cli LPUSH jobs hello</code></pre>
-    <p>The first terminal wakes up immediately and prints the list name and the element. That is the entire mechanism of the afternoon: one side pushes, the other side blocks until there is something to pop. Now, still in the first terminal's prompt, push three at once and pop them one by one (press the up arrow to repeat <code>BRPOP</code>):</p>
+    <p>The first terminal wakes up immediately and prints the list name and the element. That is the entire mechanism of the workshop: one side pushes, the other side blocks until there is something to pop. Now, still in the first terminal's prompt, push three at once and pop them one by one (press the up arrow to repeat <code>BRPOP</code>):</p>
 <pre data-mode="type this"><code>LPUSH jobs a b c
 BRPOP jobs 0</code></pre>
     <p>They come out <code>a</code>, <code>b</code>, <code>c</code>: <code>LPUSH</code> adds to the left, so <code>a</code> was pushed first and ended up rightmost, and <code>BRPOP</code> takes from the right. Oldest first, a queue. A fourth <code>BRPOP</code> hangs again; Ctrl-C it (the image's <code>redis-cli</code> returns to its prompt) and type <code>exit</code>.</p>
@@ -435,7 +435,7 @@ docker compose up -d worker</code></pre>
 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">8 min</span></header>
-    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal. Everyone finishes with:</p>
+    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal. Everyone finishes with:</p>
 <pre data-mode="type this"><code>docker compose down</code></pre>
     <h4>Wrap-up points</h4>
     <ul>
@@ -451,7 +451,7 @@ docker compose up -d worker</code></pre>
       <li><strong>Settings out of the file.</strong> Put <code>REDIS_URL</code> and the published port in a <code>.env</code> file next to <code>compose.yaml</code> and reference them as <code>${REDIS_URL}</code>; run <code>docker compose config</code> to see the file with values filled in. That is how the same file runs on a laptop and a server.</li>
       <li><strong>Real work.</strong> Replace the reversal with a SHA-256 of the text using <code>crypto.subtle.digest</code> (WebCrypto, the same API whose <code>sign</code> you used in workshop 2), and bump the sleep to three seconds so the scaling in step 5 is more dramatic.</li>
       <li><strong>Where does the worker's hostname come from?</strong> Compare <code>Deno.hostname()</code> in the log with <code>docker compose ps</code> and <code>docker inspect</code>. Then set <code>hostname:</code> in the compose file and see it change.</li>
-      <li><strong>The CI demo (instructor, projector, 10 min).</strong> Show a GitHub Actions workflow that runs <code>docker compose up --build -d</code>, posts a job with <code>curl</code>, polls for the result and fails the build if it never appears. Workshop 10 builds the full pipeline; the compose file is what makes an integration test a shell script.</li>
+      <li><strong>The CI demo (instructor, projector<span class="inst-only">, 10 min</span>).</strong> Show a GitHub Actions workflow that runs <code>docker compose up --build -d</code>, posts a job with <code>curl</code>, polls for the result and fails the build if it never appears. Workshop 10 builds the full pipeline; the compose file is what makes an integration test a shell script.</li>
     </ul>
   </article>
 </section>
@@ -664,7 +664,7 @@ volumes:
   <span class="eyebrow">Running the room</span>
   <h2>Instructor notes</h2>
   <h4>Timing reality</h4>
-  <p>Step 4 is the slow moment: the first <code>docker compose up --build</code> compiles the Go program inside <code>golang:1.27</code> and downloads <code>npm:redis</code> inside the Deno image, a minute or two per laptop, and it is where any laptop that skipped the prep discovers it. Step 1 runs long if the two-terminal <code>BRPOP</code> demo is done carelessly; do it once on the projector first. Steps 5 and 6 are short and must not be cut: they are the payoff. If you are behind after step 3, skip the <code>LRANGE</code> in step 2 and the "talk about it" in step 4. Step 7's stretch goals absorb any time left over. Nothing about this afternoon was run in a containerised form in the authoring environment beyond stand-in images; the first time you run step 4 on your own laptop, write down how long the build takes and say that number in the room.</p>
+  <p>Step 4 is the slow moment: the first <code>docker compose up --build</code> compiles the Go program inside <code>golang:1.27</code> and downloads <code>npm:redis</code> inside the Deno image, a minute or two per laptop, and it is where any laptop that skipped the prep discovers it. Step 1 runs long if the two-terminal <code>BRPOP</code> demo is done carelessly; do it once on the projector first. Steps 5 and 6 are short and must not be cut: they are the payoff. If you are behind after step 3, skip the <code>LRANGE</code> in step 2 and the "talk about it" in step 4. Step 7's stretch goals absorb any time left over. Nothing about this workshop was run in a containerised form in the authoring environment beyond stand-in images; the first time you run step 4 on your own laptop, write down how long the build takes and say that number in the room.</p>
   <h4>Things students ask</h4>
   <ul>
     <li><em>"Why does the API open a new TCP connection per request?"</em> Because it keeps the protocol code to one readable function. A real service keeps a connection (or a pool) open; the Deno worker does, via the client library. Offer it as a small refactor for anyone bored.</li>

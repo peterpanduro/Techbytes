@@ -31,3 +31,4 @@ node --check assets/10-ci-hero.js
 - Anything not run while authoring is marked on the page ("not run in the authoring environment").
 - Prerequisite versions appear only on workshop pages, as "<Tool> X.Y or later"; one floor per tool across workshops, equal to the version the lab was verified with. The landing page names tools, not versions.
 - No time-relative wording ("yesterday", "this year"); state versions and dates.
+- No named parts of the day ("afternoon", "morning") for the session; say "the workshop" or "the lab".
