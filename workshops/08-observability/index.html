@@ -117,7 +117,7 @@ docker pull grafana/grafana:13.2.2</code></pre>
 <pre><code>go version
 deno eval &quot;console.log(JSON.stringify({ready: true, status: 504}))&quot;
 docker compose version</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (1.27 or later is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole afternoon is built on. If any line fails, bring the error to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (1.27 or later is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole workshop is built on. If any line fails, bring the error to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
   <p>Optional but nice: install <a href="https://jqlang.org/download/">jq</a>, the command-line JSON tool. The lab works without it; there is a Deno script that does the same job.</p>
 
   <div class="call inst"><p class="lbl">If an image will not pull</p><p>The Prometheus and Grafana images are about 100 MB and 450 MB. Both are on the USB stick together with <code>golang:1.27</code>; <code>docker load -i images.tar</code> restores them in a minute. There is no other blocker: no accounts, no tokens, no cloud.</p></div>
@@ -142,7 +142,7 @@ docker compose version</code></pre>
   <p>The single idea to land: <strong>a log line answers "what happened to this request", a metric answers "how is the system doing", and you need both, because you cannot grep a thousand pods.</strong> Metrics find the where; logs find the why; a request id connects them.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">"It's slow." Which part?</span><span class="d">1 min</span>
-      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh in and tail a log? That works for one server. The afternoon is about what works for a thousand.</span></li>
+      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh in and tail a log? That works for one server. The workshop is about what works for a thousand.</span></li>
     <li><span class="n">2</span><span class="t">Two questions, two tools</span><span class="d">2 min</span>
       <span class="say">"What happened to this request?" is a log question: one record per event, with everything you knew at the time. "How is the system doing?" is a metric question: a few numbers, updated constantly, cheap enough to keep forever. Logs are wide and expensive per event; metrics are narrow and free. A system that has only one of them has a blind spot. Today the API gets both.</span></li>
     <li><span class="n">3</span><span class="t">A log line is data, not prose</span><span class="d">2 min</span>
@@ -185,7 +185,7 @@ docker compose version</code></pre>
 
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Run the API and the load generator</h3><span class="time">8 min</span></header>
-    <p>The app for the afternoon is a 47-line Go web server with three endpoints. Create these two files in <code>obs-lab</code> and read <code>main.go</code> once, top to bottom. <code>wrap</code> runs around every handler, times it and prints one line; the <code>recorder</code> exists only to remember the status code. <code>/checkout</code> is the interesting one: it always sleeps 300 ms, and one call in ten hangs for two more seconds and answers 504. That is the "payment provider" we will find later without being told.</p>
+    <p>The app for the lab is a 47-line Go web server with three endpoints. Create these two files in <code>obs-lab</code> and read <code>main.go</code> once, top to bottom. <code>wrap</code> runs around every handler, times it and prints one line; the <code>recorder</code> exists only to remember the status code. <code>/checkout</code> is the interesting one: it always sleeps 300 ms, and one call in ten hangs for two more seconds and answers 504. That is the "payment provider" we will find later without being told.</p>
     <h4>go.mod</h4>
 <pre data-mode="paste this"><code>module obs
 
@@ -258,7 +258,7 @@ await Promise.all([1, 2, 3].map(loop));</code></pre>
 deno run --allow-net load.ts
 curl -i localhost:8080/checkout</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p>Terminal 1 prints <code>listening on :8080</code> and then a line per request such as <code>GET /checkout 200 300.5ms</code>. Terminal 2 scrolls lines like <code>loop 2  200  /products  1 ms</code> and, every ten checkouts or so, <code>504  /checkout  2302 ms</code>. <code>curl</code> answers <code>paid</code> after about 300 ms, or <code>payment provider timed out</code> with a 504 after 2.3 s if you were unlucky.</p></div>
-    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Someone will have port 8080 taken by a container from workshop 6 or 7: <code>docker ps</code>, then <code>docker rm -f</code>. Leave the load generator running for the rest of the afternoon; every later step needs traffic.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Someone will have port 8080 taken by a container from workshop 6 or 7: <code>docker ps</code>, then <code>docker rm -f</code>. Leave the load generator running for the rest of the lab; every later step needs traffic.</p></div>
   </article>
 
   <article class="step" id="s1">
@@ -494,7 +494,7 @@ docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
     <h4>Stretch goals (pick one)</h4>
     <ul>
       <li><strong>The library.</strong> Replace <code>metrics.go</code> with <code>github.com/prometheus/client_golang</code>: <code>promauto.NewCounterVec</code>, <code>promauto.NewHistogramVec</code>, and <code>promhttp.Handler()</code> on <code>/metrics</code>. Compare its output with yours: same names, same lines, plus forty Go-runtime metrics for free. (Needs <code>go get</code> and a network; run it at home if the venue has none.)</li>
-      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the SDK and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are the next afternoon.</li>
+      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the SDK and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are a workshop of their own.</li>
       <li><strong>Levels and sampling.</strong> Give the handler a <code>slog.Debug</code> line per request and turn it on with <code>slog.HandlerOptions{Level: slog.LevelDebug}</code> only when an environment variable is set. Then log only every tenth 200 but every 5xx: that is sampling, and it is how a busy service keeps its log bill sane.</li>
       <li><strong>An SLO.</strong> "99% of checkouts under one second over 30 days." Write the PromQL for the fraction that met it (<code>_bucket{le="1"}</code> over <code>_count</code>) and compute how many slow requests the month can afford before the objective is broken. That number is an error budget.</li>
       <li><strong>Alertmanager.</strong> Add <code>prom/alertmanager</code> to Compose, point Prometheus at it with an <code>alerting:</code> block, and route the alert to a webhook receiver (a ten-line <code>Deno.serve</code> that prints the JSON). Watch the page arrive.</li>
