@@ -96,7 +96,7 @@
     <tr><th>Concepts</th><td>Delegated authorization; the authorization-code flow as a dance between browser, app and GitHub; front channel and back channel; client ID, client secret, redirect URI and scope; <code>state</code>; the token exchange with <code>Accept: application/json</code>; bearer tokens; why GitHub login is OAuth 2 and not OpenID Connect, so identity comes from <code>GET /user</code> rather than a signed ID token; PKCE with S256; HttpOnly, SameSite=Lax cookies; single-use codes.</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 2: Deno, TypeScript, WebCrypto (<code>crypto.getRandomValues</code>, <code>crypto.subtle</code>), <code>deno test</code> and permission flags. Workshop 3: constant-time comparison, here as a habit. Workshop 4, in one line: a certificate proves a server holds the key for a name, and trust is a list you choose; today the question moves from "encrypted to whom?" to "logged in as whom?". Workshop 6's Deno worker is a useful refresher for anyone whose Deno is rusty, but nothing from it is needed. No OAuth knowledge.</td></tr>
     <tr><th>Language</th><td>TypeScript on Deno 2, no dependencies: <code>Deno.serve</code> is the server, <code>fetch</code> is the client for the back channel, WebCrypto makes <code>state</code> and the PKCE hash, and <code>node:crypto</code>'s <code>timingSafeEqual</code> (as in workshop 2) compares. Every command runs with narrow permissions: <code>--allow-net</code> for named hosts only and <code>--allow-env</code>, never <code>-A</code>.</td></tr>
-    <tr><th>Students need</th><td>Laptop with Deno 2 (the readiness check confirms the version is new enough), a browser, curl, a text editor, and a GitHub account with an OAuth app registered during the prep. A student without one uses the instructor's shared app, or runs the whole lab against the fake GitHub and watches step 5 with a neighbour.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Deno 2.9 or later (the readiness check confirms the version is new enough), a browser, curl, a text editor, and a GitHub account with an OAuth app registered during the prep. A student without one uses the instructor's shared app, or runs the whole lab against the fake GitHub and watches step 5 with a neighbour.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi that reaches github.com and api.github.com, for step 5 only; every other step runs on the laptop against the fake GitHub.</td></tr>
     <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (nine steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -109,7 +109,7 @@
   <h3 id="prep-students">For students (about 20 minutes)</h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
-  <h4>1. Install Deno 2</h4>
+  <h4>1. Install Deno 2.9 or later</h4>
   <p>If you did workshop 2 you already have it. Otherwise:</p>
 <pre><code># macOS / Linux
 curl -fsSL https://deno.land/install.sh | sh
@@ -120,7 +120,7 @@ irm https://deno.land/install.ps1 | iex
 # or, if you already use a package manager
 brew install deno            # macOS
 winget install DenoLand.Deno # Windows</code></pre>
-  <p>Check it in a new terminal window. The version should start with 2; step 4 below tells you whether it is new enough, and <code>deno upgrade</code> fixes it if not.</p>
+  <p>Check it in a new terminal window. The version should be 2.9 or later; step 4 below tells you whether it is new enough, and <code>deno upgrade</code> fixes it if not.</p>
 <pre><code>deno --version</code></pre>
 
   <h4>2. Register an OAuth app on GitHub</h4>

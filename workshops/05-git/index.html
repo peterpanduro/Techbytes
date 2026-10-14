@@ -87,7 +87,7 @@
     <tr><th>Concepts</th><td>Commits as content-addressed snapshots, the parent chain, why hashes are the same on every laptop today; branches and HEAD as pointers; reachable versus unreachable, and the reflog; <code>bisect</code> as binary search and <code>bisect run</code>; interactive rebase (pick, squash, reword, fixup) and the rule about rewriting shared history; <code>revert</code> versus <code>reset</code>; merge conflicts and the three markers; hooks and <code>--no-verify</code>; stash, worktrees, <code>log -S</code>, <code>blame -L</code>.</td></tr>
     <tr><th>Assumed knowledge</th><td>Has used git before: knows what a commit and a branch are for, has run <code>git add</code>, <code>git commit</code> and <code>git push</code>. Can open a terminal. No knowledge of git internals, rebase, bisect or hooks is assumed.</td></tr>
     <tr><th>Language</th><td>None. The practice project is a five-line shell script with a shell test script, both pasted by the setup script and never edited beyond one appended line. Every command is a git command.</td></tr>
-    <tr><th>Students need</th><td>Laptop with git 2.23 or newer (any git from the last five years), a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: VS Code or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
+    <tr><th>Students need</th><td>Laptop with git 2.43 or later, a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: VS Code or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
     <tr><th>Room needs</th><td>Projector. Nothing else.</td></tr>
     <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -103,7 +103,7 @@
   <h4>1. Install git, and use the right terminal</h4>
   <p>Windows: install Git for Windows from <a href="https://git-scm.com/install/windows">git-scm.com/install/windows</a> (or <code>winget install --id Git.Git -e --source winget</code>). It includes <strong>Git Bash</strong>; use Git Bash, not PowerShell, for everything in this workshop, because the setup script and the test script are bash scripts. The git commands themselves are identical everywhere. macOS: <code>xcode-select --install</code> gives you Apple's git, or <code>brew install git</code> for the current one. Linux: <code>sudo apt install git</code> or <code>sudo dnf install git</code>. Then:</p>
 <pre><code>git --version</code></pre>
-  <p>Anything from 2.23 onwards is fine; the current release is 2.55. Older than 2.23 and <code>git switch</code> does not exist: upgrade.</p>
+  <p>Git 2.43 or later is fine; the current release is 2.55. Older versions may lack <code>git switch</code> (added in 2.23): upgrade.</p>
 
   <h4>2. Tell git who you are, if you never have</h4>
 <pre><code>git config --global user.name &quot;Your Name&quot;
@@ -472,7 +472,7 @@ git diff --quiet HEAD~1 HEAD -- &#x27;*.md&#x27; || exit 125
 # Run it once:  bash make-repo.sh   (Terminal on macOS/Linux, Git Bash on Windows)
 # It creates a folder called git-lab next to this script. Every commit has a
 # fixed author, committer and date, so everyone in the room gets the same hashes.
-# Needs only bash and git 2.23 or newer.
+# Needs only bash and git 2.43 or later.
 set -eu
 
 if [ -e git-lab ]; then

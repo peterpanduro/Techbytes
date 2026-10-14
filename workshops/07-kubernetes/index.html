@@ -86,7 +86,7 @@
     <tr><th>Concepts</th><td>Cluster, node, control plane and API server; desired state and controllers; Pods as the unit; Deployments and ReplicaSets; labels and selectors; Services and in-cluster DNS; <code>kubectl get / describe / logs / apply / expose / scale / rollout</code>; image pull policy and why <code>:latest</code> bites; rolling updates, revisions and rollback; what a laptop cluster does not have (load balancers, persistent storage, more than one node).</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 6: what an image is, what <code>compose.yaml</code> did, and that the API finds Redis by the name <code>redis</code>. Nothing about Kubernetes.</td></tr>
     <tr><th>Language</th><td>None. YAML and <code>kubectl</code> only. The images from workshop 6 are used as they are; step 6 changes one string in the API and rebuilds it to have something to roll out.</td></tr>
-    <tr><th>Students need</th><td>Laptop with Docker Desktop (or Docker Engine on Linux), <code>kind</code> and <code>kubectl</code> installed per the prep, the <code>kindest/node</code> image already downloaded, workshop 6's folder with its images rebuilt as <code>api:1</code> and <code>worker:1</code>.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Docker Desktop (or Docker Engine on Linux), <code>kind</code> 0.33 or later and <code>kubectl</code> 1.37 or later installed per the prep, the <code>kindest/node</code> image already downloaded, workshop 6's folder with its images rebuilt as <code>api:1</code> and <code>worker:1</code>.</td></tr>
     <tr><th>Room needs</th><td>Projector. No Wi-Fi is needed if the prep was done: every image the cluster uses is loaded from the laptop's Docker.</td></tr>
     <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -102,7 +102,7 @@
   <h4>1. Give Docker enough memory</h4>
   <p>The cluster runs inside Docker. On macOS and Windows open Docker Desktop → Settings → Resources and check the memory limit: kind's documentation asks for 6 GB minimum and recommends 8 GB for the Docker virtual machine. On Linux there is no limit to set.</p>
 
-  <h4>2. Install kind (a Kubernetes cluster inside Docker)</h4>
+  <h4>2. Install kind 0.33 or later (a Kubernetes cluster inside Docker)</h4>
   <p>macOS:</p>
 <pre><code>brew install kind</code></pre>
   <p>Windows (PowerShell):</p>
@@ -113,7 +113,7 @@ chmod +x ./kind
 sudo mv ./kind /usr/local/bin/kind</code></pre>
   <p>No Homebrew or winget? The same page has a <code>curl</code> line for every platform: <a href="https://kind.sigs.k8s.io/docs/user/quick-start/#installation">kind.sigs.k8s.io/docs/user/quick-start</a>.</p>
 
-  <h4>3. Install kubectl (the command-line client)</h4>
+  <h4>3. Install kubectl 1.37 or later (the command-line client)</h4>
   <p>Docker Desktop already ships a <code>kubectl</code> on macOS and Windows; run <code>kubectl version --client</code> and if it prints a version you can skip this step. Otherwise:</p>
   <p>macOS:</p>
 <pre><code>brew install kubectl</code></pre>
@@ -142,7 +142,7 @@ docker images</code></pre>
 <pre><code>kind version
 kubectl version --client
 docker images kindest/node</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p>A line beginning <code>kind v0.33.0</code>, a line <code>Client Version: v1.37.0</code> (a newer patch number is fine; the line after it, <code>Kustomize Version</code>, can be ignored), and a table with one row for <code>kindest/node</code>. If all three are there, the lab will run without the network. If not, bring the error message to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p>A line beginning <code>kind v0.33.0</code>, a line <code>Client Version: v1.37.0</code> (1.37 or later is fine; the line after it, <code>Kustomize Version</code>, can be ignored), and a table with one row for <code>kindest/node</code>. If all three are there, the lab will run without the network. If not, bring the error message to the workshop and arrive ten minutes early.</p></div>
 
   <div class="call inst"><p class="lbl">If kind will not start</p><p>The usual causes: Docker Desktop not running, Docker Desktop with too little memory, or on Linux a cgroup v1 system (kind warns about it and still works today). A student who cannot get a cluster can pair with a neighbour; every step works with two people at one keyboard. As a last resort, Docker Desktop has its own built-in Kubernetes (Settings → Kubernetes → Create cluster, context <code>docker-desktop</code>); the lab was written for kind and <code>kind load</code> does not apply there, but every <code>kubectl</code> line does.</p></div>
 

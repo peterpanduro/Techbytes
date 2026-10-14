@@ -90,7 +90,7 @@
     <tr><th>Concepts</th><td>Structured logs and why a log line is a record, not a sentence; request ids; counters and histograms; labels and cardinality; the Prometheus text exposition format; pull-based scraping and the scrape interval; <code>rate()</code>, <code>sum by</code>, and <code>histogram_quantile()</code>; why p95 is not the average and why a bucketed p95 is an estimate; dashboards as questions; alert rules; the difference between "where" (metrics) and "why" (logs), and what traces would add.</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 1 (containers, ports) and workshop 6 (Compose, a service finds another by name). Can read a short Go program; workshops 3, 4 and 6 provided that. No Prometheus, Grafana or statistics knowledge.</td></tr>
     <tr><th>Language</th><td>Go, standard library only: <code>log/slog</code> for the logs and <code>fmt</code> for the metrics page. The load generator and the log filter are two tiny Deno scripts, pasted. Prometheus and Grafana run from their official images; nothing is installed on the laptop beyond what earlier workshops installed.</td></tr>
-    <tr><th>Students need</th><td>Laptop with Go 1.27, Deno 2.9 and Docker from the earlier workshops, the three images from the prep pack pulled, a browser, a text editor, and three terminal windows.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Go 1.27 or later, Deno 2.9 or later and Docker from the earlier workshops, the three images from the prep pack pulled, a browser, a text editor, and three terminal windows.</td></tr>
     <tr><th>Room needs</th><td>Projector. No Wi-Fi is needed for anyone who did the prep; the instructor carries the images on a USB stick.</td></tr>
     <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -104,7 +104,7 @@
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Go, Deno and Docker</h4>
-  <p>You have all three from earlier workshops. Check they still work; if any is missing, Go comes from <a href="https://go.dev/dl/">go.dev/dl</a> (1.27 is current), Deno from <a href="https://docs.deno.com/runtime/getting_started/installation/">docs.deno.com</a> (<code>curl -fsSL https://deno.land/install.sh | sh</code> on macOS and Linux, <code>irm https://deno.land/install.ps1 | iex</code> in PowerShell), and Docker Desktop from <a href="https://docs.docker.com/get-started/get-docker/">docs.docker.com</a>. Docker Desktop must be running.</p>
+  <p>You have all three from earlier workshops. Check they still work; if any is missing, Go comes from <a href="https://go.dev/dl/">go.dev/dl</a> (1.27 or later), Deno from <a href="https://docs.deno.com/runtime/getting_started/installation/">docs.deno.com</a> (<code>curl -fsSL https://deno.land/install.sh | sh</code> on macOS and Linux, <code>irm https://deno.land/install.ps1 | iex</code> in PowerShell), and Docker Desktop from <a href="https://docs.docker.com/get-started/get-docker/">docs.docker.com</a>. Docker Desktop must be running.</p>
 
   <h4>2. Download the three images we will use</h4>
   <p>About 1.4 GB in total, most of it the Go toolchain image you may already have from workshop 1. Do this at home.</p>
@@ -117,7 +117,7 @@ docker pull grafana/grafana:13.2.2</code></pre>
 <pre><code>go version
 deno eval &quot;console.log(JSON.stringify({ready: true, status: 504}))&quot;
 docker compose version</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (any 1.2x is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole afternoon is built on. If any line fails, bring the error to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (1.27 or later is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole afternoon is built on. If any line fails, bring the error to the workshop and arrive ten minutes early.</p></div>
   <p>Optional but nice: install <a href="https://jqlang.org/download/">jq</a>, the command-line JSON tool. The lab works without it; there is a Deno script that does the same job.</p>
 
   <div class="call inst"><p class="lbl">If an image will not pull</p><p>The Prometheus and Grafana images are about 100 MB and 450 MB. Both are on the USB stick together with <code>golang:1.27</code>; <code>docker load -i images.tar</code> restores them in a minute. There is no other blocker: no accounts, no tokens, no cloud.</p></div>

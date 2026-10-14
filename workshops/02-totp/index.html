@@ -90,7 +90,7 @@
     <tr><th>Concepts</th><td>Shared secrets, HMAC, HOTP (RFC 4226), TOTP (RFC 6238), Base32, big-endian packing, dynamic truncation, time windows, replay, constant-time comparison, brute-force arithmetic, and the limits of TOTP (phishing, relay attacks) that motivate passkeys. On the side: WebCrypto, typed arrays, Deno's permission flags and test runner.</td></tr>
     <tr><th>Assumed knowledge</th><td>Can write a JavaScript or TypeScript function and run a script. Nothing else. <code>async</code>/<code>await</code> appears because WebCrypto is asynchronous; the talk spends one sentence on it.</td></tr>
     <tr><th>Language</th><td>TypeScript on Deno 2. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary. Docker is not needed; a container is offered as a fallback only.</td></tr>
-    <tr><th>Students need</th><td>Laptop with Deno 2, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Deno 2.9 or later, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi is only needed for one <code>npm:</code> download in step 5, which the prep pack fetches ahead of time.</td></tr>
     <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>

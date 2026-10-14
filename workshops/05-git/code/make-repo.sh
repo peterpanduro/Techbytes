@@ -3,7 +3,7 @@
 # Run it once:  bash make-repo.sh   (Terminal on macOS/Linux, Git Bash on Windows)
 # It creates a folder called git-lab next to this script. Every commit has a
 # fixed author, committer and date, so everyone in the room gets the same hashes.
-# Needs only bash and git 2.23 or newer.
+# Needs only bash and git 2.43 or later.
 set -eu
 
 if [ -e git-lab ]; then
