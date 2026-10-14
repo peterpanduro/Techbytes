@@ -23,9 +23,9 @@
       <h1>Log in with GitHub (OAuth 2)</h1>
       <p class="lede">Build the server behind a "Log in with GitHub" button with <code>Deno.serve</code>: send the browser to GitHub with a <code>state</code> value, trade the code that comes back for a token on a channel the browser never sees, and ask GitHub's API whose token it is. A pasted fake GitHub runs the whole lab offline; then the same code logs you in with your real account, PKCE binds the code to the app that asked for it, and a test proves each of the three checks.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~20 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~20 min</b> student prep, one week before</li>
         <li>Builds on workshops 2–4</li>
         <li>Deno · TypeScript</li>
         <li>No dependencies</li>
@@ -66,8 +66,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · A project and a fake GitHub</a></li>
         <li><a href="#s1">1 · The authorize URL and state</a></li>
@@ -98,15 +98,15 @@
     <tr><th>Language</th><td>TypeScript on Deno 2, no dependencies: <code>Deno.serve</code> is the server, <code>fetch</code> is the client for the back channel, WebCrypto makes <code>state</code> and the PKCE hash, and <code>node:crypto</code>'s <code>timingSafeEqual</code> (as in workshop 2) compares. Every command runs with narrow permissions: <code>--allow-net</code> for named hosts only and <code>--allow-env</code>, never <code>-A</code>.</td></tr>
     <tr><th>Students need</th><td>Laptop with Deno 2.9 or later (the readiness check confirms the version is new enough), a browser, curl, a text editor, and a GitHub account with an OAuth app registered during the prep. A student without one uses the instructor's shared app, or runs the whole lab against the fake GitHub and watches step 5 with a neighbour.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi that reaches github.com and api.github.com, for step 5 only; every other step runs on the laptop against the fake GitHub.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (nine steps, each with a checkpoint that must pass before moving on).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (nine steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 20 minutes)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 20 minutes)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Install Deno 2.9 or later</h4>
@@ -149,7 +149,7 @@ const challenge = new Uint8Array(hash).toBase64({ alphabet: &quot;base64url&quot
 console.log(`Deno ${Deno.version.deno}, challenge ${challenge}`);
 </code></pre>
 <pre><code>deno run ready.ts</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p><code>Deno 2.9.7, challenge E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM</code>. Your version number may differ; the challenge must be exactly that. If it says <code>toBase64 is not a function</code>, your Deno is too old: run <code>deno upgrade</code> and try again. Bring any other error to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>Deno 2.9.7, challenge E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM</code>. Your version number may differ; the challenge must be exactly that. If it says <code>toBase64 is not a function</code>, your Deno is too old: run <code>deno upgrade</code> and try again. Bring any other error to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
 
   <h4>5. Optional: editor support</h4>
   <p>If you use VS Code, the official "Deno" extension shows type errors as you type. Enable it for the <code>oauth-lab</code> folder (Command Palette → "Deno: Initialize Workspace Configuration").</p>
@@ -170,11 +170,11 @@ console.log(`Deno ${Deno.version.deno}, challenge ${challenge}`);
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 10 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>10 slides</span>
   <h2>The talk: logged in as whom?</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="Log in with GitHub (OAuth 2): slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>the app never sees your password. GitHub hands it a short-lived code on a redirect it registered, and the app trades that code, plus its own secret, for a token on a channel the browser never sees. Three checks tie the trip together, and there is no signed identity: only an API call that works.</strong></p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">&quot;Log in with GitHub&quot;: what actually happens?</span><span class="d">1 min</span>
@@ -195,15 +195,15 @@ console.log(`Deno ${Deno.version.deno}, challenge ${challenge}`);
       <span class="say">A second random value, the verifier, stays with the app; only its SHA-256 hash, the challenge, goes to GitHub with the redirect. At redemption the app sends the verifier and GitHub compares. A code seen in a URL is useless without the verifier. GitHub supports S256 only, recommends PKCE, and still requires the secret: it replaces neither the secret nor <code>state</code>.</span></li>
     <li><span class="n">9</span><span class="t">Three checks that make it safe</span><span class="d">2 min</span>
       <span class="say">Use the widget and press the six hops. Hop 2: GitHub checks the <code>redirect_uri</code> against the registered callback (check 2). Hop 4: the app checks <code>state</code> against the cookie and clears it (check 1). Hop 5, back channel: GitHub checks the <code>redirect_uri</code> again and hashes the verifier against the challenge (check 3). Two are run by GitHub, but each depends on something the app does, and each is one line the students will point at in step 7.</span></li>
-    <li><span class="n">10</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">10</span><span class="t">What we build<span class="inst-only"> in the next 90 minutes</span></span><span class="d">1 min</span>
       <span class="say">Show the nine steps. Steps 0 to 4 and 6 to 7 run entirely against the pasted fake GitHub, so they work offline and <code>deno test</code> checks them; step 5 is four lines of <code>.env</code> and a real login. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 9 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>9 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in the <code>oauth-lab</code> folder from the prep, in four files: <code>oauth.ts</code> (the protocol, typed), <code>server.ts</code> (the app, partly typed), <code>fakehub.ts</code> (a fake GitHub, pasted) and <code>oauth_test.ts</code> (the tests, pasted a block at a time). They keep three terminals open in the folder: one for the fake GitHub, one for the server, one for curl and <code>deno test</code>. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference code for that step from the <a href="#solution">full solution</a> and continues.</p>
+  <p>Students work in the <code>oauth-lab</code> folder from the prep, in four files: <code>oauth.ts</code> (the protocol, typed), <code>server.ts</code> (the app, partly typed), <code>fakehub.ts</code> (a fake GitHub, pasted) and <code>oauth_test.ts</code> (the tests, pasted a block at a time). They keep three terminals open in the folder: one for the fake GitHub, one for the server, one for curl and <code>deno test</code>. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference code for that step from the <a href="#solution">full solution</a> and continues.</p>
   <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is 60 lines over the afternoon: 49 lines of TypeScript (the protocol in <code>oauth.ts</code> and the two route handlers in <code>server.ts</code>, including the lines that change in steps 4 and 6), 4 lines of <code>.env</code> and 7 commands. <strong>Paste this</strong> is everything else: the fake GitHub (scaffolding, read aloud where it matters), the cookie and HTML helpers, and the tests, which arrive one block per step so that the test file only ever refers to code that already exists. Windows users in Windows PowerShell type <code>curl.exe</code> wherever the page says <code>curl</code>.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
@@ -693,7 +693,7 @@ Deno.test(&quot;step 7, PKCE: the app&#x27;s own code is useless without the coo
 
   <article class="step" id="s8">
     <header><span class="num">Step 8</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
-    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>The app never saw a password. It got a code on the front channel and traded it, with its secret, on the back channel. Draw the six hops from memory.</li>

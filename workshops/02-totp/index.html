@@ -23,9 +23,9 @@
       <h1>TOTP From Scratch</h1>
       <p class="lede">Build the six-digit authenticator code your phone shows, in about forty lines of TypeScript, and prove it is right by scanning your own QR code with Google Authenticator.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~15 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~15 min</b> student prep, one week before</li>
         <li>No prior crypto knowledge</li>
         <li>Deno · TypeScript</li>
         <li>No dependencies</li>
@@ -60,8 +60,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · Project</a></li>
         <li><a href="#s1">1 · Secret</a></li>
@@ -92,15 +92,15 @@
     <tr><th>Language</th><td>TypeScript on Deno 2. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary. Docker is not needed; a container is offered as a fallback only.</td></tr>
     <tr><th>Students need</th><td>Laptop with Deno 2.9 or later, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi is only needed for one <code>npm:</code> download in step 5, which the prep pack fetches ahead of time.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 15 minutes)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 15 minutes)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Install Deno</h4>
@@ -132,7 +132,7 @@ const mac = new Uint8Array(await crypto.subtle.sign(&quot;HMAC&quot;, key, new T
 console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).join(&quot;&quot;));
 </code></pre>
 <pre><code>deno run check.ts</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p><code>caad48f0073dc46b2174e2384dfa2e4378f8c823</code></p><p>If you see exactly that, you are ready. If not, bring the error message to the workshop and arrive ten minutes early; we will sort it out before the talk.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>caad48f0073dc46b2174e2384dfa2e4378f8c823</code></p><p>If you see exactly that, you are ready. If not, bring the error message to the workshop<span class="inst-only"> and arrive ten minutes early</span>; we will sort it out before the talk.</p></div>
 
   <h4>5. Optional: editor support</h4>
   <p>Any editor works. If you use VS Code, the official "Deno" extension gives you type errors as you type, which helps in the lab. Enable it for the <code>totp-lab</code> folder (Command Palette → "Deno: Initialize Workspace Configuration").</p>
@@ -151,11 +151,11 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 10 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>10 slides</span>
   <h2>The talk: a phone and a server that share a secret</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="TOTP From Scratch: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>the code is not sent to the phone; the phone and the server compute it independently from a shared secret and the current time.</strong> Everything else in the lab is the mechanics of that sentence. Keep slides sparse; the speaker notes below carry the content.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Your phone and the server share a secret</span><span class="d">1 min</span>
@@ -176,15 +176,15 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
       <span class="say">Accept a window (RFC 6238 recommends at most one step either side). Never accept the same code twice, or an attacker who sees you type it has 30 seconds. Compare in constant time. Do the brute-force arithmetic on the slide: a million possible codes, three accepted at any moment, so one guess succeeds with probability 3 in a million. Without rate limiting an attacker trying 10 codes per second expects a hit in about nine hours. With a lockout after five attempts, never. The code is only as good as the throttling around it.</span></li>
     <li><span class="n">9</span><span class="t">What TOTP does not protect against</span><span class="d">1 min</span>
       <span class="say">A phishing site that asks for your code and forwards it to the real site within 30 seconds wins. The server stores the secret in plaintext by necessity, so a server breach leaks everyone's second factor. Passkeys / WebAuthn fix both by binding the login to the site's origin and using public-key signatures; that is a later workshop. TOTP is still everywhere and still far better than nothing.</span></li>
-    <li><span class="n">10</span><span class="t">What we build in the next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">10</span><span class="t">What we build<span class="inst-only"> in the next 90 minutes</span></span><span class="d">1 min</span>
       <span class="say">Show the seven steps. Point out that steps 2 to 4 are checked by <code>deno test</code> against numbers printed in the RFCs, so students know they are right before the phone gets involved. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 7 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in two files, <code>totp.ts</code> (the code) and <code>totp_test.ts</code> (the RFC checks), and run <code>deno test</code> after every step. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes pastes the reference code for that step from the <a href="#solution">full solution</a> and continues. The time budget is deliberately loose in the middle steps and tight at the end.</p>
+  <p>Students work in two files, <code>totp.ts</code> (the code) and <code>totp_test.ts</code> (the RFC checks), and run <code>deno test</code> after every step. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference code for that step from the <a href="#solution">full solution</a> and continues. The time budget is deliberately loose in the middle steps and tight at the end.</p>
   <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the algorithm, 45 lines over the afternoon, written by hand at a pace the whole room can follow. <strong>Paste this</strong> is everything else: the Base32 encoder (encoding is not the topic), the test file with the RFC numbers in it, and the two small scripts that talk to the phone. Typing ten six-digit test vectors teaches nothing and invites typos, so they come from this page. The full solution at the bottom is for catching up, never for the first pass.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
@@ -427,7 +427,7 @@ while (true) {
 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
-    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>Everything they built runs on APIs that ship with the runtime; the "crypto" was one call to <code>crypto.subtle.sign</code>. The design work is all in what surrounds it: randomness, encoding, windows, replay, timing, throttling.</li>

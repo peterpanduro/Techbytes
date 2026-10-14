@@ -23,9 +23,9 @@
       <h1>Git for the Things That Go Wrong</h1>
       <p class="lede">A prepared repository with planted problems: a commit that broke the tests, four WIP commits that need squashing, a hard reset and a deleted branch to undo, a merge conflict to resolve by hand, and a pre-commit hook that says no. No code to write; thirty-eight commands, and after each one the repository is still whole.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~15 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~15 min</b> student prep, one week before</li>
         <li>Basic git only: add, commit, push</li>
         <li>No code; ~40 commands</li>
         <li>Any OS (Git Bash on Windows)</li>
@@ -58,8 +58,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · The same repository for everyone</a></li>
         <li><a href="#s1">1 · Bisect</a></li>
@@ -89,15 +89,15 @@
     <tr><th>Language</th><td>None. The practice project is a five-line shell script with a shell test script, both pasted by the setup script and never edited beyond one appended line. Every command is a git command.</td></tr>
     <tr><th>Students need</th><td>Laptop with git 2.43 or later, a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: VS Code or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
     <tr><th>Room needs</th><td>Projector. Nothing else.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 15 minutes)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 15 minutes)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Install git, and use the right terminal</h4>
@@ -139,11 +139,11 @@ git config --global core.editor nano               # or nano, which Git Bash and
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 10 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>10 slides</span>
   <h2>The talk: everything is a pointer</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="Git for the Things That Go Wrong: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>a commit is a snapshot that names its parent, a branch is a label on a commit, HEAD is a label on a branch, and none of the frightening commands deletes a commit; they move labels.</strong> Once that is believed, every step of the lab is "find the hash, put the label back".</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Nothing committed is ever lost</span><span class="d">1 min</span>
@@ -164,15 +164,15 @@ git config --global core.editor nano               # or nano, which Git Bash and
       <span class="say">A script in <code>.git/hooks</code> with the right name and the executable bit; pre-commit runs before the commit exists and a non-zero exit means no commit. Hooks are not committed or shared, so teams install them with a tool. <code>--no-verify</code> skips them: a seatbelt, not a lock. The day you type it, be able to say why.</span></li>
     <li><span class="n">9</span><span class="t">The small tools: stash, worktree, -S, blame -L</span><span class="d">1 min</span>
       <span class="say">Stash shelves uncommitted changes so you can switch; worktree checks out a second branch into a second folder sharing the same repository; <code>log -S</code> finds the commits that added or removed an exact string, which is how you find where a line came from when blame points at a refactor; <code>blame -L</code> shows who last touched a line range. Not disaster tools: the tools that keep you out of one.</span></li>
-    <li><span class="n">10</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">10</span><span class="t"><span class="inst-only">The next 90 minutes</span><span class="stu-only">The lab</span></span><span class="d">1 min</span>
       <span class="say">Seven steps: build the same repository for everyone; bisect and revert; squash four WIP commits; a hard reset and a deleted branch, both repaired from the reflog; a merge conflict by hand; a pre-commit hook; stash, worktree and pickaxe. Every step ends in a checkpoint. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 7 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in one terminal (Git Bash on Windows) with their editor beside it. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes waves, and every step can be restarted from a known commit hash, because the hashes are the same on every laptop.</p>
+  <p>Students work in one terminal (Git Bash on Windows) with their editor beside it. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>waves, and every step can be restarted from a known commit hash, because the hashes are the same on every laptop.</p>
   <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the git commands: 38 of them over the afternoon, and typing a git command until it is boring is the skill. <strong>Paste this</strong> is two files: the setup script that builds the repository and the pre-commit hook. Windows users run everything in Git Bash; nothing on this page needs PowerShell.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
@@ -376,7 +376,7 @@ git log --oneline --graph -6</code></pre>
 * | f063a35 CHANGELOG: prepare 1.1
 * | 4128a3a Bump version to 1.1 in --help</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p>A merge commit on top of <code>main</code> with two parents, drawn as a fork in the graph. <code>grep -c '&lt;&lt;&lt;&lt;' README.md</code> prints <code>0</code>: no markers survived. The first sentence of the README reads "A tiny temperature converter for the shell."</p></div>
-    <p><strong>Common mistakes:</strong> committing with the markers still in the file (git lets you; the hook in step 5 would not); resolving by keeping one side when both were needed; running <code>git commit -a</code> and sweeping in an unrelated change. <strong>Stretch, five minutes:</strong> <code>git config rerere.enabled true</code>, then <code>git reset --hard HEAD~1</code>, merge again and resolve again: git prints <code>Recorded resolution for 'README.md'</code>. Reset and merge a third time: <code>Resolved 'README.md' using previous resolution</code>, and the file is already fixed; you only <code>git add</code> and commit. Reuse recorded resolution is what makes long-lived branches bearable.</p>
+    <p><strong>Common mistakes:</strong> committing with the markers still in the file (git lets you; the hook in step 5 would not); resolving by keeping one side when both were needed; running <code>git commit -a</code> and sweeping in an unrelated change. <strong>Stretch<span class="inst-only">, five minutes</span>:</strong> <code>git config rerere.enabled true</code>, then <code>git reset --hard HEAD~1</code>, merge again and resolve again: git prints <code>Recorded resolution for 'README.md'</code>. Reset and merge a third time: <code>Resolved 'README.md' using previous resolution</code>, and the file is already fixed; you only <code>git add</code> and commit. Reuse recorded resolution is what makes long-lived branches bearable.</p>
   </article>
 
   <article class="step" id="s5">
@@ -437,7 +437,7 @@ f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 
 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
-    <p>Bring the room back together for five minutes, then let the fast students pick a stretch goal.</p>
+    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>Six things went wrong today and the repair each time was "find the hash, put a label on it". Commits are never deleted by reset, rebase or branch -D; the reflog has the hashes for 30 days.</li>

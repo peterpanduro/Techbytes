@@ -156,6 +156,8 @@ html{color-scheme:light dark}
 :root[data-view="student"] .inst-only{display:none !important}
 :root[data-view="student"] .call.inst{display:none !important}
 :root[data-view="student"] .slides .say{display:none}
+:root:not([data-view="student"]) .stu-only{display:none}
+:root[data-view="student"] .slides .d,:root[data-view="student"] .step>header .time,:root[data-view="student"] .clock,:root[data-view="student"] .timeline,:root[data-view="student"] a[href="manuscript.html"]{display:none}
 .ws{position:relative;transition:border-color .15s}
 .ws h3 a{color:inherit;text-decoration:none;outline:none}
 .ws h3 a::after{content:"";position:absolute;inset:0;border-radius:var(--radius)}

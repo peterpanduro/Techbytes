@@ -23,9 +23,9 @@
       <h1>A CI Pipeline That Builds Your Image</h1>
       <p class="lede">Workshop 1's Go server goes on GitHub, and a fifteen-line workflow tests it on every push. A second job builds its image and pushes it to ghcr.io with a token that lives for one job. govulncheck turns a vulnerable dependency into a red build, a ruleset turns the red build into a merge button that will not press, and the fixed image ends the afternoon running on your laptop. Five runs; every wait has a job to do.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~25 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~25 min</b> student prep, one week before</li>
         <li>Needs workshops 1 and 3–5</li>
         <li>21 lines of YAML, 13 of Go and Dockerfile, 26 commands</li>
         <li>Any OS (Git Bash on Windows)</li>
@@ -50,8 +50,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · Workshop 1's server, with a test</a></li>
         <li><a href="#s1">1 · A workflow that runs the tests</a></li>
@@ -79,15 +79,15 @@
     <tr><th>Language</th><td>YAML for the workflow (21 typed lines), Go for one small feature (12 typed lines), one Dockerfile line. govulncheck runs with <code>go run</code>, so there is nothing new to install.</td></tr>
     <tr><th>Students need</th><td>Laptop with git, Go 1.27.2 or later (go1.27.2 was released 2026-10-08), Docker running (workshop 1), a terminal (Git Bash on Windows), a browser, and a personal GitHub account with a public repository <code>ci-lab</code> cloned over SSH or Git Credential Manager. The readiness run in the prep proves all of it.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi that reaches github.com, ghcr.io, proxy.golang.org and vuln.go.dev; the traffic is small (pushes are kilobytes, the final image is a few megabytes). The instructor brings a phone hotspot and the fallback in the instructor notes.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (six steps, each with a checkpoint that must pass before moving on, and a task for every wait).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (six steps, each with a checkpoint that must pass before moving on, and a task for every wait).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 25 minutes)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 25 minutes)</span></h3>
   <p>This is written to be pasted into an email or course page as-is. Windows users: use Git Bash for everything in this workshop, as in workshop 5.</p>
 
   <h4>1. A GitHub account, and a public repository</h4>
@@ -100,7 +100,7 @@
 
   <h4>3. Go 1.27.2 or later</h4>
 <pre><code>go version</code></pre>
-  <p>It must print <code>go1.27.2</code> or later; go1.27.2 (released 2026-10-08) carries security fixes in <code>net/http</code> and <code>crypto/tls</code>. Check <a href="https://go.dev/dl/">go.dev/dl</a> for anything newer the day before. Not a formality: an older patch makes the vulnerability scan in item 5 below fail on the standard library, and that is the scanner being right.</p>
+  <p>It must print <code>go1.27.2</code> or later; go1.27.2 (released 2026-10-08) carries security fixes in <code>net/http</code> and <code>crypto/tls</code>. Check <a href="https://go.dev/dl/">go.dev/dl</a> for anything newer<span class="inst-only"> the day before</span>. Not a formality: an older patch makes the vulnerability scan in item 5 below fail on the standard library, and that is the scanner being right.</p>
 
   <h4>4. The readiness run</h4>
   <p>In <code>ci-lab</code>, create the folders <code>.github/workflows</code> and save <a href="code/ci.prep.yml" download>ci.prep.yml</a> in it as <code>ci.yml</code>. It is seven lines:</p>
@@ -152,11 +152,11 @@ go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 10 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>10 slides</span>
   <h2>The talk: the hook nobody can skip</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="A CI Pipeline That Builds Your Image: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>CI is a "no" that applies to everyone, and it is only worth what main requires.</strong> A workflow is a file that GitHub runs on a fresh machine for every push; the token it uses lives for one job; a vulnerable dependency is a failing test like any other; and none of it stops anything until a ruleset makes the check required.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">The same no, for the whole team</span><span class="d">1 min</span>
@@ -177,15 +177,15 @@ go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
       <span class="say">Without a rule, a red check is advice: anyone can merge, or push straight to main. A ruleset on the default branch requires a pull request and the <code>test</code> check, with an empty bypass list, so it applies to the repository owner too. Red means the merge button is blocked. This is the "no" from slide 1, made binding.</span></li>
     <li><span class="n">9</span><span class="t">Pin what you run</span><span class="d">1 min</span>
       <span class="say">Every <code>uses:</code> line runs someone else's code with your token. Tags can move: in March 2025 the <code>tj-actions/changed-files</code> tags were repointed at a commit that dumped secrets into logs (CVE-2025-30066). Today we type major tags for first-party actions, because a 40-character SHA is not typeable; the stretch file pins full SHAs and lets Dependabot move them.</span></li>
-    <li><span class="n">10</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">10</span><span class="t"><span class="inst-only">The next 90 minutes</span><span class="stu-only">The lab</span></span><span class="d">1 min</span>
       <span class="say">Six steps, five runs: workshop 1's server with a test; a workflow that runs it; a build job that publishes the image, and the ruleset during the wait; a feature on a branch that pins a vulnerable x/text and goes red; reproduce, fix and merge; run what main built. Every wait has a task. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 6 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>6 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in the <code>ci-lab</code> folder from the prep, with a terminal (Git Bash on Windows), an editor, and the repository open in the browser. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck for more than five minutes downloads the recovery file for that step from the <a href="#solution">full solution</a> and continues.</p>
+  <p>Students work in the <code>ci-lab</code> folder from the prep, with a terminal (Git Bash on Windows), an editor, and the repository open in the browser. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>downloads the recovery file for that step from the <a href="#solution">full solution</a> and continues.</p>
   <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is 60 lines over the afternoon: 21 lines of workflow YAML, 12 lines of Go, one Dockerfile line and 26 commands. Typing the workflow is how its indentation gets into your fingers. <strong>Paste this</strong> is the copy command in step 0, the two test files, and the body of the build job in step 2. Windows users run everything in Git Bash; in PowerShell, <code>curl</code> is a different program, so type <code>curl.exe</code> there.</p></div>
   <div class="call inst"><p class="lbl">Five runs, five tasks</p><p>Run 1 (step 1, about 1 min): read the log. Run 2 (step 2, about 2–3 min): create the ruleset. Run 3 (step 3, about 1–1.5 min, red): open the pull request. Run 4 (step 4, about 1–1.5 min until <code>test</code> is green): read "Fixed in" and the informational findings, then merge. Run 5 (step 5, about 3 min): the wrap-up. The first govulncheck in a run compiles x/vuln on a cold runner, which is most of the <code>test</code> job from step 3 on. All timings are estimates. Not executed in the authoring environment; verified against docs.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>

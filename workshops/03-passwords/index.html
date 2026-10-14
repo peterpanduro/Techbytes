@@ -23,9 +23,9 @@
       <h1>Storing Passwords Properly</h1>
       <p class="lede">Store a password so that a leaked database is useless. Start in plaintext, write the dictionary attack that breaks it, then salt, slow and self-describe the hash until the same attack would take centuries — in about fifty lines of Go, standard library only.</p>
       <ul class="facts">
-        <li><b>15 min</b> talk</li>
-        <li><b>90 min</b> guided lab</li>
-        <li><b>~15 min</b> student prep, one week before</li>
+        <li class="inst-only"><b>15 min</b> talk</li>
+        <li class="inst-only"><b>90 min</b> guided lab</li>
+        <li class="inst-only"><b>~15 min</b> student prep, one week before</li>
         <li>No prior crypto knowledge</li>
         <li>Go · standard library only</li>
         <li>Any OS</li>
@@ -79,8 +79,8 @@
         <li class="inst-only"><a href="#prep-instructor">For the instructor</a></li>
       </ol>
     </li>
-    <li><a href="#talk">The 15-minute talk</a></li>
-    <li><a href="#lab">The 90-minute lab</a>
+    <li><a href="#talk">The <span class="inst-only">15-minute </span>talk</a></li>
+    <li><a href="#lab">The <span class="inst-only">90-minute </span>lab</a>
       <ol class="sub">
         <li><a href="#s0">0 · Ready</a></li>
         <li><a href="#s1">1 · Plaintext</a></li>
@@ -110,15 +110,15 @@
     <tr><th>Language</th><td>Go, standard library only. Go because password hashing is where its <code>crypto</code> packages are the natural home, because a single static binary needs nothing installed but Go, and because <code>crypto/pbkdf2</code> landing in the standard library in Go 1.24 means the whole lab runs with no dependencies and no network. Argon2id, the production choice, lives in <code>golang.org/x/crypto</code> and appears as a stretch goal.</td></tr>
     <tr><th>Students need</th><td>Laptop with Go 1.27 or later, a terminal, a text editor. No phone, no Docker, no network during the lab.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi only for students who skipped the prep and still need to download Go; nothing in the lab itself touches the network.</td></tr>
-    <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (eight steps 0–7, each with a checkpoint that must pass before moving on).</td></tr>
+    <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (eight steps 0–7, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
 
 <section id="prep">
-  <span class="eyebrow">Send one week before</span>
+  <span class="eyebrow inst-only">Send one week before</span>
   <h2>Preparation</h2>
 
-  <h3 id="prep-students">For students (about 15 minutes)</h3>
+  <h3 id="prep-students">For students<span class="inst-only"> (about 15 minutes)</span></h3>
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Install Go</h4>
@@ -148,7 +148,7 @@ func main() {
   <p>Then initialise the folder as a Go module and run the file:</p>
 <pre><code>go mod init passwords
 go run ready.go</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p><code>ready 0ac710aaeba8701f0d15781032369385</code></p><p>If you see exactly that, your Go is new enough and the standard-library crypto the lab needs is present. If instead you see <code>package crypto/pbkdf2 is not in std</code>, your Go is older than 1.24 — install Go 1.27 or later. Any other error: bring it to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>ready 0ac710aaeba8701f0d15781032369385</code></p><p>If you see exactly that, your Go is new enough and the standard-library crypto the lab needs is present. If instead you see <code>package crypto/pbkdf2 is not in std</code>, your Go is older than 1.24 — install Go 1.27 or later. Any other error: bring it to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
 
   <div class="call inst"><p class="lbl">Why this exact check</p><p><code>crypto/pbkdf2</code> only exists in Go 1.24+, so a student on an old Go fails this line during prep instead of in the room at step 4. The printed value is a fixed PBKDF2 output, so a wrong number means a broken install, not a wrong guess.</p></div>
 
@@ -164,11 +164,11 @@ go run ready.go</code></pre>
 </section>
 
 <section id="talk">
-  <span class="eyebrow">15 minutes · 10 slides</span>
+  <span class="eyebrow"><span class="inst-only">15 minutes · </span>10 slides</span>
   <h2>The talk: make the leak worthless</h2>
   <div class="deck-embed"><iframe src="slides/index.html" title="Storing Passwords Properly: slide deck" loading="lazy" allow="fullscreen" allowfullscreen></iframe></div>
   <div class="deck-links"><a href="slides/index.html" target="_blank" rel="noopener">Slides</a><a href="manuscript.html">Manuscript</a></div>
-  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen, S speaker view (new window), T dark.</p>
+  <p class="deck-hint">Tap or click the slides to advance (arrow keys once focused). F fullscreen,<span class="inst-only"> S speaker view (new window),</span> T dark.</p>
   <p>The single idea to land: <strong>a stored password must be useless to whoever steals the database; everything we do is raising the cost of turning a stolen hash back into a password from microseconds to centuries.</strong> The lab is the mechanics of that sentence, attacked from both sides.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Assume the database will leak</span><span class="d">1 min</span>
@@ -189,15 +189,15 @@ go run ready.go</code></pre>
       <span class="say">Store <code>$pbkdf2-sha256$iterations$salt$hash</code> (salt and hash Base64): the recipe travels with the hash. To verify, parse it and read the parameters out. Upgrade-on-login: if the stored iteration count is below today's policy and the password was correct, re-hash at the new cost and save — storage heals itself one login at a time. Step 6 writes this.</span></li>
     <li><span class="n">9</span><span class="t">The production answer</span><span class="d">1 min</span>
       <span class="say">PBKDF2 is real and FIPS-approved; the modern default is Argon2id, which costs the attacker memory as well as time and so blunts GPUs. bcrypt is the older, solid middle ground (72-byte limit). Argon2id is in <code>golang.org/x/crypto</code>, not stdlib, so it is a stretch goal here — but the shape (salt, cost, self-describing string, constant-time compare) is what you built.</span></li>
-    <li><span class="n">10</span><span class="t">The next 90 minutes</span><span class="d">1 min</span>
+    <li><span class="n">10</span><span class="t"><span class="inst-only">The next 90 minutes</span><span class="stu-only">The lab</span></span><span class="d">1 min</span>
       <span class="say">Walk the eight steps: plaintext and logging in as anyone, the dictionary attack, salt, PBKDF2, constant-time compare, verify-and-upgrade, wrap-up. Go and the standard library only. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
 <section id="lab">
-  <span class="eyebrow">90 minutes · 8 steps</span>
+  <span class="eyebrow"><span class="inst-only">90 minutes · </span>8 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
-  <p>Students work in a <code>passwords-lab</code> folder with one terminal open in it. Each step is one small self-contained Go program, run with <code>go run &lt;file&gt;.go</code>; there is no shared build, so a broken step never blocks the next one. Every step ends in a checkpoint. Nobody moves on until their checkpoint passes; anyone stuck for more than five minutes pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
+  <p>Students work in a <code>passwords-lab</code> folder with one terminal open in it. Each step is one small self-contained Go program, run with <code>go run &lt;file&gt;.go</code>; there is no shared build, so a broken step never blocks the next one. Every step ends in a checkpoint. Nobody moves on until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
   <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the security code that is the point of the afternoon — 54 lines of Go across the lab, plus about a dozen commands — written by hand at follow-along pace. <strong>Paste this</strong> is everything else: the pasted <code>users.txt</code>, the ten target hashes, the (downloaded) 300-word list, and the plumbing around each program (imports, file reading, the little demo <code>main</code> functions). Typing three hundred passwords or a file-reading loop teaches nothing; typing the hash, the salt, the compare and the parser is the whole skill.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
@@ -559,7 +559,7 @@ func verify(stored, password string) (ok, stale bool) {
 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">5 min</span></header>
-    <p>Bring the room back together for a few minutes, then let the fast typists pick a stretch goal.</p>
+    <p>Bring the room back together<span class="inst-only"> for a few minutes</span>, then let the fast typists pick a stretch goal.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>You never store the password. You store a salted, slow, self-describing hash, and you compare it in constant time. Everything today was one of those four words.</li>
