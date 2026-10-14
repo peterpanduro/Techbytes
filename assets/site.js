@@ -59,7 +59,7 @@
   function setView(v){root.dataset.view=v;try{localStorage.setItem('tb-view',v)}catch(e){}
     document.querySelectorAll('.sitebar .seg button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.view===v))});}
   document.querySelectorAll('.sitebar .seg button').forEach(function(b){b.addEventListener('click',function(){setView(b.dataset.view)})});
-  setView(root.dataset.view||'instructor');
+  setView(root.dataset.view||'student');
 
   // ---- checkpoints ----
   var page=location.pathname.replace(/index\.html$/,'');
