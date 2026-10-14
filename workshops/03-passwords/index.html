@@ -108,7 +108,7 @@
     <tr><th>Concepts</th><td>One-way hashing vs encryption, dictionary and rainbow-table attacks, per-user salts, the meaning of a "work factor", key-derivation functions (PBKDF2, and Argon2id / bcrypt by name), constant-time comparison and timing side-channels, self-describing hash encodings and upgrade-on-login. On the side: <code>crypto/sha256</code>, <code>crypto/rand</code>, <code>crypto/pbkdf2</code> (Go 1.24+), <code>crypto/subtle</code>, <code>encoding/base64</code>, and reading a wall-clock time in Go.</td></tr>
     <tr><th>Assumed knowledge</th><td>Can open a terminal and run a command. Can read a short program in any language. No Go and no cryptography assumed: the topic code is short and typed a line at a time, and the one hashing call comes straight from the standard library.</td></tr>
     <tr><th>Language</th><td>Go, standard library only. Go because password hashing is where its <code>crypto</code> packages are the natural home, because a single static binary needs nothing installed but Go, and because <code>crypto/pbkdf2</code> landing in the standard library in Go 1.24 means the whole lab runs with no dependencies and no network. Argon2id, the production choice, lives in <code>golang.org/x/crypto</code> and appears as a stretch goal.</td></tr>
-    <tr><th>Students need</th><td>Laptop with Go 1.24 or newer (the prep installs 1.27), a terminal, a text editor. No phone, no Docker, no network during the lab.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Go 1.27 or later, a terminal, a text editor. No phone, no Docker, no network during the lab.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi only for students who skipped the prep and still need to download Go; nothing in the lab itself touches the network.</td></tr>
     <tr><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (eight steps 0–7, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -122,12 +122,12 @@
   <p>This is written to be pasted into an email or course page as-is.</p>
 
   <h4>1. Install Go</h4>
-  <p>Go is a single toolchain that compiles and runs programs with one command. Install <strong>Go 1.24 or newer</strong> — the lab uses a package (<code>crypto/pbkdf2</code>) that was added to the standard library in Go 1.24. The current release is 1.27.1.</p>
+  <p>Go is a single toolchain that compiles and runs programs with one command. Install <strong>Go 1.27 or later</strong>. The lab uses a package (<code>crypto/pbkdf2</code>) that was added to the standard library in Go 1.24, so anything older cannot run it at all. The current release is 1.27.1.</p>
   <p>On macOS and Windows, download the installer from <a href="https://go.dev/dl/">go.dev/dl</a> (the <code>.pkg</code> for macOS, the <code>.msi</code> for Windows) and accept the defaults. On Linux, follow <a href="https://go.dev/doc/install">go.dev/doc/install</a>:</p>
 <pre><code># Linux (amd64): remove any old Go, then unpack the new one
 rm -rf /usr/local/go &amp;&amp; tar -C /usr/local -xzf go1.27.1.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin      # add this line to ~/.profile too</code></pre>
-  <p><strong>Open a new terminal</strong> so the tool is on your path, then check the version. Anything 1.24 or higher is fine:</p>
+  <p><strong>Open a new terminal</strong> so the tool is on your path, then check the version. Go 1.27 or later is fine:</p>
 <pre><code>go version</code></pre>
 
   <h4>2. The readiness check</h4>
@@ -148,7 +148,7 @@ func main() {
   <p>Then initialise the folder as a Go module and run the file:</p>
 <pre><code>go mod init passwords
 go run ready.go</code></pre>
-  <div class="call check"><p class="lbl">Expected output</p><p><code>ready 0ac710aaeba8701f0d15781032369385</code></p><p>If you see exactly that, your Go is new enough and the standard-library crypto the lab needs is present. If instead you see <code>package crypto/pbkdf2 is not in std</code>, your Go is older than 1.24 — install a newer one. Any other error: bring it to the workshop and arrive ten minutes early.</p></div>
+  <div class="call check"><p class="lbl">Expected output</p><p><code>ready 0ac710aaeba8701f0d15781032369385</code></p><p>If you see exactly that, your Go is new enough and the standard-library crypto the lab needs is present. If instead you see <code>package crypto/pbkdf2 is not in std</code>, your Go is older than 1.24 — install Go 1.27 or later. Any other error: bring it to the workshop and arrive ten minutes early.</p></div>
 
   <div class="call inst"><p class="lbl">Why this exact check</p><p><code>crypto/pbkdf2</code> only exists in Go 1.24+, so a student on an old Go fails this line during prep instead of in the room at step 4. The printed value is a fixed PBKDF2 output, so a wrong number means a broken install, not a wrong guess.</p></div>
 
@@ -581,7 +581,7 @@ func verify(stored, password string) (ok, stale bool) {
 <section id="solution">
   <span class="eyebrow">Reference</span>
   <h2>Full solution</h2>
-  <p>Paste only. The final state of the <code>passwords-lab</code> folder, every file exactly as tested. All of it was run with Go 1.24.7 (<code>crypto/pbkdf2</code> requires Go 1.24+): <code>attack.go</code> cracks 9 of the 10 target hashes and hashes all 300 words in well under a millisecond; one PBKDF2 hash at 600,000 iterations took about a third of a second on the authoring machine; <code>timing.go</code> showed <code>==</code> returning in ~3 ns when the first byte differs versus ~1.3 µs at the last, while <code>ConstantTimeCompare</code> took ~38 µs either way; <code>verify.go</code> upgrades a 100,000-iteration hash to 600,000 on a correct login. <strong>Argon2id (stretch goal 1) could not be run here</strong> — it needs a module download and the authoring environment has no package registry — so it is verified only against its documentation, cited in the instructor notes. The 300-word <code>words.txt</code> is a download below.</p>
+  <p>Paste only. The final state of the <code>passwords-lab</code> folder, every file exactly as tested. All of it was run with Go 1.24.7, and every program was run again with Go 1.27.1 (<code>crypto/pbkdf2</code> requires Go 1.24+): <code>attack.go</code> cracks 9 of the 10 target hashes and hashes all 300 words in well under a millisecond; one PBKDF2 hash at 600,000 iterations took about a third of a second on the authoring machine; <code>timing.go</code> showed <code>==</code> returning in ~3 ns when the first byte differs versus ~1.3 µs at the last, while <code>ConstantTimeCompare</code> took ~38 µs either way; <code>verify.go</code> upgrades a 100,000-iteration hash to 600,000 on a correct login. <strong>Argon2id (stretch goal 1) could not be run here</strong> — it needs a module download and the authoring environment has no package registry — so it is verified only against its documentation, cited in the instructor notes. The 300-word <code>words.txt</code> is a download below.</p>
   <div class="dlrow"><a href="code/go.mod" download>go.mod</a><a href="code/users.txt" download>users.txt</a><a href="code/hashes.txt" download>hashes.txt</a><a href="code/words.txt" download>words.txt</a><a href="code/ready.go" download>ready.go</a><a href="code/load.go" download>load.go</a><a href="code/login1.go" download>login1.go</a><a href="code/attack.go" download>attack.go</a><a href="code/salt.go" download>salt.go</a><a href="code/slow.go" download>slow.go</a><a href="code/timing.go" download>timing.go</a><a href="code/verify.go" download>verify.go</a></div>
   <div class="dlrow"><a href="code/words.txt" download>words.txt (300 words)</a><a href="code/hashes.txt" download>hashes.txt</a><a href="code/users.txt" download>users.txt</a></div>
   <details class="sol"><summary>go.mod<a class="dl" href="code/go.mod" download>download</a></summary><pre><code>module passwords
