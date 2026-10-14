@@ -14,6 +14,6 @@ Live at https://peterpanduro.github.io/Techbytes/ (GitHub Pages, deployed from `
 - `workshops/*/manuscript.html` – the word-for-word script with per-slide timing; printable.
 - `assets/` – shared stylesheet and scripts (site, deck, cache widget).
 
-Interactive bits: the live TOTP widget at the top of the workshop page (WebCrypto in the browser), an Instructor / Student view toggle (student view hides speaker notes and instructor-only notes), checkpoint tick-boxes and a lab clock that highlights the current step, all remembered per browser. Copy buttons on every code block.
+Interactive bits: the live TOTP widget at the top of the workshop page (WebCrypto in the browser), an Instructor / Student view toggle (Student by default; student view hides speaker notes and instructor-only notes), checkpoint tick-boxes and a lab clock that highlights the current step, all remembered per browser. Copy buttons on every code block.
 
 To add a workshop, copy `workshops/02-totp/` to a new folder, keep the `<link>`/`<script>` paths, and add a card and link on `index.html`.
