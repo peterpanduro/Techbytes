@@ -21,14 +21,14 @@
     <div>
       <span class="eyebrow">Software engineering workshop series · Workshop 2</span>
       <h1>TOTP From Scratch</h1>
-      <p class="lede">Build the six-digit authenticator code your phone shows, in about forty lines of TypeScript, and prove it is right by scanning your own QR code with Google Authenticator.</p>
+      <p class="lede">Build the six-digit authenticator code your phone shows, in 45 lines of TypeScript, and prove it is right by scanning your own QR code with Google Authenticator.</p>
       <ul class="facts">
         <li class="inst-only"><b>15 min</b> talk</li>
         <li class="inst-only"><b>90 min</b> guided lab</li>
         <li class="inst-only"><b>~15 min</b> student prep, one week before</li>
         <li>No prior crypto knowledge</li>
         <li>Deno · TypeScript</li>
-        <li>No dependencies</li>
+        <li>One dependency, for the QR code</li>
         <li>Any OS</li>
       </ul>
     </div>
@@ -89,7 +89,7 @@
     <tr><th>Why this topic</th><td>2FA is on every real system students will work on, yet it is almost never taught. It is also the ideal size: one RFC, one workshop, no infrastructure, and a very satisfying moment of proof at the end.</td></tr>
     <tr><th>Concepts</th><td>Shared secrets, HMAC, HOTP (RFC 4226), TOTP (RFC 6238), Base32, big-endian packing, dynamic truncation, time windows, replay, constant-time comparison, brute-force arithmetic, and the limits of TOTP (phishing, relay attacks) that motivate passkeys. On the side: WebCrypto, typed arrays, Deno's permission flags and test runner.</td></tr>
     <tr><th>Assumed knowledge</th><td>Can write a JavaScript or TypeScript function and run a script. Nothing else. <code>async</code>/<code>await</code> appears because WebCrypto is asynchronous; the talk spends one sentence on it.</td></tr>
-    <tr><th>Language</th><td>TypeScript on Deno 2. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary. Docker is not needed; a container is offered as a fallback only.</td></tr>
+    <tr><th>Language</th><td>TypeScript on Deno. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary; Deno fetches the one npm package itself. Docker is not needed; a container is offered as a fallback only.</td></tr>
     <tr><th>Students need</th><td>Laptop with Deno 2.9 or later, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi is only needed for one <code>npm:</code> download in step 5, which the prep pack fetches ahead of time.</td></tr>
     <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
@@ -114,7 +114,8 @@ irm https://deno.land/install.ps1 | iex
 # or, if you already use a package manager
 brew install deno            # macOS
 winget install DenoLand.Deno # Windows</code></pre>
-  <p>Check it, in the new terminal window. Any version starting with 2 is fine.</p>
+  <p>The Windows lines are from Deno's installation documentation; not run in the authoring environment.</p>
+  <p>Check it, in the new terminal window. You need Deno 2.9 or later.</p>
 <pre><code>deno --version</code></pre>
 
   <h4>2. Install an authenticator app on your phone</h4>
@@ -137,7 +138,7 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
   <h4>5. Optional: editor support</h4>
   <p>Any editor works. If you use VS Code, the official "Deno" extension gives you type errors as you type, which helps in the lab. Enable it for the <code>totp-lab</code> folder (Command Palette → "Deno: Initialize Workspace Configuration").</p>
 
-  <div class="call inst"><p class="lbl">If Deno will not install</p><p>The fallback is Docker Desktop from workshop 1: in the <code>totp-lab</code> folder run <code>docker run --rm -it -v "$PWD":/work -w /work denoland/deno bash</code> (PowerShell: <code>"${PWD}:/work"</code>) and work inside it. Note that the Docker VM's clock on macOS and Windows can drift after the laptop sleeps, which makes codes disagree with the phone; restart Docker Desktop if that happens. Native Deno has no such problem, which is one reason the lab does not use Docker.</p></div>
+  <div class="call inst"><p class="lbl">If Deno will not install</p><p>The fallback is Docker Desktop from workshop 1: in the <code>totp-lab</code> folder run <code>docker run --rm -it -v "$PWD":/work -w /work denoland/deno bash</code> (PowerShell: <code>"${PWD}:/work"</code>) and work inside it. Note that the Docker VM's clock on macOS and Windows can drift after the laptop sleeps, which makes codes disagree with the phone; restart Docker Desktop if that happens. Native Deno has no such problem, which is one reason the lab does not use Docker. This fallback: not run in the authoring environment.</p></div>
 
   <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
   <ul class="check">
@@ -159,7 +160,7 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
   <p>The single idea to land: <strong>the code is not sent to the phone; the phone and the server compute it independently from a shared secret and the current time.</strong> Everything else in the lab is the mechanics of that sentence. Keep slides sparse; the speaker notes below carry the content.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">Your phone and the server share a secret</span><span class="d">1 min</span>
-      <span class="say">Title slide with a six-digit code on it. Ask the room how many have used an authenticator app this week. Ask how the app knows the code when the phone is in airplane mode. Let the question hang.</span></li>
+      <span class="say">Title slide with a six-digit code on it. Ask the room how many have ever used an authenticator app. Ask how the app knows the code when the phone is in airplane mode. Let the question hang.</span></li>
     <li><span class="n">2</span><span class="t">Why passwords alone are not enough</span><span class="d">2 min</span>
       <span class="say">Reuse, database leaks, phishing. "Something you know" plus "something you have". SMS codes are the weak version (SIM swap, interception); app codes are what this workshop builds. Mention that every serious system they will work on has this, and very few of them will ever have looked inside it.</span></li>
     <li><span class="n">3</span><span class="t">What it looks like from the outside</span><span class="d">1 min</span>
@@ -173,9 +174,9 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
     <li><span class="n">7</span><span class="t">TOTP: let the clock be the counter (RFC 6238, 2011)</span><span class="d">2 min</span>
       <span class="say">counter = floor(unix_time / 30). Both sides can compute it without talking. That is the whole difference between HOTP and TOTP. Consequences: time zones do not matter (unix time is UTC); a phone with a wrong clock produces wrong codes; the server must accept a neighbouring step or two to allow for drift and typing time.</span></li>
     <li><span class="n">8</span><span class="t">The server's job is harder than the phone's</span><span class="d">2 min</span>
-      <span class="say">Accept a window (RFC 6238 recommends at most one step either side). Never accept the same code twice, or an attacker who sees you type it has 30 seconds. Compare in constant time. Do the brute-force arithmetic on the slide: a million possible codes, three accepted at any moment, so one guess succeeds with probability 3 in a million. Without rate limiting an attacker trying 10 codes per second expects a hit in about nine hours. With a lockout after five attempts, never. The code is only as good as the throttling around it.</span></li>
+      <span class="say">Accept a window (RFC 6238 recommends at most one step back, for delay; one step ahead as well is the common extension). Never accept the same code twice, or an attacker who sees you type it has 30 seconds. Compare in constant time. Do the brute-force arithmetic on the slide: a million possible codes, three accepted at any moment, so one guess succeeds with probability 3 in a million. Without rate limiting an attacker trying 10 codes per second expects a hit in about nine hours. With a lockout after five attempts, never. The code is only as good as the throttling around it.</span></li>
     <li><span class="n">9</span><span class="t">What TOTP does not protect against</span><span class="d">1 min</span>
-      <span class="say">A phishing site that asks for your code and forwards it to the real site within 30 seconds wins. The server stores the secret in plaintext by necessity, so a server breach leaks everyone's second factor. Passkeys / WebAuthn fix both by binding the login to the site's origin and using public-key signatures; that is a later workshop. TOTP is still everywhere and still far better than nothing.</span></li>
+      <span class="say">A phishing site that asks for your code and forwards it to the real site within 30 seconds wins. The server stores the secret in plaintext by necessity, so a server breach leaks everyone's second factor. Passkeys / WebAuthn fix both by binding the login to the site's origin and using public-key signatures; that is beyond this workshop. TOTP is still everywhere and still far better than nothing.</span></li>
     <li><span class="n">10</span><span class="t">What we build<span class="inst-only"> in the next 90 minutes</span></span><span class="d">1 min</span>
       <span class="say">Show the seven steps. Point out that steps 2 to 4 are checked by <code>deno test</code> against numbers printed in the RFCs, so students know they are right before the phone gets involved. Five-minute break, then step 0.</span></li>
   </ol>
@@ -185,7 +186,7 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
   <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
   <p>Students work in two files, <code>totp.ts</code> (the code) and <code>totp_test.ts</code> (the RFC checks), and run <code>deno test</code> after every step. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference code for that step from the <a href="#solution">full solution</a> and continues. The time budget is deliberately loose in the middle steps and tight at the end.</p>
-  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the algorithm, 45 lines across the lab, written by hand at a pace the whole room can follow. <strong>Paste this</strong> is everything else: the Base32 encoder (encoding is not the topic), the test file with the RFC numbers in it, and the two small scripts that talk to the phone. Typing ten six-digit test vectors teaches nothing and invites typos, so they come from this page. The full solution at the bottom is for catching up, never for the first pass.</p></div>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the algorithm and the commands that run it, 48 lines across the lab, written by hand at a pace the whole room can follow. <strong>Paste this</strong> is everything else: the Base32 encoder (encoding is not the topic), the test file with the RFC numbers in it, and the two small scripts that talk to the phone. Typing ten six-digit test vectors teaches nothing and invites typos, so they come from this page. The full solution at the bottom is for catching up, never for the first pass.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
     <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · Two empty files and a green test run</span></div>
@@ -206,7 +207,7 @@ import { timingSafeEqual } from &quot;node:crypto&quot;;
 
 type Bytes = Uint8Array&lt;ArrayBuffer&gt;; // a Uint8Array that WebCrypto accepts</code></pre>
   <p>The <code>Bytes</code> alias is there because current TypeScript distinguishes a <code>Uint8Array</code> over a plain <code>ArrayBuffer</code> from one over shared memory, and WebCrypto only accepts the former. One alias saves six annotations later.</p>
-  <p>Then <code>totp_test.ts</code>. It has a four-line <code>assertEquals</code> of its own rather than importing one, so the whole lab has zero dependencies:</p>
+  <p>Then <code>totp_test.ts</code>. It has a four-line <code>assertEquals</code> of its own rather than importing one, so the code and its tests have zero dependencies:</p>
 <pre data-mode="paste this"><code>function assertEquals(got: unknown, want: unknown, msg = &quot;&quot;) {
   const g = JSON.stringify(got), w = JSON.stringify(want);
   if (g !== w) throw new Error(`${msg} got ${g}, want ${w}`);
@@ -448,7 +449,7 @@ while (true) {
 <section id="solution">
   <span class="eyebrow">Reference</span>
   <h2>Full solution</h2>
-  <p>Paste only. The four files exactly as tested: every RFC 4226 Appendix D vector, RFC 6238 Appendix B for SHA-1 (and SHA-256 and SHA-512 through the <code>hash</code> parameter), type-checked with <code>deno check</code> on Deno 2.9, and cross-checked against the <code>pyotp</code> library. Hand this out only after step 6, or to a student who is stuck.</p>
+  <p>Paste only. The four lab files exactly as tested, plus <code>check.ts</code> from the prep: every RFC 4226 Appendix D vector and RFC 6238 Appendix B for SHA-1 in <code>deno test</code>, the SHA-256 and SHA-512 vectors from the stretch goal checked by hand through the <code>hash</code> parameter, type-checked with <code>deno check</code> on Deno 2.9, and cross-checked against the <code>pyotp</code> library. Hand this out only after step 6, or to a student who is stuck.</p>
   <div class="dlrow"><a href="code/totp.ts" download>totp.ts</a><a href="code/totp_test.ts" download>totp_test.ts</a><a href="code/qr.ts" download>qr.ts</a><a href="code/login.ts" download>login.ts</a><a href="code/check.ts" download>check.ts</a></div>
   <details class="sol"><summary>totp.ts<a class="dl" href="code/totp.ts" download>download</a></summary><pre><code>// TOTP from scratch — complete lab file. Deno, no dependencies.
 import { timingSafeEqual } from &quot;node:crypto&quot;;
