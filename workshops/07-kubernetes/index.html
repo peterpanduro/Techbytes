@@ -326,7 +326,7 @@ spec:
 <pre data-mode="type this"><code>kubectl apply -f api.yaml -f worker.yaml
 kubectl expose deployment api --port 8080
 kubectl get pods</code></pre>
-    <p><code>expose</code> prints <code>service/api exposed</code>: the API gets a stable name, as Redis did in step 3. Three pods Running. Nothing outside the cluster can reach the API yet: a laptop cluster has no load balancer to hand out an external address. <code>port-forward</code> is the everyday substitute, a tunnel from a port on your laptop to the Service. It does not return, so run it in the second terminal:</p>
+    <p>Three pods Running. <code>expose</code> printed <code>service/api exposed</code>: the API has a stable name, as Redis did in step 3. Nothing outside the cluster can reach the API yet: a laptop cluster has no load balancer to hand out an external address. <code>port-forward</code> is the everyday substitute, a tunnel from a port on your laptop to the Service. It does not return, so run it in the second terminal:</p>
 <pre data-mode="type this"><code>kubectl port-forward svc/api 8080:8080</code></pre>
     <p>It prints <code>Forwarding from 127.0.0.1:8080 -> 8080</code>. Back in the first terminal, send the request from workshop 6 and look at what the worker did with it:</p>
 <pre data-mode="type this"><code>curl -s -X POST localhost:8080/jobs -d &#x27;{&quot;task&quot;:&quot;hello&quot;}&#x27;
