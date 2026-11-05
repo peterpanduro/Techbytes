@@ -18,7 +18,7 @@
 <div class="wrap" style="padding-block:2rem 4rem"><main><section id="series">
   <span class="eyebrow">Software engineering workshop series · 10 workshops</span>
   <h1 style="margin-bottom:.6rem">One narrow topic per workshop</h1>
-  <p>TechBytes is a series of hands-on workshops on topics every working developer meets sooner or later: containers, passwords, HTTPS, Git, observability, OAuth, CI. Each one has the same shape: a 15-minute talk for the mental model, then a 90-minute lab where everyone types the same code together.</p>
+  <p>TechBytes is a series of hands-on workshops on topics every working developer meets sooner or later: containers, passwords, Hypertext Transfer Protocol Secure (HTTPS), Git, observability, Open Authorization (OAuth), continuous integration (CI). Each one has the same shape: a 15-minute talk for the mental model, then a 90-minute lab where everyone types the same code together.</p>
   <p>Each lab has a small typed-line budget, roughly <strong>40–65 hand-typed lines</strong> (code plus commands), so the whole room can keep pace. Everything else is copied from the page, which marks what to type and what to paste. Every workshop comes with:</p>
   <ul>
     <li>a workshop page with prep pack, lab, solution and instructor notes;</li>
@@ -26,7 +26,7 @@
     <li>a printable manuscript;</li>
     <li>runnable code in <code>code/</code>.</li>
   </ul>
-  <p><strong>What you need.</strong> A laptop with admin (sudo) access, a terminal and a text editor. Each workshop page states its own requirements and preparation. Among the tools you will meet are Git, Docker, kind and kubectl, curl, OpenSSL and Firefox, and workshops 9 and 10 use a GitHub account. Our preferred languages are Go and TypeScript, with Deno as the runtime.</p>
+  <p><strong>What you need.</strong> A laptop with administrator (sudo) access, a terminal and a text editor. Each workshop page states its own requirements and preparation. Among the tools you will meet are Git, Docker, kind and kubectl, curl, OpenSSL and Firefox, and workshops 9 and 10 use a GitHub account. Our preferred languages are Go and TypeScript, with Deno as the runtime.</p>
   <div class="series">
     <article class="ws">
       <h3><a href="workshops/01-docker/index.html">1 · Containers from the ground up</a></h3>
@@ -40,17 +40,17 @@
     </article>
     <article class="ws">
       <h3><a href="workshops/03-passwords/index.html">3 · Storing passwords properly</a></h3>
-      <p>Plaintext, SHA-256, per-user salt, then PBKDF2 at OWASP’s 600,000 rounds. You write the dictionary attack, crack 9 of 10 hashes in under a second, then make the same attack too expensive and add a constant-time compare and self-upgrading hashes. Go, standard library only. <strong>You type 64 lines, code and commands</strong>; the rest is copied from the page.</p>
+      <p>Plaintext, Secure Hash Algorithm 256 (SHA-256), per-user salt, then Password-Based Key Derivation Function 2 (PBKDF2) at the 600,000 rounds recommended by the Open Worldwide Application Security Project (OWASP). You write the dictionary attack, crack 9 of 10 hashes in under a second, then make the same attack too expensive and add a constant-time compare and self-upgrading hashes. Go, standard library only. <strong>You type 64 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><span class="tag">Go</span><span class="tag">security</span></div>
     </article>
     <article class="ws">
       <h3><a href="workshops/04-https/index.html">4 · HTTPS: be your own certificate authority</a></h3>
-      <p>Two openssl commands make a CA, two more and a six-line extension file make a certificate for localhost. A ten-line Go server serves it over TLS, and Firefox and curl refuse it until the CA is trusted. A Go client with its own root pool and openssl s_client show trust as code, and you produce the three ways a padlock fails on purpose. <strong>You type 55 lines, code and commands</strong>; the rest is copied from the page.</p>
+      <p>Two openssl commands make a certificate authority (CA), two more and a six-line extension file make a certificate for localhost. A ten-line Go server serves it over Transport Layer Security (TLS), and Firefox and curl refuse it until the CA is trusted. A Go client with its own root pool and openssl s_client show trust as code, and you produce the three ways a padlock fails on purpose. <strong>You type 55 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><span class="tag">Go</span><span class="tag">security</span></div>
     </article>
     <article class="ws">
       <h3><a href="workshops/05-git/index.html">5 · Git for the things that go wrong</a></h3>
-      <p>Break a prepared repository six ways and repair it each time: bisect names the commit that broke the test, interactive rebase squashes four WIP commits, the reflog undoes a hard reset and a deleted branch, a conflict is resolved by hand, and a pre-commit hook says no. No code to write. <strong>You type 38 commands</strong>; the rest is copied from the page.</p>
+      <p>Break a prepared repository six ways and repair it each time: bisect names the commit that broke the test, interactive rebase squashes four work-in-progress (WIP) commits, the reflog undoes a hard reset and a deleted branch, a conflict is resolved by hand, and a pre-commit hook says no. No code to write. <strong>You type 38 commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><span class="tag">standalone</span><span class="tag">tooling</span></div>
     </article>
     <article class="ws">
@@ -65,12 +65,12 @@
     </article>
     <article class="ws">
       <h3><a href="workshops/08-observability/index.html">8 · Logs and metrics you can actually use</a></h3>
-      <p>Structured JSON logs with log/slog, a hand-written Prometheus /metrics page (a counter and a histogram in thirty lines), and Prometheus and Grafana in Compose. Three PromQL expressions and a two-panel dashboard find the deliberately slow endpoint, and a request id joins the graph to the log line that says why. <strong>You type 55 lines, code and commands</strong>; the rest is copied from the page.</p>
+      <p>Structured JavaScript Object Notation (JSON) logs with log/slog, a hand-written Prometheus /metrics page (a counter and a histogram in thirty lines), and Prometheus and Grafana in Compose. Three Prometheus Query Language (PromQL) expressions and a two-panel dashboard find the deliberately slow endpoint, and a request identifier (ID) joins the graph to the log line that says why. <strong>You type 55 lines, code and commands</strong>; the rest is copied from the page.</p>
       <div class="meta"><span class="tag">Go + Deno</span><span class="tag">builds on 6</span><span class="tag">operations</span></div>
     </article>
     <article class="ws">
       <h3><a href="workshops/09-oauth/index.html">9 · Log in with GitHub (OAuth 2)</a></h3>
-      <p>The redirect dance by hand with <code>Deno.serve</code>: an authorize URL with <code>state</code>, a callback that checks it, the code traded for a token server-to-server, then <code>/user</code>, because GitHub issues no OpenID Connect ID token for user login, so identity is an API call. A local fake GitHub, copied from the page, runs the lab offline and lets the tests run themselves. The same code then logs in with your real account, PKCE binds the code to the app that asked for it, and a test proves each of the three checks (state, exact redirect, PKCE). <strong>You type 60 lines, code and commands</strong>; the fake GitHub, the HTML helpers and the tests are copied from the page.</p>
+      <p>The redirect dance by hand with <code>Deno.serve</code>: an authorize Uniform Resource Locator (URL) with <code>state</code>, a callback that checks it, the code traded for a token server-to-server, then <code>/user</code>, because GitHub issues no OpenID Connect ID token for user login, so identity is an API call. A local fake GitHub, copied from the page, runs the lab offline and lets the tests run themselves. The same code then logs in with your real account, Proof Key for Code Exchange (PKCE) binds the code to the app that asked for it, and a test proves each of the three checks (state, exact redirect, PKCE). <strong>You type 60 lines, code and commands</strong>; the fake GitHub, the HyperText Markup Language (HTML) helpers and the tests are copied from the page.</p>
       <div class="meta"><span class="tag">Deno</span><span class="tag">builds on 2–4</span><span class="tag">security</span></div>
     </article>
     <article class="ws">

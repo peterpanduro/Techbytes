@@ -21,14 +21,14 @@
     <div>
       <span class="eyebrow">Software engineering workshop series · Workshop 5</span>
       <h1>Git for the Things That Go Wrong</h1>
-      <p class="lede">A prepared repository with planted problems: a commit that broke the tests, four WIP commits that need squashing, a hard reset and a deleted branch to undo, a merge conflict to resolve by hand, and a pre-commit hook that says no. No code to write; thirty-eight commands, and after each one the repository is still whole.</p>
+      <p class="lede">A prepared repository with planted problems: a commit that broke the tests, four work-in-progress (WIP) commits that need squashing, a hard reset and a deleted branch to undo, a merge conflict to resolve by hand, and a pre-commit hook that says no. No code to write; thirty-eight commands, and after each one the repository is still whole.</p>
       <ul class="facts">
         <li class="inst-only"><b>15 min</b> talk</li>
         <li class="inst-only"><b>90 min</b> guided lab</li>
         <li class="inst-only"><b>~15 min</b> student prep, one week before</li>
         <li>Basic git only: add, commit, push</li>
         <li>No code; ~40 commands</li>
-        <li>Any OS (Git Bash on Windows)</li>
+        <li>Any operating system (OS) (Git Bash on Windows)</li>
       </ul>
     </div>
     <div class="demo" id="w5-demo">
@@ -87,7 +87,7 @@
     <tr><th>Concepts</th><td>Commits as content-addressed snapshots, the parent chain, why hashes are the same on every laptop today; branches and HEAD as pointers; reachable versus unreachable, and the reflog; <code>bisect</code> as binary search and <code>bisect run</code>; interactive rebase (pick, squash, reword, fixup) and the rule about rewriting shared history; <code>revert</code> versus <code>reset</code>; merge conflicts and the three markers; hooks and <code>--no-verify</code>; stash, worktrees, <code>log -S</code>, <code>blame -L</code>.</td></tr>
     <tr><th>Assumed knowledge</th><td>Has used git before: knows what a commit and a branch are for, has run <code>git add</code>, <code>git commit</code> and <code>git push</code>. Can open a terminal. No knowledge of git internals, rebase, bisect or hooks is assumed.</td></tr>
     <tr><th>Language</th><td>None. The practice project is a five-line shell script with a shell test script, both pasted by the setup script and never edited beyond one appended line. Every command is a git command.</td></tr>
-    <tr><th>Students need</th><td>Laptop with git 2.43 or later, a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: VS Code or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
+    <tr><th>Students need</th><td>Laptop with git 2.43 or later, a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: Visual Studio Code (VS Code) or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
     <tr><th>Room needs</th><td>Projector. Nothing else.</td></tr>
     <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -124,11 +124,11 @@ git config --global core.editor nano               # or nano, which Git Bash and
   <h4>5. Optional: build the practice repository once</h4>
   <p>Save <a href="code/make-repo.sh" download>make-repo.sh</a> into an empty folder and run <code>bash make-repo.sh</code> there. It prints <code>Top of main: f063a35 CHANGELOG: prepare 1.1</code>. If it does, you are ready. Delete the <code>git-lab</code> folder it made before the workshop (<code>rm -rf git-lab</code>); we build it again together so everyone starts from the same place.</p>
 
-  <div class="call inst"><p class="lbl">If git will not install</p><p>A university-managed Windows laptop without admin rights can still install Git for Windows with the portable ("thumbdrive edition") build from the same download page, which needs no administrator. Everything else on this page works from it.</p></div>
+  <div class="call inst"><p class="lbl">If git will not install</p><p>A university-managed Windows laptop without administrator rights can still install Git for Windows with the portable ("thumbdrive edition") build from the same download page, which needs no administrator. Everything else on this page works from it.</p></div>
 
   <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
   <ul class="check">
-    <li>Run <code>make-repo.sh</code> twice on your laptop and <code>diff</code> the two <code>git log --all</code> outputs: they must be identical, and the top of <code>main</code> must be <code>f063a35</code>. If it is not, the script was edited before it ran; global git config cannot change them (the script overrides <code>autocrlf</code> and <code>gpgsign</code> locally, and this was tested under a hostile global config). A script saved with CRLF line endings does not produce different hashes: it crashes on line 7 (<code>set: -: invalid option</code>) and makes no <code>git-lab</code> at all.</li>
+    <li>Run <code>make-repo.sh</code> twice on your laptop and <code>diff</code> the two <code>git log --all</code> outputs: they must be identical, and the top of <code>main</code> must be <code>f063a35</code>. If it is not, the script was edited before it ran; global git config cannot change them (the script overrides <code>autocrlf</code> and <code>gpgsign</code> locally, and this was tested under a hostile global config). A script saved with carriage return and line feed (CRLF) line endings does not produce different hashes: it crashes on line 7 (<code>set: -: invalid option</code>) and makes no <code>git-lab</code> at all.</li>
     <li>Run the whole lab yourself with exactly the commands on this page. Your own commits (the revert, the squash, the merge) will have different hashes from the ones shown here, because you are a different author committing at a different time; every hash the script made will be the same.</li>
     <li>Windows in the room: the hook, the test script and the setup script all need Git Bash. Say it before step 0, and again before step 5. <code>chmod +x</code> changes nothing on Windows and the hook still runs there, because Git for Windows does not check the executable bit.</li>
     <li>The widget at the top of this page is slide 4. Press reset, then reflog, then branch while you talk.</li>
@@ -454,7 +454,7 @@ f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 
 # check.sh: pretend that a commit which touched documentation cannot be built, and skip it.
 git diff --quiet HEAD~1 HEAD -- &#x27;*.md&#x27; || exit 125
 ./test.sh</code></pre></li>
-      <li><strong>Signed commits.</strong> Git can sign commits with your SSH key: <code>git config --global gpg.format ssh</code>, <code>git config --global user.signingkey ~/.ssh/id_ed25519.pub</code>, <code>git commit -S</code>, then <code>git log --show-signature</code>. Discuss what a signature proves that the author line does not (the script forged Maja's name today with two environment variables).</li>
+      <li><strong>Signed commits.</strong> Git can sign commits with your Secure Shell (SSH) key: <code>git config --global gpg.format ssh</code>, <code>git config --global user.signingkey ~/.ssh/id_ed25519.pub</code>, <code>git commit -S</code>, then <code>git log --show-signature</code>. Discuss what a signature proves that the author line does not (the script forged Maja's name today with two environment variables).</li>
       <li><strong>switch and restore, properly.</strong> The old <code>git checkout</code> does both "change branch" and "throw away my changes to this file", which is how people lose work. Practise the split: <code>git switch -c</code>, <code>git restore --staged</code>, <code>git restore --source=v1.0 temp.sh</code>. Look at what each one does to <code>git status</code>.</li>
       <li><strong>Find the commit by message, then by content.</strong> <code>git log --grep=typo</code>, then <code>git log -G'temp[a-z]*ture' -p</code> to see every change to a misspelt word, then <code>git log --follow docs/usage.md</code>. Then the one people forget: <code>git log -p -- README.md</code>.</li>
       <li><strong>Make the hook shared.</strong> Move the hook into a committed folder, <code>git config core.hooksPath .githooks</code>, commit it. Now every clone can opt in with one command. Discuss why git does not do this by default (a cloned repository must not be able to run code on your machine without you asking).</li>

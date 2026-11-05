@@ -21,19 +21,19 @@
     <div>
       <span class="eyebrow">Software engineering workshop series · Workshop 8</span>
       <h1>Logs and Metrics You Can Actually Use</h1>
-      <p class="lede">Give a small Go API structured logs and a hand-written Prometheus endpoint, scrape it, graph it in Grafana, and find the deliberately slow endpoint from the graph alone. Then use a request id to jump from the graph to the one log line that says why.</p>
+      <p class="lede">Give a small Go application programming interface (API) structured logs and a hand-written Prometheus endpoint, scrape it, graph it in Grafana, and find the deliberately slow endpoint from the graph alone. Then use a request identifier (ID) to jump from the graph to the one log line that says why.</p>
       <ul class="facts">
         <li class="inst-only"><b>15 min</b> talk</li>
         <li class="inst-only"><b>90 min</b> guided lab</li>
         <li class="inst-only"><b>~25 min</b> student prep, one week before</li>
         <li>No monitoring knowledge assumed</li>
         <li>Go standard library, Deno, Compose</li>
-        <li>Any OS</li>
+        <li>Any operating system (OS)</li>
       </ul>
     </div>
     <div class="demo" id="w8-demo">
       <span class="eyebrow">Interactive · why p95 is not the average</span>
-      <p class="note" style="margin:.3rem 0 .7rem">Fake requests to a <code>/checkout</code> that takes 300 ms, except one call in ten that takes two seconds longer. Every request lands in one bucket of a histogram; the numbers are what a dashboard would show.</p>
+      <p class="note" style="margin:.3rem 0 .7rem">Fake requests to a <code>/checkout</code> that takes 300 milliseconds (ms), except one call in ten that takes two seconds longer. Every request lands in one bucket of a histogram; the numbers are what a dashboard would show.</p>
       <div class="w8-top">
         <div class="seg" role="group" aria-label="Traffic"><button type="button" id="w8-run" aria-pressed="false">Start</button><button type="button" id="w8-reset" aria-pressed="false">Reset</button></div>
         <span class="w8-last">last request <b id="w8-last">–</b></span>
@@ -85,13 +85,13 @@
   <span class="eyebrow">Workshop 8</span>
   <h2>At a glance</h2>
   <div class="tbl"><table>
-    <tr><th>Outcome</th><td>Every student leaves with a Go API that writes one JSON log line per request (method, path, status, duration, request id) and serves a Prometheus <code>/metrics</code> page they wrote themselves, a Compose file that runs it next to Prometheus and Grafana, a two-panel dashboard that shows which endpoint is slow, one alert rule, and the habit of asking a metric "where?" and a log "why?".</td></tr>
+    <tr><th>Outcome</th><td>Every student leaves with a Go API that writes one JavaScript Object Notation (JSON) log line per request (method, path, status, duration, request id) and serves a Prometheus <code>/metrics</code> page they wrote themselves, a Compose file that runs it next to Prometheus and Grafana, a two-panel dashboard that shows which endpoint is slow, one alert rule, and the habit of asking a metric "where?" and a log "why?".</td></tr>
     <tr><th>Why this topic</th><td>The first week on any real system is spent staring at a dashboard someone else built and a log nobody can search. Students have never seen where those numbers come from. Writing the <code>/metrics</code> page by hand, thirty lines, removes the magic for good: a metric is a number with labels that something fetches every few seconds, and a histogram is six counters. After that, every monitoring tool is the same tool.</td></tr>
-    <tr><th>Concepts</th><td>Structured logs and why a log line is a record, not a sentence; request ids; counters and histograms; labels and cardinality; the Prometheus text exposition format; pull-based scraping and the scrape interval; <code>rate()</code>, <code>sum by</code>, and <code>histogram_quantile()</code>; why p95 is not the average and why a bucketed p95 is an estimate; dashboards as questions; alert rules; the difference between "where" (metrics) and "why" (logs), and what traces would add.</td></tr>
+    <tr><th>Concepts</th><td>Structured logs and why a log line is a record, not a sentence; request ids; counters and histograms; labels and cardinality; the Prometheus text exposition format; pull-based scraping and the scrape interval; <code>rate()</code>, <code>sum by</code>, and <code>histogram_quantile()</code>; why p95, the 95th percentile, is not the average and why a bucketed p95 is an estimate; dashboards as questions; alert rules; the difference between "where" (metrics) and "why" (logs), and what traces would add.</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 1 (containers, ports) and workshop 6 (Compose, a service finds another by name). Can read a short Go program; workshops 3, 4 and 6 provided that. No Prometheus, Grafana or statistics knowledge.</td></tr>
     <tr><th>Language</th><td>Go, standard library only: <code>log/slog</code> for the logs and <code>fmt</code> for the metrics page. The load generator and the log filter are two tiny Deno scripts, pasted. Prometheus and Grafana run from their official images; nothing is installed on the laptop beyond what earlier workshops installed.</td></tr>
     <tr><th>Students need</th><td>Laptop with Go 1.27 or later, Deno 2.9 or later and Docker from the earlier workshops, the three images from the prep pack pulled, a browser, a text editor, and three terminal windows.</td></tr>
-    <tr><th>Room needs</th><td>Projector. No Wi-Fi is needed for anyone who did the prep; the instructor carries the images on a USB stick.</td></tr>
+    <tr><th>Room needs</th><td>Projector. No Wi-Fi is needed for anyone who did the prep; the instructor carries the images on a Universal Serial Bus (USB) stick.</td></tr>
     <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
@@ -107,7 +107,7 @@
   <p>You have all three from earlier workshops. Check they still work; if any is missing, Go comes from <a href="https://go.dev/dl/">go.dev/dl</a> (1.27 or later), Deno from <a href="https://docs.deno.com/runtime/getting_started/installation/">docs.deno.com</a> (<code>curl -fsSL https://deno.land/install.sh | sh</code> on macOS and Linux, <code>irm https://deno.land/install.ps1 | iex</code> in PowerShell), and Docker Desktop from <a href="https://docs.docker.com/get-started/get-docker/">docs.docker.com</a>. Docker Desktop must be running.</p>
 
   <h4>2. Download the three images we will use</h4>
-  <p>About 1.4 GB in total, most of it the Go toolchain image you may already have from workshop 1. Do this at home.</p>
+  <p>About 1.4 gigabytes (GB) in total, most of it the Go toolchain image you may already have from workshop 1. Do this at home.</p>
 <pre><code>docker pull golang:1.27
 docker pull prom/prometheus:v3.14.0
 docker pull grafana/grafana:13.2.2</code></pre>
@@ -120,7 +120,7 @@ docker compose version</code></pre>
   <div class="call check"><p class="lbl">Expected output</p><p>Three lines: <code>go version go1.27.1 …</code> (1.27 or later is fine), exactly <code>{"ready":true,"status":504}</code>, and <code>Docker Compose version v5…</code> (v2 or later is fine). The middle line is the one that matters: it proves Deno runs and can print JSON, which is what the whole workshop is built on. If any line fails, bring the error to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
   <p>Optional but nice: install <a href="https://jqlang.org/download/">jq</a>, the command-line JSON tool. The lab works without it; there is a Deno script that does the same job.</p>
 
-  <div class="call inst"><p class="lbl">If an image will not pull</p><p>The Prometheus and Grafana images are about 100 MB and 450 MB. Both are on the USB stick together with <code>golang:1.27</code>; <code>docker load -i images.tar</code> restores them in a minute. There is no other blocker: no accounts, no tokens, no cloud.</p></div>
+  <div class="call inst"><p class="lbl">If an image will not pull</p><p>The Prometheus and Grafana images are about 100 megabytes (MB) and 450 MB. Both are on the USB stick together with <code>golang:1.27</code>; <code>docker load -i images.tar</code> restores them in a minute. There is no other blocker: no accounts, no tokens, no cloud.</p></div>
 
   <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
   <ul class="check">
@@ -128,7 +128,7 @@ docker compose version</code></pre>
     <li>Save the images to a USB stick: <code>docker save golang:1.27 prom/prometheus:v3.14.0 grafana/grafana:13.2.2 -o images.tar</code> (about 1.4 GB).</li>
     <li>Steps 3 to 6 depend on ports 8080, 9090 and 3000 being free. Ask the room to stop anything from earlier workshops before the break; "port is already allocated" is the error of the day.</li>
     <li>The widget at the top of this page is slide 5. Let it run for thirty seconds while you talk; the average settles near half a second while p95 sits above two.</li>
-    <li>Grafana's UI moves between versions. Click through "add data source" and "new dashboard" on the pinned image the week before, and take two screenshots for the projector in case the room's browser is slow.</li>
+    <li>Grafana's user interface (UI) moves between versions. Click through "add data source" and "new dashboard" on the pinned image the week before, and take two screenshots for the projector in case the room's browser is slow.</li>
     <li>Have the <a href="#solution">full solution</a> ready. <code>metrics.go</code> is the one file a stuck student should paste whole; everything else is short enough to fix by reading.</li>
   </ul></div>
 </section>
@@ -142,7 +142,7 @@ docker compose version</code></pre>
   <p>The single idea to land: <strong>a log line answers "what happened to this request", a metric answers "how is the system doing", and you need both, because you cannot grep a thousand pods.</strong> Metrics find the where; logs find the why; a request id connects them.</p>
   <ol class="slides">
     <li><span class="n">1</span><span class="t">"It's slow." Which part?</span><span class="d">1 min</span>
-      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh in and tail a log? That works for one server. The workshop is about what works for a thousand.</span></li>
+      <span class="say">Title slide. A customer says checkout is slow. You have twelve servers, a log file on each, and a hunch. Ask what the room would do: ssh (Secure Shell) in and tail a log? That works for one server. The workshop is about what works for a thousand.</span></li>
     <li><span class="n">2</span><span class="t">Two questions, two tools</span><span class="d">2 min</span>
       <span class="say">"What happened to this request?" is a log question: one record per event, with everything you knew at the time. "How is the system doing?" is a metric question: a few numbers, updated constantly, cheap enough to keep forever. Logs are wide and expensive per event; metrics are narrow and free. A system that has only one of them has a blind spot. Today the API gets both.</span></li>
     <li><span class="n">3</span><span class="t">A log line is data, not prose</span><span class="d">2 min</span>
@@ -150,7 +150,7 @@ docker compose version</code></pre>
     <li><span class="n">4</span><span class="t">A metric is a number with labels</span><span class="d">1 min</span>
       <span class="say"><code>http_requests_total{path="/checkout",status="504"} 17</code>. A name, some labels, a value. A counter only goes up; you ask for its rate later. Labels are how you slice: by path, by status. Never a user id or a request id as a label: every distinct value is a new time series, and you would make millions.</span></li>
     <li><span class="n">5</span><span class="t">Histograms, and why p95 is not the average</span><span class="d">2 min</span>
-      <span class="say">The widget. A histogram is a row of counters with an upper bound each: how many requests took at most 0.1 s, at most 0.25, 0.5, 1, 2.5, anything. Checkout takes 300 ms, except one call in ten that takes two seconds longer. The average settles at half a second and looks fine; the p95 sits above two seconds because one customer in ten is waiting. Averages hide tails; percentiles show them. And a percentile computed from buckets is an estimate: Prometheus will say about 1.9 s where the truth is 2.3, because it interpolates inside the 1-to-2.5 bucket.</span></li>
+      <span class="say">The widget. A histogram is a row of counters with an upper bound each: how many requests took at most 0.1 seconds, at most 0.25, 0.5, 1, 2.5, anything. Checkout takes 300 ms, except one call in ten that takes two seconds longer. The average settles at half a second and looks fine; the p95 sits above two seconds because one customer in ten is waiting. Averages hide tails; percentiles show them. And a percentile computed from buckets is an estimate: Prometheus will say about 1.9 seconds where the truth is 2.3, because it interpolates inside the 1-to-2.5 bucket.</span></li>
     <li><span class="n">6</span><span class="t">Pull, not push</span><span class="d">1 min</span>
       <span class="say">The API does not send anything anywhere. It serves a plain text page at <code>/metrics</code> with the current counters, and Prometheus fetches that page every five seconds and stores each number with a timestamp. Grafana asks Prometheus questions and draws the answers. Three boxes, two arrows, and the API knows nothing about either of the others. That is why the lab can write the <code>/metrics</code> page by hand in thirty lines.</span></li>
     <li><span class="n">7</span><span class="t">PromQL in three lines</span><span class="d">2 min</span>
@@ -160,9 +160,9 @@ docker compose version</code></pre>
     <li><span class="n">9</span><span class="t">The log finds the why</span><span class="d">1 min</span>
       <span class="say">The graph cannot tell you why checkout is slow. Take one slow log line, copy its request id, filter the log for it, and there is a second line from inside the handler: "payment provider timed out". Metrics tell you where to look; logs tell you what you find there; the id is the join key. In step 6 you also write the alert rule so that next time nobody has to be watching the graph.</span></li>
     <li><span class="n">10</span><span class="t">What we are not doing</span><span class="d">1 min</span>
-      <span class="say">Traces: the third pillar, one record per request that crosses several services; OpenTelemetry plus a collector is a workshop of its own. The Prometheus client library, which does what our thirty lines do and much more; we write it by hand once so the library is never magic. Log levels and sampling, and SLOs. All four are stretch goals on the page.</span></li>
+      <span class="say">Traces: the third pillar, one record per request that crosses several services; OpenTelemetry plus a collector is a workshop of its own. The Prometheus client library, which does what our thirty lines do and much more; we write it by hand once so the library is never magic. Log levels and sampling, and service level objectives (SLOs). All four are stretch goals on the page.</span></li>
     <li><span class="n">11</span><span class="t"><span class="inst-only">The next 90 minutes</span><span class="stu-only">The lab</span></span><span class="d">1 min</span>
-      <span class="say">Seven steps: run the API and a load generator, switch the log to JSON and filter it, write the metrics page, bring up Prometheus and Grafana with Compose, ask three PromQL questions, build the two-panel dashboard and find the slow endpoint, then correlate with a request id and add the alert. Five-minute break, then step 0.</span></li>
+      <span class="say">Seven steps: run the API and a load generator, switch the log to JSON and filter it, write the metrics page, bring up Prometheus and Grafana with Compose, ask three Prometheus Query Language (PromQL) questions, build the two-panel dashboard and find the slow endpoint, then correlate with a request id and add the alert. Five-minute break, then step 0.</span></li>
   </ol>
 </section>
 
@@ -170,7 +170,7 @@ docker compose version</code></pre>
   <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
   <p>Students work in the <code>obs-lab</code> folder from the prep with three terminals open in it: one for the API, one for the load generator, one for everything else. A browser sits beside them. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference version from the <a href="#solution">full solution</a> and continues.</p>
-  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the observability code and configuration: 42 lines of Go (the <code>slog</code> changes, the two metrics functions, the warning line) and 9 lines of YAML (<code>prometheus.yml</code> and one Compose line), 51 lines in all, plus about a dozen commands. <strong>Paste this</strong> is the API itself, the two Deno scripts, the Dockerfile, the Compose file and the alert rule: they are read aloud and understood, but they are not the topic. Windows users: everything on this page runs unchanged in PowerShell; where the page pipes into <code>deno run filter.ts</code>, so do you.</p></div>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is the observability code and configuration: 42 lines of Go (the <code>slog</code> changes, the two metrics functions, the warning line) and 9 lines of YAML Ain't Markup Language (YAML) (<code>prometheus.yml</code> and one Compose line), 51 lines in all, plus about a dozen commands. <strong>Paste this</strong> is the API itself, the two Deno scripts, the Dockerfile, the Compose file and the alert rule: they are read aloud and understood, but they are not the topic. Windows users: everything on this page runs unchanged in PowerShell; where the page pipes into <code>deno run filter.ts</code>, so do you.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
     <div class="row" data-from="0" data-to="8"><span class="k">0:00–0:08</span><span>Step 0 · Run the API and the load generator</span></div>
@@ -257,7 +257,7 @@ await Promise.all([1, 2, 3].map(loop));</code></pre>
 <pre data-mode="type this"><code>go run .
 deno run --allow-net load.ts
 curl -i localhost:8080/checkout</code></pre>
-    <div class="call check"><p class="lbl">Checkpoint 0</p><p>Terminal 1 prints <code>listening on :8080</code> and then a line per request such as <code>GET /checkout 200 300.5ms</code>. Terminal 2 scrolls lines like <code>loop 2  200  /products  1 ms</code> and, every ten checkouts or so, <code>504  /checkout  2302 ms</code>. <code>curl</code> answers <code>paid</code> after about 300 ms, or <code>payment provider timed out</code> with a 504 after 2.3 s if you were unlucky.</p></div>
+    <div class="call check"><p class="lbl">Checkpoint 0</p><p>Terminal 1 prints <code>listening on :8080</code> and then a line per request such as <code>GET /checkout 200 300.5ms</code>. Terminal 2 scrolls lines like <code>loop 2  200  /products  1 ms</code> and, every ten checkouts or so, <code>504  /checkout  2302 ms</code>. <code>curl</code> answers <code>paid</code> after about 300 ms, or <code>payment provider timed out</code> with a 504 after 2.3 seconds if you were unlucky.</p></div>
     <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Someone will have port 8080 taken by a container from workshop 6 or 7: <code>docker ps</code>, then <code>docker rm -f</code>. Leave the load generator running for the rest of the lab; every later step needs traffic.</p></div>
   </article>
 
@@ -266,7 +266,7 @@ curl -i localhost:8080/checkout</code></pre>
     <p>The line terminal 1 prints is a sentence. Try to answer "how many 504s in the last minute?" from it and you are writing a regular expression. Go's <code>log/slog</code> package writes the same information as JSON: one record per line, every field named. Three edits to <code>main.go</code>. First, two imports:</p>
 <pre data-mode="type this"><code>	&quot;log/slog&quot;
 	&quot;os&quot;</code></pre>
-    <p>Second, in <code>wrap</code>, replace the <code>rec :=</code>, <code>h(rec, r)</code> and <code>log.Printf</code> lines with these six. The request id is eight random hex digits, stamped onto the request as a header so that anything deeper in the program can find it:</p>
+    <p>Second, in <code>wrap</code>, replace the <code>rec :=</code>, <code>h(rec, r)</code> and <code>log.Printf</code> lines with these six. The request id is eight random hexadecimal digits, stamped onto the request as a header so that anything deeper in the program can find it:</p>
 <pre data-mode="type this"><code>		id := fmt.Sprintf(&quot;%08x&quot;, rand.Uint32())
 		r.Header.Set(&quot;X-Request-Id&quot;, id)
 		rec := &amp;recorder{w, 200}
@@ -376,7 +376,7 @@ http_request_duration_seconds_sum{path=&quot;/checkout&quot;} 72.49204246999997
 http_request_duration_seconds_count{path=&quot;/checkout&quot;} 128
 …</code></pre>
     </div>
-    <p><strong>Talk about it:</strong> read the checkout histogram out loud: 128 requests, 111 under half a second, 17 between one and 2.5 seconds. What is the average? (72.5 s / 128 = 0.57 s.) What is the p95? (The 95th percent mark is request 122 of 128, which is in the 1-to-2.5 bucket; the truth is 2.3 s.) The map order changes between scrapes; why does that not matter? (Each line is self-describing.) Why is the duration in seconds and not milliseconds? (Prometheus convention: base units, always.) What happens to this program if someone requests <code>/a</code>, <code>/b</code>, <code>/c</code> … a million times? (A million time series: the catch-all <code>/</code> handler logs the real path. The fix is <code>r.Pattern</code>, the matched route, instead of <code>r.URL.Path</code>. Not today, but never put an unbounded value in a label.)</p>
+    <p><strong>Talk about it:</strong> read the checkout histogram out loud: 128 requests, 111 under half a second, 17 between one and 2.5 seconds. What is the average? (72.5 seconds / 128 = 0.57 seconds.) What is the p95? (The 95th percent mark is request 122 of 128, which is in the 1-to-2.5 bucket; the truth is 2.3 seconds.) The map order changes between scrapes; why does that not matter? (Each line is self-describing.) Why is the duration in seconds and not milliseconds? (Prometheus convention: base units, always.) What happens to this program if someone requests <code>/a</code>, <code>/b</code>, <code>/c</code> … a million times? (A million time series: the catch-all <code>/</code> handler logs the real path. The fix is <code>r.Pattern</code>, the matched route, instead of <code>r.URL.Path</code>. Not today, but never put an unbounded value in a label.)</p>
     <p><strong>Common mistakes:</strong> <code>&lt;</code> instead of <code>&lt;=</code> in <code>observe</code> (buckets are "less than or equal", that is what <code>le</code> means); forgetting the <code>+Inf</code> bucket by editing the list (Prometheus rejects the histogram without it); a <code>_count</code> that is not equal to the <code>+Inf</code> bucket.</p>
   </article>
 
@@ -389,7 +389,7 @@ scrape_configs:
   - job_name: api
     static_configs:
       - targets: [&quot;api:8080&quot;]</code></pre>
-    <p><code>scrape_interval: 5s</code> is aggressive (the default is a minute; 15 s is common) so that the graphs move while you watch. The target is <code>api:8080</code>, not <code>localhost</code>: inside Compose, services find each other by name, exactly as in workshop 6, so the API needs to be a service too. Paste the Dockerfile from workshop 1 with one change (<code>COPY *.go</code>, since there are now two files) and a Compose file with three services:</p>
+    <p><code>scrape_interval: 5s</code> is aggressive (the default is a minute; 15 seconds is common) so that the graphs move while you watch. The target is <code>api:8080</code>, not <code>localhost</code>: inside Compose, services find each other by name, exactly as in workshop 6, so the API needs to be a service too. Paste the Dockerfile from workshop 1 with one change (<code>COPY *.go</code>, since there are now two files) and a Compose file with three services:</p>
     <h4>Dockerfile</h4>
 <pre data-mode="paste this"><code>FROM golang:1.27 AS build
 WORKDIR /app
@@ -421,7 +421,7 @@ docker compose ps</code></pre>
     <p>Open <a href="http://localhost:9090/targets">localhost:9090/targets</a>. Prometheus lists its one target, <code>api:8080</code>, and after a few seconds says <code>UP</code>. Then <a href="http://localhost:9090/query">localhost:9090/query</a>, type <code>http_requests_total</code> in the box and press Execute: the four counter lines from step 2, now as time series that Prometheus has been storing every five seconds.</p>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>docker compose ps</code> shows <code>api</code>, <code>prometheus</code> and <code>grafana</code> running. The targets page shows <code>api:8080</code> as <code>UP</code> with a "last scrape" a few seconds ago. The query <code>http_requests_total</code> returns four series, and running it again returns bigger numbers.</p></div>
     <p><strong>Common mistakes:</strong> <code>localhost:8080</code> as the target (that is Prometheus's own container; the target shows <code>DOWN</code> with "connection refused"); YAML indented with a tab (Prometheus refuses to start; <code>docker compose logs prometheus</code> says so); the old <code>go run</code> still holding port 8080 so <code>api</code> fails to start.</p>
-    <div class="call inst"><p class="lbl">Instructor</p><p>The build step pulls nothing if the prep was done, but the first <code>go build</code> inside the container takes some tens of seconds on a laptop. Use the wait to say what "UP" means: Prometheus made an HTTP request to <code>/metrics</code>, parsed it, and stored every line with a timestamp. The API did nothing but answer.</p></div>
+    <div class="call inst"><p class="lbl">Instructor</p><p>The build step pulls nothing if the prep was done, but the first <code>go build</code> inside the container takes some tens of seconds on a laptop. Use the wait to say what "UP" means: Prometheus made a Hypertext Transfer Protocol (HTTP) request to <code>/metrics</code>, parsed it, and stored every line with a timestamp. The API did nothing but answer.</p></div>
   </article>
 
   <article class="step" id="s4">
@@ -431,15 +431,15 @@ docker compose ps</code></pre>
 sum by (path) (rate(http_requests_total[1m]))
 histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_bucket[1m])))</code></pre>
     <p>The first asks: over the last minute, how fast did each counter climb, per second? Four lines, one per path-and-status pair. The second adds them up but keeps <code>path</code>, so the 200s and 504s of <code>/checkout</code> merge into one line: requests per second per endpoint. The third is the one people copy for years: take the six bucket counters per path, turn each into a rate, add them up keeping <code>path</code> and <code>le</code>, and ask for the 95th percentile. Read it inside out and it is three ideas you already have.</p>
-    <div class="call check"><p class="lbl">Checkpoint 4</p><p>Query 1 shows four series: three between about 3 and 6 requests per second and the <code>/checkout</code> 504 series down near 0.3; query 2 shows three lines, <code>/products</code> highest at about 6 per second, the other two about 3 (with our load generator, half the requests go to <code>/products</code>). Query 3 shows <code>/</code> and <code>/products</code> flat at the smallest bucket bound, 0.1, and <code>/checkout</code> at about 1.9 s. Not 2.3: the truth is between the 1 and 2.5 bounds and Prometheus interpolates linearly inside the bucket. Coarser buckets, rougher estimate.</p></div>
-    <p><strong>Talk about it:</strong> why <code>[1m]</code> and not <code>[5s]</code>? (A rate needs at least two samples in the window; with a 5 s scrape, <code>[1m]</code> holds twelve.) Why does the p95 for the fast endpoints read 0.1 when they take a millisecond? (Everything is in the first bucket, so the best Prometheus can say is "at most 0.1". If you cared about the fast endpoints, you would add smaller buckets.) What does <code>sum by (le)</code> without <code>path</code> give you? (One p95 over all endpoints, which hides checkout inside the fast ones.)</p>
-    <div class="call inst"><p class="lbl">Not executed while writing this page</p><p>Prometheus could not be run in the authoring environment (no registry access), so the numbers in this checkpoint were computed by hand from the real <code>/metrics</code> output in step 2 with the interpolation rule from the PromQL documentation; the shape (four series, three lines, one endpoint near 2 s) is what the load generator produces. Your own numbers from the instructor prep replace them.</p></div>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p>Query 1 shows four series: three between about 3 and 6 requests per second and the <code>/checkout</code> 504 series down near 0.3; query 2 shows three lines, <code>/products</code> highest at about 6 per second, the other two about 3 (with our load generator, half the requests go to <code>/products</code>). Query 3 shows <code>/</code> and <code>/products</code> flat at the smallest bucket bound, 0.1, and <code>/checkout</code> at about 1.9 seconds. Not 2.3: the truth is between the 1 and 2.5 bounds and Prometheus interpolates linearly inside the bucket. Coarser buckets, rougher estimate.</p></div>
+    <p><strong>Talk about it:</strong> why <code>[1m]</code> and not <code>[5s]</code>? (A rate needs at least two samples in the window; with a 5-second scrape, <code>[1m]</code> holds twelve.) Why does the p95 for the fast endpoints read 0.1 when they take a millisecond? (Everything is in the first bucket, so the best Prometheus can say is "at most 0.1". If you cared about the fast endpoints, you would add smaller buckets.) What does <code>sum by (le)</code> without <code>path</code> give you? (One p95 over all endpoints, which hides checkout inside the fast ones.)</p>
+    <div class="call inst"><p class="lbl">Not executed while writing this page</p><p>Prometheus could not be run in the authoring environment (no registry access), so the numbers in this checkpoint were computed by hand from the real <code>/metrics</code> output in step 2 with the interpolation rule from the PromQL documentation; the shape (four series, three lines, one endpoint near 2 seconds) is what the load generator produces. Your own numbers from the instructor prep replace them.</p></div>
   </article>
 
   <article class="step" id="s5">
     <header><span class="num">Step 5</span><h3>Grafana finds the where</h3><span class="time">12 min</span></header>
-    <p>Prometheus can graph one expression. Grafana keeps many on one page, for everyone, forever. Open <a href="http://localhost:3000">localhost:3000</a> and sign in with <code>admin</code> / <code>admin</code>; it asks you to choose a new password, and you may skip that. Two things to do, both in the UI.</p>
-    <p><strong>Add the data source.</strong> Connections → Add new connection → search "Prometheus" → Add new data source. The only field that matters is the server URL: <code>http://prometheus:9090</code>, the service name again, because Grafana's container talks to Prometheus's container. Save &amp; test; Grafana says "Successfully queried the Prometheus API."</p>
+    <p>Prometheus can graph one expression. Grafana keeps many on one page, for everyone, forever. Open <a href="http://localhost:3000">localhost:3000</a> and sign in with <code>admin</code> / <code>admin</code>; it asks you to choose a new password, and you may skip that. Two things to do, both in the user interface (UI).</p>
+    <p><strong>Add the data source.</strong> Connections → Add new connection → search "Prometheus" → Add new data source. The only field that matters is the server Uniform Resource Locator (URL): <code>http://prometheus:9090</code>, the service name again, because Grafana's container talks to Prometheus's container. Save &amp; test; Grafana says "Successfully queried the Prometheus API."</p>
     <p><strong>Build the dashboard.</strong> Dashboards → New → New dashboard → Add visualization → pick the Prometheus data source. In the query editor switch from Builder to Code and paste the second expression from step 4. Give the panel the title "Requests per second by path". Back to the dashboard, add a second visualization with the third expression and the title "p95 latency by path"; in the panel options on the right set the unit to seconds. Save the dashboard as "API".</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>Two panels side by side, updating every few seconds. In the first, three lines with <code>/products</code> on top. In the second, two lines on the floor and one at about two seconds, labelled <code>/checkout</code>. Ask the person next to you which endpoint is slow. They can tell you without having read <code>main.go</code>.</p></div>
     <p><strong>Talk about it:</strong> this is the "where". What would you want on the third panel? (Error rate: <code>sum by (path) (rate(http_requests_total{status=~"5.."}[1m]))</code>.) Which of these panels would you want to be woken up for? What would a graph of the average have shown for checkout? (About half a second, comfortably under one, and nobody would have looked twice.)</p>
@@ -494,9 +494,9 @@ docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
     <h4>Stretch goals (pick one)</h4>
     <ul>
       <li><strong>The library.</strong> Replace <code>metrics.go</code> with <code>github.com/prometheus/client_golang</code>: <code>promauto.NewCounterVec</code>, <code>promauto.NewHistogramVec</code>, and <code>promhttp.Handler()</code> on <code>/metrics</code>. Compare its output with yours: same names, same lines, plus forty Go-runtime metrics for free. (Needs <code>go get</code> and a network; run it at home if the venue has none.)</li>
-      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the SDK and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are a workshop of their own.</li>
+      <li><strong>Traces.</strong> The third pillar. Read the OpenTelemetry Go getting-started page, add the software development kit (SDK) and a console exporter, and wrap the checkout handler in a span. Look at what a span carries that a log line does not: a parent, a start and an end. A collector and a UI (Jaeger, Tempo) are a workshop of their own.</li>
       <li><strong>Levels and sampling.</strong> Give the handler a <code>slog.Debug</code> line per request and turn it on with <code>slog.HandlerOptions{Level: slog.LevelDebug}</code> only when an environment variable is set. Then log only every tenth 200 but every 5xx: that is sampling, and it is how a busy service keeps its log bill sane.</li>
-      <li><strong>An SLO.</strong> "99% of checkouts under one second over 30 days." Write the PromQL for the fraction that met it (<code>_bucket{le="1"}</code> over <code>_count</code>) and compute how many slow requests the month can afford before the objective is broken. That number is an error budget.</li>
+      <li><strong>A service level objective (SLO).</strong> "99% of checkouts under one second over 30 days." Write the Prometheus Query Language (PromQL) for the fraction that met it (<code>_bucket{le="1"}</code> over <code>_count</code>) and compute how many slow requests the month can afford before the objective is broken. That number is an error budget.</li>
       <li><strong>Alertmanager.</strong> Add <code>prom/alertmanager</code> to Compose, point Prometheus at it with an <code>alerting:</code> block, and route the alert to a webhook receiver (a ten-line <code>Deno.serve</code> that prints the JSON). Watch the page arrive.</li>
       <li><strong>Provision the dashboard.</strong> Export the dashboard as JSON from Grafana, mount it under <code>/etc/grafana/provisioning/dashboards</code> with a provider file, <code>docker compose down -v</code>, <code>up</code>, and the dashboard is there before anyone logs in. Dashboards are code too.</li>
     </ul>
@@ -700,7 +700,7 @@ rule_files:
   <h4>Things students ask</h4>
   <ul>
     <li><em>"Why not just use the library?"</em> You will, next week, and it will be four lines. Today you know what those four lines produce, why <code>+Inf</code> is mandatory, and what a histogram costs (six series per path). People who skip this step spend their first incident staring at <code>histogram_quantile</code> as if it were magic.</li>
-    <li><em>"The p95 says 1.9 but the log says 2.3."</em> Correct, and worth two minutes. Prometheus knows only that 17 requests fell between 1 and 2.5 s and assumes they are spread evenly. Buckets are chosen by you; put a bound where you need precision (at your SLO threshold, say) and the estimate is exact there.</li>
+    <li><em>"The p95 says 1.9 but the log says 2.3."</em> Correct, and worth two minutes. Prometheus knows only that 17 requests fell between 1 and 2.5 seconds and assumes they are spread evenly. Buckets are chosen by you; put a bound where you need precision (at your SLO threshold, say) and the estimate is exact there.</li>
     <li><em>"Can Prometheus scrape my app on the laptop instead of in Compose?"</em> Yes: target <code>host.docker.internal:8080</code>, and on Linux add <code>extra_hosts: ["host.docker.internal:host-gateway"]</code> to the Prometheus service. Not in the lab because the room has Compose in its fingers from workshops 6 and 7, and it means one fewer thing that differs by OS.</li>
     <li><em>"Is JSON logging slower?"</em> Slightly more bytes per line, and <code>slog</code> is designed not to allocate for the common case. The cost that matters is elsewhere: log volume. A busy service logs every request into a system that indexes it, and that is the bill; sampling (stretch goal) is the answer, not going back to prose.</li>
     <li><em>"Where do logs go in production?"</em> Standard output, exactly as here, and the platform collects them: Docker's log driver, Kubernetes, then something like Loki or Elasticsearch that indexes the JSON fields. Step 1's filter is a one-file version of that pipeline.</li>
@@ -734,7 +734,7 @@ datasources:
 
 <script src="../../assets/08-observability-hero.js"></script>
 
-<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the RFC test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the Request for Comments (RFC) test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
 <script src="../../assets/site.js"></script>
 </body>
 </html>
