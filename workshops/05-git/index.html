@@ -189,11 +189,11 @@ git config --global core.editor nano               # or nano, which Git Bash and
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>The same repository for everyone</h3><span class="time">5 min</span></header>
     <p>Save the setup script into an empty folder (download it from the <a href="#solution">full solution</a>, or paste it into a file called <code>make-repo.sh</code>). It builds a small project, <code>tempconv</code>, with 31 commits on four branches, and every commit has a fixed author and a fixed date, so the hashes on your screen are the hashes on this page. If you built it at home, <code>rm -rf git-lab</code> first.</p>
-<pre data-mode="type this"><code>bash make-repo.sh
+<pre data-mode="type this" data-where="terminal"><code>bash make-repo.sh
 cd git-lab
 git log --oneline --graph --all
 ./test.sh</code></pre>
-<pre data-mode="you should see"><code>* f063a35 (HEAD -&gt; main) CHANGELOG: prepare 1.1
+<pre data-mode="you should see" data-where="terminal"><code>* f063a35 (HEAD -&gt; main) CHANGELOG: prepare 1.1
 * 4128a3a Bump version to 1.1 in --help
 * 95d7f26 Fix typo in README
 | * 5fed98d (feature/tagline) README: second usage example
@@ -219,7 +219,7 @@ git log --oneline --graph --all
   ... 10 more, down to
 * 2d9e498 Initial commit</code></pre>
     <p>Read the graph from the bottom: one line of commits, three side branches. <code>feature/kelvin</code> is four commits called WIP; <code>experiment/color</code> and <code>feature/tagline</code> are two each. <code>v1.0</code> is a tag. Then the tests:</p>
-<pre data-mode="you should see"><code>ok    100 -&gt; 212
+<pre data-mode="you should see" data-where="terminal"><code>ok    100 -&gt; 212
 ok    0 -&gt; 32
 ok    -40 -&gt; -40
 FAIL  212 f -&gt; 195 (wanted 100)
@@ -232,14 +232,14 @@ some tests FAILED</code></pre>
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>Bisect: which commit broke the test?</h3><span class="time">15 min</span></header>
     <p>The tests fail on <code>main</code> and, the changelog says, passed at <code>v1.0</code>. Ten commits in between. Tell git one bad commit (where you are) and one good one, and it checks out the middle:</p>
-<pre data-mode="type this"><code>git bisect start
+<pre data-mode="type this" data-where="terminal"><code>git bisect start
 git bisect bad
 git bisect good v1.0</code></pre>
-<pre data-mode="you should see"><code>Bisecting: 4 revisions left to test after this (roughly 2 steps)
+<pre data-mode="you should see" data-where="terminal"><code>Bisecting: 4 revisions left to test after this (roughly 2 steps)
 [4c42b15625786affdee895a959f04caa4bdedf71] README: contributing section</code></pre>
     <p>You could now run <code>./test.sh</code> and type <code>git bisect good</code> or <code>git bisect bad</code>, and repeat. Or, since the test script exits 0 when it passes and 1 when it fails, let git do the repeating:</p>
-<pre data-mode="type this"><code>git bisect run ./test.sh</code></pre>
-<pre data-mode="you should see"><code>running &#x27;./test.sh&#x27;
+<pre data-mode="type this" data-where="terminal"><code>git bisect run ./test.sh</code></pre>
+<pre data-mode="you should see" data-where="terminal"><code>running &#x27;./test.sh&#x27;
 ok    100 -&gt; 212
 ok    0 -&gt; 32
 ok    -40 -&gt; -40
@@ -264,7 +264,7 @@ Date:   Tue Mar 3 04:00:00 2026 +0000
  1 file changed, 1 insertion(+), 1 deletion(-)
 bisect found first bad commit</code></pre>
     <p>Three test runs, and it names the commit: <code>08e14b1 Simplify f_to_c arithmetic</code>. Look at what it changed with <code>git show 08e14b1</code> if you like (a dropped pair of parentheses: <code>$1 - 32 * 5 / 9</code>). Now leave bisect mode, which puts you back on <code>main</code>, and undo that commit with a new commit rather than by editing history:</p>
-<pre data-mode="type this"><code>git bisect reset
+<pre data-mode="type this" data-where="terminal"><code>git bisect reset
 git revert --no-edit 08e14b1
 ./test.sh</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>bisect run</code> ended with <code>08e14b18418e2643c52e5745cac2af59b5f3a741 is the first bad commit</code>. After the revert, <code>git log --oneline -1</code> shows <code>Revert "Simplify f_to_c arithmetic"</code> on top (your hash, not ours: you are the author) and <code>./test.sh</code> prints <code>all tests passed</code>.</p></div>
@@ -274,11 +274,11 @@ git revert --no-edit 08e14b1
   <article class="step" id="s2">
     <header><span class="num">Step 2</span><h3>Interactive rebase: four WIP commits into one</h3><span class="time">15 min</span></header>
     <p>Ola added Kelvin support on a branch, in four commits called WIP, wip kelvin, fix, and WIP tests and help. The feature is fine; the history is not something you would open a pull request with. Squash the four into one commit with a message that says what it does.</p>
-<pre data-mode="type this"><code>git switch feature/kelvin
+<pre data-mode="type this" data-where="terminal"><code>git switch feature/kelvin
 git log --oneline main..
 git rebase -i HEAD~4</code></pre>
     <p><code>main..</code> means "commits on this branch that main does not have": the four. <code>rebase -i HEAD~4</code> opens your editor with a to-do list, oldest commit first:</p>
-<pre data-mode="you should see"><code>pick cb1d805 WIP
+<pre data-mode="you should see" data-where="rebase to-do list in editor"><code>pick cb1d805 WIP
 pick 1096f61 wip kelvin
 pick c0ecc06 fix
 pick 037ffcf WIP tests and help
@@ -296,18 +296,18 @@ pick 037ffcf WIP tests and help
 # ...
 # If you remove a line here THAT COMMIT WILL BE LOST.</code></pre>
     <p>Change the verb on lines 2, 3 and 4 from <code>pick</code> to <code>squash</code> (leave line 1 alone: squash melds a commit into the one above it, so the first must stay). Do not touch the hashes. Save and close (nano: Ctrl-O, Enter, Ctrl-X; VS Code: Ctrl-S or Cmd-S, then close the tab):</p>
-<pre data-mode="you should see"><code>pick cb1d805 WIP
+<pre data-mode="you should see" data-where="rebase to-do list in editor"><code>pick cb1d805 WIP
 squash 1096f61 wip kelvin
 squash c0ecc06 fix
 squash 037ffcf WIP tests and help</code></pre>
     <p>Git replays the four commits and opens the editor again, now with all four messages pasted together. Delete everything that is not a comment and write one message: first line <code>Add Kelvin conversion</code>, a blank line, then a sentence such as <code>./temp.sh 300 k prints 27, and test.sh checks it.</code> Save and close the same way. Then look:</p>
-<pre data-mode="type this"><code>git log --oneline -3</code></pre>
-<pre data-mode="you should see"><code>33c9f80 (HEAD -&gt; feature/kelvin) Add Kelvin conversion
+<pre data-mode="type this" data-where="terminal"><code>git log --oneline -3</code></pre>
+<pre data-mode="you should see" data-where="terminal"><code>33c9f80 (HEAD -&gt; feature/kelvin) Add Kelvin conversion
 4708ac8 Refactor: one function per conversion
 707e21a (tag: v1.0) Release 1.0</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p>The branch has one commit above <code>4708ac8</code>, titled <code>Add Kelvin conversion</code> (your hash differs from <code>33c9f80</code>). <code>git show --stat HEAD</code> lists <code>temp.sh</code> and <code>test.sh</code>, and the author is still Ola Berg: squash keeps the first commit's author. <code>./test.sh</code> prints six <code>ok</code> lines including <code>300 k -&gt; 27</code>.</p></div>
     <div class="call inst"><p class="lbl">If the editor fights you</p><p>The whole edit can be done without an editor. Paste this and the rebase happens with lines 2–4 as <code>fixup</code> (like squash, but the message is discarded), then the message is set afterwards:</p>
-<pre data-mode="paste this"><code>GIT_SEQUENCE_EDITOR=&quot;sed -i.bak &#x27;2,4s/^pick/fixup/&#x27;&quot; GIT_EDITOR=true git rebase -i HEAD~4
+<pre data-mode="paste this" data-where="terminal"><code>GIT_SEQUENCE_EDITOR=&quot;sed -i.bak &#x27;2,4s/^pick/fixup/&#x27;&quot; GIT_EDITOR=true git rebase -i HEAD~4
 git commit --amend -m &quot;Add Kelvin conversion&quot;</code></pre>
     <p>Use it to get a stuck student to the checkpoint, then have them run <code>git reflog</code> and <code>git show cb1d805</code> to see that the WIP commits are still there. If a rebase goes wrong halfway, <code>git rebase --abort</code> returns to exactly where the branch was.</p></div>
     <p><strong>Common mistakes:</strong> squashing line 1 ("cannot squash without a previous commit"; abort and retry); deleting a line, which drops that commit (the to-do list warns you in capitals); the editor opened, the student closed the terminal instead, and git is now waiting: <code>git rebase --abort</code>. And the question that always comes: the old commits <code>cb1d805</code> to <code>037ffcf</code> are not in the log any more, but <code>git show 037ffcf</code> still works. Rebase made new commits and moved the label.</p>
@@ -316,17 +316,17 @@ git commit --amend -m &quot;Add Kelvin conversion&quot;</code></pre>
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>Two accidents and the reflog</h3><span class="time">10 min</span></header>
     <p>Back on <code>main</code>, go and look at the colour experiment, come back, and delete the branch, as someone tidying up on a Friday would:</p>
-<pre data-mode="type this"><code>git switch main
+<pre data-mode="type this" data-where="terminal"><code>git switch main
 git switch experiment/color
 git switch main
 git branch -D experiment/color</code></pre>
-<pre data-mode="you should see"><code>Deleted branch experiment/color (was 54ad38b).</code></pre>
+<pre data-mode="you should see" data-where="terminal"><code>Deleted branch experiment/color (was 54ad38b).</code></pre>
     <p>(<code>-d</code>, lower case, would have refused: "not fully merged". <code>-D</code> is the "I know what I am doing" spelling, and you did not.) Now the second accident. You meant to undo one local change and typed this:</p>
-<pre data-mode="type this"><code>git reset --hard HEAD~3</code></pre>
-<pre data-mode="you should see"><code>HEAD is now at 95d7f26 Fix typo in README</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>git reset --hard HEAD~3</code></pre>
+<pre data-mode="you should see" data-where="terminal"><code>HEAD is now at 95d7f26 Fix typo in README</code></pre>
     <p>Three commits, including your revert from step 1, are gone from <code>git log</code>, and <code>./test.sh</code> fails again. Nothing was deleted. The label <code>main</code> moved three commits down, and git wrote down where it was:</p>
-<pre data-mode="type this"><code>git reflog</code></pre>
-<pre data-mode="you should see"><code>95d7f26 HEAD@{0}: reset: moving to HEAD~3
+<pre data-mode="type this" data-where="terminal"><code>git reflog</code></pre>
+<pre data-mode="you should see" data-where="terminal"><code>95d7f26 HEAD@{0}: reset: moving to HEAD~3
 f108af5 HEAD@{1}: checkout: moving from experiment/color to main
 54ad38b HEAD@{2}: checkout: moving from main to experiment/color
 f108af5 HEAD@{3}: checkout: moving from feature/kelvin to main
@@ -340,7 +340,7 @@ f063a35 HEAD@{15}: commit: CHANGELOG: prepare 1.1
   ... every commit the script made ...
 2d9e498 HEAD@{51}: commit (initial): Initial commit</code></pre>
     <p>Newest first (git says <code>checkout</code> even when you typed <code>switch</code>; they are the same move). <code>HEAD@{0}</code> is the reset. <code>HEAD@{1}</code> is where HEAD was before it: the revert commit, on <code>main</code>. And <code>HEAD@{2}</code> is the moment you looked at <code>experiment/color</code>, with the hash of its tip, <code>54ad38b</code>. Both rescues are one command each:</p>
-<pre data-mode="type this"><code>git reset --hard HEAD@{1}
+<pre data-mode="type this" data-where="terminal"><code>git reset --hard HEAD@{1}
 git branch experiment/color 54ad38b</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>git log --oneline --graph --all</code> looks exactly as it did at the end of step 2: the revert on top of <code>main</code>, and <code>experiment/color</code> back on <code>54ad38b</code>. <code>./test.sh</code> passes again.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> why did <code>HEAD@{2}</code> know about the experiment branch? (Because you had switched to it; had you deleted it without ever checking it out, the reflog would not help, but the "was 54ad38b" in the delete message would.) What is the one thing the reflog cannot bring back? (Changes you never committed. <code>reset --hard</code> throws those away for real.) How long do you have? (30 days: both rescues here are unreachable commits, and <code>gc.reflogExpireUnreachable</code> defaults to 30 days; entries for commits still on a branch last 90.)</p>
@@ -349,13 +349,13 @@ git branch experiment/color 54ad38b</code></pre>
   <article class="step" id="s4">
     <header><span class="num">Step 4</span><h3>A merge conflict, by hand</h3><span class="time">15 min</span></header>
     <p><code>feature/tagline</code> rewrote the README's first sentence. On <code>main</code>, meanwhile, somebody fixed a typo in that same sentence. Merge it:</p>
-<pre data-mode="type this"><code>git merge feature/tagline
+<pre data-mode="type this" data-where="terminal"><code>git merge feature/tagline
 git status</code></pre>
-<pre data-mode="you should see"><code>Auto-merging README.md
+<pre data-mode="you should see" data-where="terminal"><code>Auto-merging README.md
 CONFLICT (content): Merge conflict in README.md
 Automatic merge failed; fix conflicts and then commit the result.</code></pre>
     <p><code>git status</code> says <code>both modified: README.md</code> under "Unmerged paths", and tells you the two ways out: fix and commit, or <code>git merge --abort</code>. Open <code>README.md</code> in your editor (<code>nano README.md</code>, or <code>code README.md</code>; VS Code offers "Accept Current / Incoming / Both Changes" buttons above the markers, and "Both" would keep two lines, so edit by hand this once):</p>
-<pre data-mode="you should see"><code># tempconv
+<pre data-mode="you should see" data-where="in README.md"><code># tempconv
 
 &lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
 A tiny temperature converter.
@@ -365,10 +365,10 @@ A tiny temperture converter for the shell.
 
 ## Usage</code></pre>
     <p>Three marker lines. Between <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> and <code>=======</code> is your side, <code>main</code>: the typo is fixed. Between <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/tagline</code> is theirs: longer, typo intact. Everything else in the file merged on its own; the second usage example from the branch is already there. The right answer is both: replace the five lines with the single line <code>A tiny temperature converter for the shell.</code> and save. Then tell git you have resolved it, and finish the merge:</p>
-<pre data-mode="type this"><code>git add README.md
+<pre data-mode="type this" data-where="terminal"><code>git add README.md
 git commit --no-edit
 git log --oneline --graph -6</code></pre>
-<pre data-mode="you should see"><code>*   e5db6cf (HEAD -&gt; main) Merge branch &#x27;feature/tagline&#x27;
+<pre data-mode="you should see" data-where="terminal"><code>*   e5db6cf (HEAD -&gt; main) Merge branch &#x27;feature/tagline&#x27;
 |\
 | * 5fed98d (feature/tagline) README: second usage example
 | * eb748f7 README: longer tagline
@@ -383,7 +383,7 @@ git log --oneline --graph -6</code></pre>
     <header><span class="num">Step 5</span><h3>A pre-commit hook that says no</h3><span class="time">10 min</span></header>
     <p>A hook is a script git runs at a fixed moment. <code>pre-commit</code> runs before the commit exists; if it exits non-zero, there is no commit. Ours runs the tests and refuses any commit that adds a line containing <code>TODO</code>. Paste it into a new file at exactly <code>.git/hooks/pre-commit</code> (no extension; the folder already exists and contains <code>.sample</code> files, which are ignored):</p>
     <h4>.git/hooks/pre-commit</h4>
-<pre data-mode="paste this"><code>#!/usr/bin/env bash
+<pre data-mode="paste this" data-where="new file .git/hooks/pre-commit"><code>#!/usr/bin/env bash
 # pre-commit: refuse the commit if the tests fail or if it adds a TODO.
 # Git runs this before every commit. Exit 0 = go ahead, anything else = refuse.
 bad=0
@@ -398,14 +398,14 @@ if git diff --cached | grep -E &#x27;^\+.*TODO&#x27; &gt;/dev/null; then
 fi
 exit $bad</code></pre>
     <p>Make it executable, then make a change that breaks both rules at once and try to commit it:</p>
-<pre data-mode="type this"><code>chmod +x .git/hooks/pre-commit
+<pre data-mode="type this" data-where="terminal"><code>chmod +x .git/hooks/pre-commit
 echo &#x27;echo done # TODO: remove this&#x27; &gt;&gt; temp.sh
 git commit -am &quot;Debug output&quot;</code></pre>
-<pre data-mode="you should see"><code>pre-commit: ./test.sh fails. Fix it, or --no-verify if you really must.
+<pre data-mode="you should see" data-where="terminal"><code>pre-commit: ./test.sh fails. Fix it, or --no-verify if you really must.
 pre-commit: this commit adds a TODO. Do it or drop it:
 +echo done # TODO: remove this</code></pre>
     <p>No commit was made; <code>git log --oneline -1</code> still shows the merge. Throw the change away and confirm the tree is clean:</p>
-<pre data-mode="type this"><code>git restore temp.sh</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>git restore temp.sh</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>The commit was refused with both messages, <code>git log --oneline -1</code> still shows <code>Merge branch 'feature/tagline'</code>, and after <code>git restore</code>, <code>git status</code> says <code>nothing to commit, working tree clean</code>. On Windows, <code>chmod</code> prints nothing and changes nothing, and the hook runs anyway.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> <code>git commit --no-verify</code> would have gone through. When is that right? (A work-in-progress commit on your own branch that you will squash, when the tests take twenty minutes.) When is it wrong? (Any time the answer to "why?" is "the hook was annoying".) Why is the hook not in the repository? (It lives in <code>.git</code>, which is never pushed, so every clone needs it installed: teams do that with a tool such as pre-commit or a one-line <code>core.hooksPath</code> setting pointing at a committed folder.) The hook greps the staged diff, not the files: an old TODO already in the project does not block you, only a new one.</p>
   </article>
@@ -413,23 +413,23 @@ pre-commit: this commit adds a TODO. Do it or drop it:
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>Stash, worktree, and where did this line come from</h3><span class="time">10 min</span></header>
     <p>Start a change on <code>main</code>, then try to go and look at the kelvin branch:</p>
-<pre data-mode="type this"><code>echo &quot;Half a sentence about&quot; &gt;&gt; README.md
+<pre data-mode="type this" data-where="terminal"><code>echo &quot;Half a sentence about&quot; &gt;&gt; README.md
 git switch feature/kelvin</code></pre>
-<pre data-mode="you should see"><code>error: Your local changes to the following files would be overwritten by checkout:
+<pre data-mode="you should see" data-where="terminal"><code>error: Your local changes to the following files would be overwritten by checkout:
 	README.md
 Please commit your changes or stash them before you switch branches.</code></pre>
     <p>Two answers. <code>stash</code> puts the change on a shelf; <code>stash pop</code> brings it back. <code>worktree add</code> checks out the other branch into a second folder that shares this repository, so you can look at it without shelving anything:</p>
-<pre data-mode="type this"><code>git stash
+<pre data-mode="type this" data-where="terminal"><code>git stash
 git worktree add ../kelvin feature/kelvin
 git stash pop</code></pre>
     <p><code>git stash</code> says <code>Saved working directory and index state WIP on main: …</code> and <code>git status</code> is clean. <code>worktree add</code> prints <code>HEAD is now at 33c9f80 Add Kelvin conversion</code> (your hash), and <code>../kelvin/temp.sh 300 k</code> prints <code>27</code> while this folder is still on <code>main</code>. <code>stash pop</code> restores the README change. Now the archaeology. Which commits ever added or removed the buggy expression from step 1?</p>
-<pre data-mode="type this"><code>git log -S&#x27;$1 - 32 * 5&#x27; --oneline</code></pre>
-<pre data-mode="you should see"><code>f108af5 Revert &quot;Simplify f_to_c arithmetic&quot;
+<pre data-mode="type this" data-where="terminal"><code>git log -S&#x27;$1 - 32 * 5&#x27; --oneline</code></pre>
+<pre data-mode="you should see" data-where="terminal"><code>f108af5 Revert &quot;Simplify f_to_c arithmetic&quot;
 08e14b1 Simplify f_to_c arithmetic</code></pre>
     <p><code>-S</code> (the "pickaxe") finds the two commits whose diff contains that string: the one that introduced it and your revert. That is the history of the words, which is a different question from who last touched the line.</p>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>The folder <code>kelvin</code> exists next to <code>git-lab</code> and <code>git status</code> shows <code>README.md</code> modified again after the pop. <code>log -S</code> prints exactly two commits, <code>08e14b1</code> and your revert.</p></div>
     <p>Run <code>git blame -L 6,8 temp.sh</code>:</p>
-<pre data-mode="you should see"><code>4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 6) c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
+<pre data-mode="you should see" data-where="terminal"><code>4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 6) c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
 f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
 4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 8)</code></pre>
     <p class="inst-only"><strong>Talk about it:</strong> line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally.</p>
@@ -451,7 +451,7 @@ f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 
     <ul>
       <li><strong>Rebase versus merge, as policy.</strong> Bring <code>experiment/color</code> into <code>main</code> twice (it merges cleanly; <code>feature/kelvin</code> does not, it conflicts in <code>temp.sh</code> and <code>test.sh</code> next to the 1.1 lines). First <code>git merge experiment/color</code>: a merge commit with two parents. Note the hash, <code>git reset --hard HEAD~1</code>, then on the branch <code>git rebase main</code> and back on <code>main</code> a <code>git merge --ff-only experiment/color</code>: a straight line, and the two colour commits have new hashes. Compare <code>git log --graph</code>. (<code>./test.sh</code> fails either way: the colour codes wrap the number, which is why it was an experiment.) Which shape would your team choose, and who tidies WIP commits under each policy?</li>
       <li><strong>Bisect with a script that builds.</strong> Exit code 125 means "cannot test this commit, skip it". Pretend that documentation-only commits do not build: save this as <code>../check.sh</code>, <code>chmod +x</code> it, then <code>git bisect start</code>, <code>git bisect bad</code>, <code>git bisect good v1.0</code>, <code>git bisect run ../check.sh</code>. Three commits are skipped ("Add CONTRIBUTING.md", "docs: examples", "CHANGELOG: note the refactor") and it still ends on <code>08e14b1</code>. <code>git bisect log</code> shows the skips.
-<pre data-mode="paste this"><code>#!/usr/bin/env bash
+<pre data-mode="paste this" data-where="new file ../check.sh"><code>#!/usr/bin/env bash
 # check.sh: pretend that a commit which touched documentation cannot be built, and skip it.
 git diff --quiet HEAD~1 HEAD -- &#x27;*.md&#x27; || exit 125
 ./test.sh</code></pre></li>

@@ -207,7 +207,7 @@ docker images kindest/node</code></pre>
 
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>A cluster in a container</h3><span class="time">5 min</span></header>
-<pre data-mode="type this"><code>kind create cluster
+<pre data-mode="type this" data-where="terminal"><code>kind create cluster
 kubectl get nodes</code></pre>
     <p>The first command prints a checklist (<code>Ensuring node image</code>, <code>Preparing nodes</code>, <code>Starting control-plane</code>, and so on) and ends with <code>Set kubectl context to "kind-kind"</code>. It also wrote the cluster's address and credentials into <code>~/.kube/config</code>, which is how <code>kubectl</code> knows where to send requests. Run <code>docker ps</code> if you like: the whole cluster is one container named <code>kind-control-plane</code>.</p>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>kubectl get nodes</code> prints one row: <code>kind-control-plane</code>, STATUS <code>Ready</code>, ROLES <code>control-plane</code>, VERSION <code>v1.37.0</code>. If STATUS is <code>NotReady</code>, wait twenty seconds and run it again.</p></div>
@@ -217,14 +217,14 @@ kubectl get nodes</code></pre>
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>One pod, by hand</h3><span class="time">12 min</span></header>
     <p>Before anything is managed, run one pod the way you ran one container in workshop 1. The node has its own image store, separate from your laptop's Docker, so first copy the Redis image in (step 2 explains this properly):</p>
-<pre data-mode="type this"><code>kind load docker-image redis:7
+<pre data-mode="type this" data-where="terminal"><code>kind load docker-image redis:7
 kubectl run redis --image=redis:7
 kubectl get pods</code></pre>
     <p><code>kubectl run</code> prints <code>pod/redis created</code>. <code>get pods</code> shows the columns you will read throughout the lab: NAME, READY (<code>1/1</code> means one container of one is ready), STATUS, RESTARTS, AGE. If STATUS says <code>ContainerCreating</code>, run it again in a few seconds. Now the two commands that answer "what is going on":</p>
-<pre data-mode="type this"><code>kubectl describe pod redis
+<pre data-mode="type this" data-where="terminal"><code>kubectl describe pod redis
 kubectl logs redis</code></pre>
     <p><code>describe</code> is long; read the bottom, the <code>Events</code> table: Scheduled, Pulled, Created, Started. That is the pod's life story and the first place to look when something is stuck. <code>logs</code> is <code>docker logs</code>; the last line is Redis saying <code>Ready to accept connections</code>. Now delete it and check it is gone:</p>
-<pre data-mode="type this"><code>kubectl delete pod redis
+<pre data-mode="type this" data-where="terminal"><code>kubectl delete pod redis
 kubectl get pods</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>The pod reached STATUS <code>Running</code> and READY <code>1/1</code>; <code>logs</code> ended with <code>Ready to accept connections</code>; after <code>delete</code> (which prints <code>pod "redis" deleted from default namespace</code>) <code>get pods</code> says <code>No resources found in default namespace.</code></p></div>
     <p class="inst-only"><strong>Talk about it:</strong> the pod is gone and nothing brought it back. That is correct: nobody said it should exist, only that it should be created once. Compare with <code>docker run</code> + <code>docker rm</code>. What would have to be true for something to recreate it? (Something must hold the desired state. Step 3.)</p>
@@ -233,9 +233,9 @@ kubectl get pods</code></pre>
   <article class="step" id="s2">
     <header><span class="num">Step 2</span><h3>Your images, and the :latest trap</h3><span class="time">8 min</span></header>
     <p>The kind node is a container with its own container runtime inside it, so the images you built on the laptop are invisible to it until you copy them across. Load both workshop 6 images:</p>
-<pre data-mode="type this"><code>kind load docker-image api:1 worker:1</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>kind load docker-image api:1 worker:1</code></pre>
     <p>Now the trap, on purpose. Ask for the API image without a tag:</p>
-<pre data-mode="type this"><code>kubectl run bad --image=api
+<pre data-mode="type this" data-where="terminal"><code>kubectl run bad --image=api
 kubectl get pods
 kubectl delete pod bad</code></pre>
     <p>No tag means <code>api:latest</code>, and for <code>:latest</code> Kubernetes sets the pull policy to <code>Always</code>: the node asks the registry every time, ignoring the copy it already has, and Docker Hub has no <code>api</code> image. For any other tag the policy is <code>IfNotPresent</code>: use what is there, pull only if missing. That is why the prep said to tag the images <code>:1</code> and why step 6 tags the next one <code>:2</code>. The habit for life: never ship <code>:latest</code>, in Kubernetes or anywhere.</p>
@@ -246,7 +246,7 @@ kubectl delete pod bad</code></pre>
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>A Deployment and a Service</h3><span class="time">17 min</span></header>
     <p>Now state a desired state. Create a file <code>redis.yaml</code> in <code>k8s-lab</code> and type it, indentation and all (two spaces per level, never tabs):</p>
-<pre data-mode="type this"><code>apiVersion: apps/v1
+<pre data-mode="type this" data-where="new file redis.yaml"><code>apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
@@ -266,10 +266,10 @@ spec:
           ports:
             - containerPort: 6379</code></pre>
     <p>Read it top to bottom as you type. <code>apiVersion</code> and <code>kind</code> say what this object is. <code>metadata.name</code> names it. <code>spec.replicas</code> is how many pods should exist. <code>spec.selector</code> says which pods count as mine: those labelled <code>app: redis</code>. <code>spec.template</code> is the pod to make when one is missing, and its labels must match the selector or the API server rejects the file. Everything under <code>template.spec</code> is the pod from step 1, written down.</p>
-<pre data-mode="type this"><code>kubectl apply -f redis.yaml
+<pre data-mode="type this" data-where="terminal"><code>kubectl apply -f redis.yaml
 kubectl get deploy,rs,pods</code></pre>
     <p><code>apply</code> prints <code>deployment.apps/redis created</code>. The second command shows the chain: a Deployment (<code>READY 1/1</code>), a ReplicaSet named <code>redis-</code> plus a hash, and a pod named after the ReplicaSet plus five random characters. You wrote one object and got three. Now give it a stable name. This YAML is generated, not typed:</p>
-<pre data-mode="type this"><code>kubectl expose deployment redis --port 6379
+<pre data-mode="type this" data-where="terminal"><code>kubectl expose deployment redis --port 6379
 kubectl get svc</code></pre>
     <p><code>expose</code> prints <code>service/redis exposed</code> and creates a Service called <code>redis</code>: a virtual Internet Protocol (IP) address in the <code>10.96.x.x</code> range and a DNS name, pointing at whichever pods carry the label <code>app: redis</code> at any moment. The first row in <code>get svc</code>, <code>kubernetes</code>, is the API server's own Service; ignore it. The Service is a real object like any other; <code>kubectl get svc redis -o yaml</code> shows the file you did not have to write (a trimmed version is in the <a href="#solution">full solution</a>).</p>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>kubectl get deploy,rs,pods</code> shows <code>deployment.apps/redis 1/1</code>, one <code>replicaset.apps/redis-…</code> with DESIRED 1 CURRENT 1 READY 1, and one <code>pod/redis-…-…</code> Running. <code>kubectl get svc</code> shows <code>redis</code> of TYPE <code>ClusterIP</code>, PORT(S) <code>6379/TCP</code>.</p></div>
@@ -280,7 +280,7 @@ kubectl get svc</code></pre>
     <header><span class="num">Step 4</span><h3>The whole app, and the same request as last week</h3><span class="time">15 min</span></header>
     <p>The API and the worker are the same shape as Redis. Paste these two files and read the diff instead of retyping: the names and labels change, the image changes, the API publishes port 8080 instead of 6379, and both get one environment variable: <code>REDIS_ADDR=redis:6379</code> for the Go API and <code>REDIS_URL=redis://redis:6379</code> for the Deno worker, the same two variables as in workshop 6's <code>compose.yaml</code>. <code>redis</code> is the Service name from step 3: in both systems the name of the service is its hostname.</p>
     <h4>api.yaml</h4>
-<pre data-mode="paste this"><code>apiVersion: apps/v1
+<pre data-mode="paste this" data-where="new file api.yaml"><code>apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
@@ -303,7 +303,7 @@ spec:
             - name: REDIS_ADDR
               value: redis:6379</code></pre>
     <h4>worker.yaml</h4>
-<pre data-mode="paste this"><code>apiVersion: apps/v1
+<pre data-mode="paste this" data-where="new file worker.yaml"><code>apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: worker
@@ -323,12 +323,12 @@ spec:
           env:
             - name: REDIS_URL
               value: redis://redis:6379</code></pre>
-<pre data-mode="type this"><code>kubectl apply -f api.yaml -f worker.yaml
+<pre data-mode="type this" data-where="terminal"><code>kubectl apply -f api.yaml -f worker.yaml
 kubectl get pods</code></pre>
     <p>Three pods Running. Nothing outside the cluster can reach the API yet: a laptop cluster has no load balancer to hand out an external address. <code>port-forward</code> is the everyday substitute, a tunnel from a port on your laptop to the Service. It does not return, so run it in the second terminal:</p>
-<pre data-mode="type this"><code>kubectl port-forward svc/api 8080:8080</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>kubectl port-forward svc/api 8080:8080</code></pre>
     <p>It prints <code>Forwarding from 127.0.0.1:8080 -> 8080</code>. Back in the first terminal, send the request from workshop 6 and look at what the worker did with it:</p>
-<pre data-mode="type this"><code>curl -s -X POST localhost:8080/jobs -d &#x27;{&quot;task&quot;:&quot;hello&quot;}&#x27;
+<pre data-mode="type this" data-where="first terminal"><code>curl -s -X POST localhost:8080/jobs -d &#x27;{&quot;task&quot;:&quot;hello&quot;}&#x27;
 kubectl logs deploy/worker</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p><code>kubectl get pods</code> shows <code>api-…</code>, <code>redis-…</code> and <code>worker-…</code> all Running; the <code>curl</code> returns the same JavaScript Object Notation (JSON) reply the API gave in workshop 6; <code>kubectl logs deploy/worker</code> shows the job being picked up. Send two more and watch the log grow.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> the API found Redis with the same word as last week. What did the work: the Service, or the DNS server inside the cluster, or both? What would break if you renamed the Service to <code>cache</code>? Why is there no <code>kubectl expose</code> for the worker?</p>
@@ -337,10 +337,10 @@ kubectl logs deploy/worker</code></pre>
   <article class="step" id="s5">
     <header><span class="num">Step 5</span><h3>Scale, kill, self-heal</h3><span class="time">13 min</span></header>
     <p>Change one number, in the Deployment, from the command line:</p>
-<pre data-mode="type this"><code>kubectl scale deployment worker --replicas=3
+<pre data-mode="type this" data-where="first terminal"><code>kubectl scale deployment worker --replicas=3
 kubectl get pods -w</code></pre>
     <p><code>-w</code> watches: the list stays open and prints a line whenever a pod changes. Two new <code>worker-</code> pods appear as <code>Pending</code>, then <code>ContainerCreating</code>, then <code>Running</code>. Leave it running. In the other terminal (stop <code>port-forward</code> with Ctrl-C first, or open a third), pick any worker pod from the list and delete it by its full name:</p>
-<pre data-mode="type this"><code>kubectl delete pod worker-REPLACE-WITH-A-NAME</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>kubectl delete pod worker-REPLACE-WITH-A-NAME</code></pre>
     <p>Watch the first terminal: the deleted pod goes <code>Terminating</code>, and within a second or two a pod with a new name goes <code>Pending</code>, <code>ContainerCreating</code>, <code>Running</code>. Nobody asked for a new pod. The ReplicaSet's desired count is still 3, the actual count fell to 2, and the controller closed the gap. That is the whole point of the workshop, so do it twice. Then Ctrl-C the watch.</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p><code>kubectl get pods</code> shows three <code>worker-</code> pods Running, and at least one of them has an AGE of seconds while the others are minutes old: the replacement.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> restart <code>port-forward</code> and send three requests. Run <code>kubectl logs -l app=worker --prefix</code> (all worker pods, each line prefixed with the pod name): which pod took which job? What happens to a job the worker was in the middle of when you deleted its pod? (Workshop 6's idempotency stretch goal is the answer.) What would happen if you deleted the Redis pod? (It comes back, empty: no volume.)</p>
@@ -349,12 +349,12 @@ kubectl get pods -w</code></pre>
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>Roll out, roll back</h3><span class="time">12 min</span></header>
     <p>A new version is a new image with a new tag. Open workshop 6's API source, change one string in the text it replies with (anything you will recognise in the <code>curl</code> output), and rebuild it as <code>api:2</code>. The path is the <code>api</code> folder of your workshop 6 project; adjust it if yours is elsewhere:</p>
-<pre data-mode="type this"><code>docker build -t api:2 ../compose-lab/api
+<pre data-mode="type this" data-where="first terminal"><code>docker build -t api:2 ../compose-lab/api
 kind load docker-image api:2
 kubectl set image deployment/api api=api:2
 kubectl rollout status deployment/api</code></pre>
     <p><code>set image</code> changes one field in the Deployment's template (<code>api=</code> is the container name, <code>api:2</code> the new image) and prints <code>deployment.apps/api image updated</code>; you could equally edit <code>api.yaml</code> and <code>apply</code> it again. <code>rollout status</code> waits and ends with <code>deployment "api" successfully rolled out</code>. Restart <code>port-forward</code> (the old pod it pointed at is gone) and send the request: the reply has your new string. Now look at the history and undo it:</p>
-<pre data-mode="type this"><code>kubectl rollout history deployment/api
+<pre data-mode="type this" data-where="first terminal"><code>kubectl rollout history deployment/api
 kubectl rollout undo deployment/api
 kubectl get rs</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>rollout history</code> lists REVISION 1 and 2 (CHANGE-CAUSE <code>&lt;none&gt;</code>); <code>undo</code> prints <code>deployment.apps/api rolled back</code>; <code>get rs</code> shows two ReplicaSets for <code>api</code>, the <code>api:1</code> one back at DESIRED 1 and the <code>api:2</code> one at 0; after restarting <code>port-forward</code> the reply is the old string again.</p></div>
