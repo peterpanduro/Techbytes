@@ -227,7 +227,7 @@ kubectl logs redis</code></pre>
 <pre data-mode="type this"><code>kubectl delete pod redis
 kubectl get pods</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>The pod reached STATUS <code>Running</code> and READY <code>1/1</code>; <code>logs</code> ended with <code>Ready to accept connections</code>; after <code>delete</code> (which prints <code>pod "redis" deleted from default namespace</code>) <code>get pods</code> says <code>No resources found in default namespace.</code></p></div>
-    <p><strong>Talk about it:</strong> the pod is gone and nothing brought it back. That is correct: nobody said it should exist, only that it should be created once. Compare with <code>docker run</code> + <code>docker rm</code>. What would have to be true for something to recreate it? (Something must hold the desired state. Step 3.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> the pod is gone and nothing brought it back. That is correct: nobody said it should exist, only that it should be created once. Compare with <code>docker run</code> + <code>docker rm</code>. What would have to be true for something to recreate it? (Something must hold the desired state. Step 3.)</p>
   </article>
 
   <article class="step" id="s2">
@@ -331,7 +331,7 @@ kubectl get pods</code></pre>
 <pre data-mode="type this"><code>curl -s -X POST localhost:8080/jobs -d &#x27;{&quot;task&quot;:&quot;hello&quot;}&#x27;
 kubectl logs deploy/worker</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p><code>kubectl get pods</code> shows <code>api-…</code>, <code>redis-…</code> and <code>worker-…</code> all Running; the <code>curl</code> returns the same JavaScript Object Notation (JSON) reply the API gave in workshop 6; <code>kubectl logs deploy/worker</code> shows the job being picked up. Send two more and watch the log grow.</p></div>
-    <p><strong>Talk about it:</strong> the API found Redis with the same word as last week. What did the work: the Service, or the DNS server inside the cluster, or both? What would break if you renamed the Service to <code>cache</code>? Why is there no <code>kubectl expose</code> for the worker?</p>
+    <p class="inst-only"><strong>Talk about it:</strong> the API found Redis with the same word as last week. What did the work: the Service, or the DNS server inside the cluster, or both? What would break if you renamed the Service to <code>cache</code>? Why is there no <code>kubectl expose</code> for the worker?</p>
   </article>
 
   <article class="step" id="s5">
@@ -343,7 +343,7 @@ kubectl get pods -w</code></pre>
 <pre data-mode="type this"><code>kubectl delete pod worker-REPLACE-WITH-A-NAME</code></pre>
     <p>Watch the first terminal: the deleted pod goes <code>Terminating</code>, and within a second or two a pod with a new name goes <code>Pending</code>, <code>ContainerCreating</code>, <code>Running</code>. Nobody asked for a new pod. The ReplicaSet's desired count is still 3, the actual count fell to 2, and the controller closed the gap. That is the whole point of the workshop, so do it twice. Then Ctrl-C the watch.</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p><code>kubectl get pods</code> shows three <code>worker-</code> pods Running, and at least one of them has an AGE of seconds while the others are minutes old: the replacement.</p></div>
-    <p><strong>Talk about it:</strong> restart <code>port-forward</code> and send three requests. Run <code>kubectl logs -l app=worker --prefix</code> (all worker pods, each line prefixed with the pod name): which pod took which job? What happens to a job the worker was in the middle of when you deleted its pod? (Workshop 6's idempotency stretch goal is the answer.) What would happen if you deleted the Redis pod? (It comes back, empty: no volume.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> restart <code>port-forward</code> and send three requests. Run <code>kubectl logs -l app=worker --prefix</code> (all worker pods, each line prefixed with the pod name): which pod took which job? What happens to a job the worker was in the middle of when you deleted its pod? (Workshop 6's idempotency stretch goal is the answer.) What would happen if you deleted the Redis pod? (It comes back, empty: no volume.)</p>
   </article>
 
   <article class="step" id="s6">
@@ -358,7 +358,7 @@ kubectl rollout status deployment/api</code></pre>
 kubectl rollout undo deployment/api
 kubectl get rs</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>rollout history</code> lists REVISION 1 and 2 (CHANGE-CAUSE <code>&lt;none&gt;</code>); <code>undo</code> prints <code>deployment.apps/api rolled back</code>; <code>get rs</code> shows two ReplicaSets for <code>api</code>, the <code>api:1</code> one back at DESIRED 1 and the <code>api:2</code> one at 0; after restarting <code>port-forward</code> the reply is the old string again.</p></div>
-    <p><strong>Talk about it:</strong> nothing was rebuilt during <code>undo</code>; the old ReplicaSet was simply scaled up again. What did the cluster keep that made this instant? (The old template, as revision 1.) Run <code>rollout history</code> once more: the rollback is a new revision, 3, and revision 1 is gone, because a revision is a template and the same template cannot be two revisions. With three replicas instead of one, how many pods would exist in the middle of the rollout? (Up to four: 25% surge, rounded up.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> nothing was rebuilt during <code>undo</code>; the old ReplicaSet was simply scaled up again. What did the cluster keep that made this instant? (The old template, as revision 1.) Run <code>rollout history</code> once more: the rollback is a new revision, 3, and revision 1 is gone, because a revision is a template and the same template cannot be two revisions. With three replicas instead of one, how many pods would exist in the middle of the rollout? (Up to four: 25% surge, rounded up.)</p>
   </article>
 
   <article class="step" id="s7">

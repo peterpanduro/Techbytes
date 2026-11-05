@@ -294,7 +294,7 @@ func main() {
 <pre data-mode="type this"><code>cat users.txt                       # PowerShell: type users.txt
 go run login1.go grace sunshine     # someone else&#x27;s account</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>You logged in as <code>grace</code> without ever being grace, using only what a leaked file handed you. That is the failure mode the rest of the lab removes.</p></div>
-    <p><strong>Talk about it:</strong> nothing was "hacked" here — the login code is correct. The bug is entirely in <em>what</em> was stored. Where else has grace probably used <code>sunshine</code>? That is why a leak of your site becomes a problem for sites you have never heard of.</p>
+    <p class="inst-only"><strong>Talk about it:</strong> nothing was "hacked" here — the login code is correct. The bug is entirely in <em>what</em> was stored. Where else has grace probably used <code>sunshine</code>? That is why a leak of your site becomes a problem for sites you have never heard of.</p>
   </article>
 
   <article class="step" id="s2">
@@ -372,7 +372,7 @@ import (
     <p>Run it — the program prints each cracked password and how long the whole list took to hash, so you feel how cheap guessing is:</p>
 <pre data-mode="type this"><code>go run attack.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p>Nine of the ten hashes are cracked and printed as their plaintext passwords — <code>password</code>, <code>123456</code>, <code>qwerty</code>, <code>letmein</code>, <code>dragon</code>, <code>monkey</code>, <code>sunshine</code>, <code>football</code>, <code>trustno1</code> — followed by a line like <code>hashed the whole list in 250µs</code> (250 microseconds). Hashing all 300 words took well under a millisecond; there was no salt, so one pass over the list cracked every reused password at once. One hash (judy's) is not cracked.</p></div>
-    <p><strong>Talk about it:</strong> which hash survived, and why? (A long random password that is in no wordlist — the one defence a user can mount.) SHA-256 did its job perfectly and it did not help at all: the problem is that it is <em>fast</em>. A real wordlist is hundreds of millions of entries, and one gaming graphics processing unit (GPU) does 22 billion SHA-256 a second, about five thousand times your laptop core. Try the widget at the top of the page: hardware on "gaming GPU", storage on "SHA-256 once".</p>
+    <p class="inst-only"><strong>Talk about it:</strong> which hash survived, and why? (A long random password that is in no wordlist — the one defence a user can mount.) SHA-256 did its job perfectly and it did not help at all: the problem is that it is <em>fast</em>. A real wordlist is hundreds of millions of entries, and one gaming graphics processing unit (GPU) does 22 billion SHA-256 a second, about five thousand times your laptop core. Try the widget at the top of the page: hardware on "gaming GPU", storage on "SHA-256 once".</p>
   </article>
 
   <article class="step" id="s3">
@@ -416,7 +416,7 @@ import (
 }</code></pre>
 <pre data-mode="type this"><code>go run salt.go       # run it a second time: the salts, and so the hashes, change</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p>alice and erin have the <em>same</em> password (<code>dragon</code>) but two different hashes, and both change every run as the salt changes — so rainbow tables and deduplication are dead. And yet the last line still prints <code>erin's password is still "dragon"</code>: a per-user dictionary attack, using the salt that leaked alongside the hash, cracks her anyway.</p></div>
-    <p><strong>Talk about it:</strong> the salt is not a secret and does not need to be — it is stored in the clear next to the hash. So what did salting actually buy us? (It stops one precomputed table from cracking the whole file at once; the attacker must now redo the work per user.) What did it <em>not</em> buy us? (Any slowdown of a single targeted guess.) That is the next step's job.</p>
+    <p class="inst-only"><strong>Talk about it:</strong> the salt is not a secret and does not need to be — it is stored in the clear next to the hash. So what did salting actually buy us? (It stops one precomputed table from cracking the whole file at once; the attacker must now redo the work per user.) What did it <em>not</em> buy us? (Any slowdown of a single targeted guess.) That is the next step's job.</p>
   </article>
 
   <article class="step" id="s4">
@@ -450,7 +450,7 @@ const iterations = 600_000 // OWASP-recommended work factor for PBKDF2-HMAC-SHA2
 }</code></pre>
 <pre data-mode="type this"><code>go run slow.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p>One hash now takes a fraction of a second (roughly 0.1–0.5 seconds depending on your laptop) instead of the microseconds of step 2. The program prints how long the 300-word attack would now take — over a minute, not the fraction of a millisecond of step 2 — and that brute-forcing all 8-character lowercase passwords would take thousands of years. Same laptop, same code, one constant changed.</p></div>
-    <p><strong>Talk about it:</strong> a single login now costs you a fraction of a second — imperceptible. The attacker pays that cost on <em>every one</em> of billions of guesses. Open the widget at the top of the page, keep the hardware on "gaming GPU", and drag storage from "SHA-256 once" to "600,000 · OWASP": watch ten seconds for the whole 8-letter lowercase space become months. Then drag hardware to the top of the scale and see what only a longer password can fix. Why is a hash you can tune better than a hash that is merely "strong"? (Because you can raise the cost as hardware gets faster — which step 6 does automatically.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> a single login now costs you a fraction of a second — imperceptible. The attacker pays that cost on <em>every one</em> of billions of guesses. Open the widget at the top of the page, keep the hardware on "gaming GPU", and drag storage from "SHA-256 once" to "600,000 · OWASP": watch ten seconds for the whole 8-letter lowercase space become months. Then drag hardware to the top of the scale and see what only a longer password can fix. Why is a hash you can tune better than a hash that is merely "strong"? (Because you can raise the cost as hardware gets faster — which step 6 does automatically.)</p>
   </article>
 
   <article class="step" id="s5">
@@ -493,7 +493,7 @@ func main() {
 }</code></pre>
 <pre data-mode="type this"><code>go run timing.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>For plain <code>==</code>, "differs at first byte" is a few nanoseconds while "differs at last byte" is hundreds of times slower (roughly 3 nanoseconds (ns) versus 1.3 µs) — the short-circuit is visible. For <code>subtle.ConstantTimeCompare</code>, the two are close to equal (both tens of microseconds, varying run to run): it always reads every byte, so its timing tells an attacker nothing about which byte was wrong. Note that it is slower in absolute terms than even the worst <code>==</code> — the secret here is 64 kibibytes (KiB) to make the effect large enough to see, and <code>ConstantTimeCompare</code> cannot use the wide single instruction, multiple data (SIMD) shortcut that <code>==</code> uses. On a real 32-byte hash the leak is a handful of nanoseconds rather than a microsecond, but it is the same leak, and the rule is the same.</p></div>
-    <p><strong>Talk about it:</strong> this is the same rule you met comparing time-based one-time password (TOTP) codes in workshop 2 — any comparison of secret material is constant-time, always. Why does the length check that a real verifier puts in front of <code>ConstantTimeCompare</code> not itself leak? (It only reveals the length, which for a fixed-size hash the attacker already knows.) Over a network the nanoseconds are buried in noise; why build the habit anyway? (Because the leak is real on a shared machine, and the correct call is no harder to write.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> this is the same rule you met comparing time-based one-time password (TOTP) codes in workshop 2 — any comparison of secret material is constant-time, always. Why does the length check that a real verifier puts in front of <code>ConstantTimeCompare</code> not itself leak? (It only reveals the length, which for a fixed-size hash the attacker already knows.) Over a network the nanoseconds are buried in noise; why build the habit anyway? (Because the leak is real on a shared machine, and the correct call is no harder to write.)</p>
   </article>
 
   <article class="step" id="s6">
@@ -554,7 +554,7 @@ func verify(stored, password string) (ok, stale bool) {
 }</code></pre>
 <pre data-mode="type this"><code>go run verify.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>An account stored at the old cost of 100,000 iterations verifies with the correct password and is reported <code>stale</code>; the program re-hashes it at today's 600,000 and prints the upgraded string; a second verify reports it no longer stale; and a wrong password is rejected. The stored string carries its own algorithm, cost and salt, so nothing external has to remember them.</p></div>
-    <p><strong>Talk about it:</strong> you never stored anyone's password, so how can you raise the iteration count on old accounts? (Only on a successful login, when the plaintext is briefly in hand — the store heals one login at a time.) Why is the algorithm name inside the string, not assumed? (So you can migrate to Argon2id later without a flag day: the same <code>verify</code> dispatches on what each record says.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> you never stored anyone's password, so how can you raise the iteration count on old accounts? (Only on a successful login, when the plaintext is briefly in hand — the store heals one login at a time.) Why is the algorithm name inside the string, not assumed? (So you can migrate to Argon2id later without a flag day: the same <code>verify</code> dispatches on what each record says.)</p>
   </article>
 
   <article class="step" id="s7">
@@ -569,7 +569,7 @@ func verify(stored, password string) (ok, stale bool) {
     </ul>
     <h4>Stretch goals (pick one)</h4>
     <ul>
-      <li><strong>Argon2id — the production choice.</strong> Swap PBKDF2 for <code>golang.org/x/crypto/argon2</code>'s <code>IDKey</code> with the OWASP parameters (m=19456 KiB, t=2, p=1) and a <code>$argon2id$v=19$m=19456,t=2,p=1$salt$hash</code> string. It costs the attacker <em>memory</em> as well as time, which is what beats GPUs. (This needs one module download — <code>go get golang.org/x/crypto/argon2</code> — so it could not be run in this workshop's sealed environment; the code and parameters are in the instructor notes' sources.)</li>
+      <li><strong>Argon2id — the production choice.</strong> Swap PBKDF2 for <code>golang.org/x/crypto/argon2</code>'s <code>IDKey</code> with the OWASP parameters (m=19456 KiB, t=2, p=1) and a <code>$argon2id$v=19$m=19456,t=2,p=1$salt$hash</code> string. It costs the attacker <em>memory</em> as well as time, which is what beats graphics processing units (GPUs). (This needs one module download — <code>go get golang.org/x/crypto/argon2</code> — so it could not be run in this workshop's sealed environment; the code and parameters are in the instructor notes' sources.)</li>
       <li><strong>bcrypt.</strong> Do the same with <code>golang.org/x/crypto/bcrypt</code>, whose output is already self-describing. Discover its 72-byte input limit by hashing a 100-character password and a variant that differs only after byte 72.</li>
       <li><strong>Add a pepper.</strong> Mix a single secret value — kept out of the database, in an environment variable — into every hash. Why does a pepper help when the database leaks but the config does not, and why is it no substitute for a slow hash?</li>
       <li><strong>Breach check with k-anonymity.</strong> Using the wordlist, reproduce how <a href="https://haveibeenpwned.com/API/v3#PwnedPasswords">Have I Been Pwned</a> lets you check a password without sending it: hash the password with Secure Hash Algorithm 1 (SHA-1), send only the first 5 hexadecimal characters to the range application programming interface (API), and match the suffix locally. (Needs network, so it is a home exercise.)</li>

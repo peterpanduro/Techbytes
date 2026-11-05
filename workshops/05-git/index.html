@@ -268,7 +268,7 @@ bisect found first bad commit</code></pre>
 git revert --no-edit 08e14b1
 ./test.sh</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>bisect run</code> ended with <code>08e14b18418e2643c52e5745cac2af59b5f3a741 is the first bad commit</code>. After the revert, <code>git log --oneline -1</code> shows <code>Revert "Simplify f_to_c arithmetic"</code> on top (your hash, not ours: you are the author) and <code>./test.sh</code> prints <code>all tests passed</code>.</p></div>
-    <p><strong>Talk about it:</strong> why revert and not reset? (The bad commit was pushed, in the story; revert adds history, reset rewrites it.) How many runs would bisect need for a thousand commits? (Ten.) What would you do if some commit in the middle did not build at all? (Exit 125 from the script tells bisect to skip it; stretch goal.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> why revert and not reset? (The bad commit was pushed, in the story; revert adds history, reset rewrites it.) How many runs would bisect need for a thousand commits? (Ten.) What would you do if some commit in the middle did not build at all? (Exit 125 from the script tells bisect to skip it; stretch goal.)</p>
   </article>
 
   <article class="step" id="s2">
@@ -343,7 +343,7 @@ f063a35 HEAD@{15}: commit: CHANGELOG: prepare 1.1
 <pre data-mode="type this"><code>git reset --hard HEAD@{1}
 git branch experiment/color 54ad38b</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>git log --oneline --graph --all</code> looks exactly as it did at the end of step 2: the revert on top of <code>main</code>, and <code>experiment/color</code> back on <code>54ad38b</code>. <code>./test.sh</code> passes again.</p></div>
-    <p><strong>Talk about it:</strong> why did <code>HEAD@{2}</code> know about the experiment branch? (Because you had switched to it; had you deleted it without ever checking it out, the reflog would not help, but the "was 54ad38b" in the delete message would.) What is the one thing the reflog cannot bring back? (Changes you never committed. <code>reset --hard</code> throws those away for real.) How long do you have? (30 days: both rescues here are unreachable commits, and <code>gc.reflogExpireUnreachable</code> defaults to 30 days; entries for commits still on a branch last 90.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> why did <code>HEAD@{2}</code> know about the experiment branch? (Because you had switched to it; had you deleted it without ever checking it out, the reflog would not help, but the "was 54ad38b" in the delete message would.) What is the one thing the reflog cannot bring back? (Changes you never committed. <code>reset --hard</code> throws those away for real.) How long do you have? (30 days: both rescues here are unreachable commits, and <code>gc.reflogExpireUnreachable</code> defaults to 30 days; entries for commits still on a branch last 90.)</p>
   </article>
 
   <article class="step" id="s4">
@@ -407,7 +407,7 @@ pre-commit: this commit adds a TODO. Do it or drop it:
     <p>No commit was made; <code>git log --oneline -1</code> still shows the merge. Throw the change away and confirm the tree is clean:</p>
 <pre data-mode="type this"><code>git restore temp.sh</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>The commit was refused with both messages, <code>git log --oneline -1</code> still shows <code>Merge branch 'feature/tagline'</code>, and after <code>git restore</code>, <code>git status</code> says <code>nothing to commit, working tree clean</code>. On Windows, <code>chmod</code> prints nothing and changes nothing, and the hook runs anyway.</p></div>
-    <p><strong>Talk about it:</strong> <code>git commit --no-verify</code> would have gone through. When is that right? (A work-in-progress commit on your own branch that you will squash, when the tests take twenty minutes.) When is it wrong? (Any time the answer to "why?" is "the hook was annoying".) Why is the hook not in the repository? (It lives in <code>.git</code>, which is never pushed, so every clone needs it installed: teams do that with a tool such as pre-commit or a one-line <code>core.hooksPath</code> setting pointing at a committed folder.) The hook greps the staged diff, not the files: an old TODO already in the project does not block you, only a new one.</p>
+    <p class="inst-only"><strong>Talk about it:</strong> <code>git commit --no-verify</code> would have gone through. When is that right? (A work-in-progress commit on your own branch that you will squash, when the tests take twenty minutes.) When is it wrong? (Any time the answer to "why?" is "the hook was annoying".) Why is the hook not in the repository? (It lives in <code>.git</code>, which is never pushed, so every clone needs it installed: teams do that with a tool such as pre-commit or a one-line <code>core.hooksPath</code> setting pointing at a committed folder.) The hook greps the staged diff, not the files: an old TODO already in the project does not block you, only a new one.</p>
   </article>
 
   <article class="step" id="s6">
@@ -428,7 +428,7 @@ git stash pop</code></pre>
 08e14b1 Simplify f_to_c arithmetic</code></pre>
     <p><code>-S</code> (the "pickaxe") finds the two commits whose diff contains that string: the one that introduced it and your revert. That is the history of the words, which is a different question from who last touched the line.</p>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>The folder <code>kelvin</code> exists next to <code>git-lab</code> and <code>git status</code> shows <code>README.md</code> modified again after the pop. <code>log -S</code> prints exactly two commits, <code>08e14b1</code> and your revert.</p></div>
-    <p><strong>Talk about it:</strong> run <code>git blame -L 6,8 temp.sh</code>. Line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally:</p>
+    <p class="inst-only"><strong>Talk about it:</strong> run <code>git blame -L 6,8 temp.sh</code>. Line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally:</p>
 <pre data-mode="you should see"><code>4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 6) c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
 f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
 4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 8)</code></pre>

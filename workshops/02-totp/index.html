@@ -250,7 +250,7 @@ Deno.test(&quot;step 1: secrets are 20 bytes, base32 matches the RFC key&quot;, 
   assertEquals(toBase32(k), &quot;GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&quot;);
 });</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>deno test</code> prints <code>ok | 1 passed | 0 failed</code>. Then <code>deno run totp.ts</code> twice with a temporary <code>console.log(toBase32(newSecret()))</code> at the bottom: two different 32-character secrets.</p></div>
-    <p><strong>Talk about it:</strong> why <code>crypto.getRandomValues</code> and not <code>Math.random</code>? (<code>Math.random</code> is predictable from its internal state; the crypto one reads the OS's entropy pool.) Why 32 characters for 20 bytes? (160 bits / 5 bits per character.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> why <code>crypto.getRandomValues</code> and not <code>Math.random</code>? (<code>Math.random</code> is predictable from its internal state; the crypto one reads the OS's entropy pool.) Why 32 characters for 20 bytes? (160 bits / 5 bits per character.)</p>
   </article>
 
   <article class="step" id="s2">
@@ -275,7 +275,7 @@ Deno.test(&quot;step 2: HMAC-SHA1 of counter 0 (RFC 4226 Appendix D)&quot;, asyn
 });</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p><code>deno test</code>: step 2 passes, so the MAC is 20 bytes and starts <code>cc93cf18…</code>, exactly the first row of the RFC's table.</p></div>
     <p><strong>Common mistakes:</strong> <code>setUint32</code> instead of <code>setBigUint64</code> (4 bytes, not 8); forgetting <code>BigInt(counter)</code>; passing <code>true</code> as the little-endian argument. Each gives a perfectly valid-looking 20-byte MAC that is simply wrong, which is why the RFC vector matters.</p>
-    <p><strong>Talk about it:</strong> change one character of the test secret and rerun. Every byte of the MAC changes. That is the property the whole scheme rests on. Also: this is the exact call the widget at the top of the page makes in the browser; WebCrypto is the same API in both places.</p>
+    <p class="inst-only"><strong>Talk about it:</strong> change one character of the test secret and rerun. Every byte of the MAC changes. That is the property the whole scheme rests on. Also: this is the exact call the widget at the top of the page makes in the browser; WebCrypto is the same API in both places.</p>
   </article>
 
   <article class="step" id="s3">
@@ -314,7 +314,7 @@ Deno.test(&quot;step 3: HOTP vectors (RFC 4226 Appendix D)&quot;, async () =&gt;
       <tr><td class="t">9</td><td class="t">16374098…</td><td class="t">5</td><td class="t">645520489</td><td class="t">520489</td></tr>
     </table></div>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>deno test</code>: step 3 passes, all ten counters. The zero-padding matters: a student whose code prints <code>7081804</code> instead of <code>07081804</code> in the next step has forgotten <code>padStart</code>.</p></div>
-    <p><strong>Talk about it:</strong> why <code>&amp; 0x7fffffff</code>? (RFC 4226 says so to avoid signed/unsigned confusion across languages; the top bit is discarded so every implementation agrees. In JavaScript specifically, <code>getUint32</code> already returns an unsigned number, but the mask keeps the code identical to every other implementation.) Notice the 31-bit integer column: the last six digits are the code. That is all "mod a million" does.</p>
+    <p class="inst-only"><strong>Talk about it:</strong> why <code>&amp; 0x7fffffff</code>? (RFC 4226 says so to avoid signed/unsigned confusion across languages; the top bit is discarded so every implementation agrees. In JavaScript specifically, <code>getUint32</code> already returns an unsigned number, but the mask keeps the code identical to every other implementation.) Notice the 31-bit integer column: the last six digits are the code. That is all "mod a million" does.</p>
   </article>
 
   <article class="step" id="s4">
@@ -337,7 +337,7 @@ Deno.test(&quot;step 4: TOTP vectors (RFC 6238 Appendix B, 8 digits)&quot;, asyn
   console.log(&quot;code right now:&quot;, await totp(k));
 }</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p><code>deno test</code>: step 4 passes. <code>deno run totp.ts</code> prints the same six digits as the live widget. Run it again after the widget's bar resets and confirm both changed to the same new code.</p></div>
-    <p><strong>Talk about it:</strong> <code>t = 59</code> gives counter 1, so the code at second 59 is HOTP(k, 1) = <code>287082</code> for six digits; check it against the step 3 table. Then ask: what happens at second 60? What does the phone do if its clock is 45 seconds slow?</p>
+    <p class="inst-only"><strong>Talk about it:</strong> <code>t = 59</code> gives counter 1, so the code at second 59 is HOTP(k, 1) = <code>287082</code> for six digits; check it against the step 3 table. Then ask: what happens at second 60? What does the phone do if its clock is 45 seconds slow?</p>
   </article>
 
   <article class="step" id="s5">
@@ -369,7 +369,7 @@ while (true) {
     <p>Scan the QR code with your phone's authenticator app (or add an account manually and type the Base32 secret). Watch the two codes change together.</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>Your phone and your terminal show the same six digits, and they roll over to the same new digits at the same moment. Stop the loop with Ctrl-C.</p></div>
     <div class="call warn"><p class="lbl">If the codes differ</p><p>Nine times out of ten it is a clock. Compare the laptop's clock with the phone's to the second. If the phone is the one that is wrong, turn automatic time off and on again. Anyone on the Docker fallback: the clock of Docker's virtual machine drifts after sleep; restart Docker Desktop. Only after both clocks agree is it worth looking at the code.</p></div>
-    <p><strong>Talk about it:</strong> the QR code <em>is</em> the secret. Anyone who photographs it has your second factor forever. That is why the real setup screens show it once and offer "backup codes" instead of "show QR again". And the permission prompt: a script from npm just asked to write a file, and the runtime made it ask. What would <code>-A</code> have skipped?</p>
+    <p class="inst-only"><strong>Talk about it:</strong> the QR code <em>is</em> the secret. Anyone who photographs it has your second factor forever. That is why the real setup screens show it once and offer "backup codes" instead of "show QR again". And the permission prompt: a script from npm just asked to write a file, and the runtime made it ask. What would <code>-A</code> have skipped?</p>
   </article>
 
   <article class="step" id="s6">
@@ -423,7 +423,7 @@ while (true) {
 }
 </code></pre>
 <pre data-mode="type this"><code>deno run login.ts</code></pre>
-    <p><strong>Talk about it:</strong> replace <code>timingSafeEqual(...)</code> with <code>expected === code</code>. It still passes every test. Why is it wrong anyway? (<code>===</code> stops at the first differing character, so response time leaks how many leading digits were right. Against a network it is hard to exploit for six digits, but the habit matters: any comparison of a secret uses constant-time compare, always.) Why the length check in front of it? (<code>timingSafeEqual</code> throws on inputs of different length rather than returning false, and a user who types five digits should get "rejected", not a crash.) Why keep <code>lastCounter</code> rather than a set of used codes? (One integer per user, and it also rejects a code from an older step after a newer one was used.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> replace <code>timingSafeEqual(...)</code> with <code>expected === code</code>. It still passes every test. Why is it wrong anyway? (<code>===</code> stops at the first differing character, so response time leaks how many leading digits were right. Against a network it is hard to exploit for six digits, but the habit matters: any comparison of a secret uses constant-time compare, always.) Why the length check in front of it? (<code>timingSafeEqual</code> throws on inputs of different length rather than returning false, and a user who types five digits should get "rejected", not a crash.) Why keep <code>lastCounter</code> rather than a set of used codes? (One integer per user, and it also rejects a code from an older step after a newer one was used.)</p>
   </article>
 
   <article class="step" id="s7">
