@@ -209,7 +209,7 @@ type recorder struct {
 
 func (r *recorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.WriteHeader(code) }
 
-// wrap runs around every handler: time it, then log one line.
+// wrap runs around every handler.
 func wrap(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -289,6 +289,7 @@ for await (const line of createInterface({ input: process.stdin })) {
     // not JSON (a startup line, a panic): ignore
   }
 }</code></pre>
+    <p>Stop the API with Ctrl-C in terminal 1 and start it again through the filter:</p>
 <pre data-mode="type this" data-where="terminal 1"><code>go run . | deno run filter.ts</code></pre>
     <p>If you installed <code>jq</code>, <code>go run . | jq -c 'select(.status &gt;= 500)'</code> does the same thing. Either way the point is the same: nobody wrote a regular expression, because a log line is a record.</p>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>Terminal 1 shows only the failures, roughly one every few seconds, each a full JSON line. Nothing with status 200 gets through.</p>
@@ -528,7 +529,7 @@ type recorder struct {
 
 func (r *recorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.WriteHeader(code) }
 
-// wrap runs around every handler: time it, log one line, record one observation.
+// wrap runs around every handler.
 func wrap(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

@@ -269,7 +269,7 @@ subjectAltName = DNS:localhost</code></pre>
 
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>HTTPS, and nobody trusts you</h3><span class="time">10 min</span></header>
-    <p>Stop the server with Ctrl-C and change the last line of <code>main.go</code> so it reads:</p>
+    <p>Stop the server with Ctrl-C and change the <code>log.Fatal</code> line of <code>main.go</code> so it reads:</p>
 <pre data-mode="type this" data-where="replace log.Fatal line in main.go"><code>	log.Fatal(http.ListenAndServeTLS(&quot;:8443&quot;, &quot;server.pem&quot;, &quot;server-key.pem&quot;, nil))</code></pre>
     <p>One word and two file names: <code>ListenAndServeTLS</code> takes the certificate and the private key and does everything else. Port 8443 is the usual "HTTPS while developing" port. Start it and ask curl for the page, this time with an <code>https://</code> address:</p>
 <pre data-mode="type this" data-where="first terminal, then second"><code>go run .
