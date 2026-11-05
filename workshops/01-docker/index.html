@@ -188,7 +188,7 @@ docker pull golang:1.27</code></pre>
 
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Hello, and the two commands you will run all day</h3><span class="time">5 min</span></header>
-<pre data-mode="type this"><code>docker run --rm hello-world
+<pre data-mode="type this" data-where="terminal"><code>docker run --rm hello-world
 docker ps
 docker images</code></pre>
     <p><code>docker ps</code> is empty because <code>hello-world</code> printed its message and exited, and <code>--rm</code> deleted the container. <code>docker images</code> lists the images from the prep. Keep both commands at your fingertips: from here on, whenever something is confusing, run <code>docker ps -a</code> first.</p>
@@ -199,13 +199,13 @@ docker images</code></pre>
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>Someone else's image: the lifecycle by hand</h3><span class="time">10 min</span></header>
     <p>First a container you can look around in. <code>-it</code> gives you a terminal inside it; <code>alpine</code> is a five-megabyte Linux.</p>
-<pre data-mode="type this"><code>docker run --rm -it alpine sh
+<pre data-mode="type this" data-where="terminal, then inside the container"><code>docker run --rm -it alpine sh
 # you are now inside the container:
 cat /etc/os-release
 ps
 exit</code></pre>
     <p><code>ps</code> shows two processes: your shell and <code>ps</code> itself. That is the whole world as this container sees it. Now a real server, detached, with a port published and a name so you can refer to it:</p>
-<pre data-mode="type this"><code>docker run -d --name web -p 8080:80 nginx
+<pre data-mode="type this" data-where="terminal"><code>docker run -d --name web -p 8080:80 nginx
 docker ps
 docker logs web
 docker exec -it web sh -c &quot;ls /usr/share/nginx/html&quot;
@@ -221,11 +221,11 @@ docker rm web</code></pre>
     <header><span class="num">Step 2</span><h3>Borrow a toolchain to run the server</h3><span class="time">8 min</span></header>
     <p>The app for the rest of the lab is a 40-line Go web server. Create these two files in <code>docker-lab</code>. Read <code>main.go</code> once, top to bottom: it greets you, says which machine it is running on, and counts visits in a file called <code>visits.txt</code>. Three things it does will matter later: it reads <code>GREETING</code> from the environment, it prints its hostname, and it writes a file in the current directory.</p>
     <h4>go.mod</h4>
-<pre data-mode="paste this"><code>module hello
+<pre data-mode="paste this" data-where="new file go.mod"><code>module hello
 
 go 1.24</code></pre>
     <h4>main.go</h4>
-<pre data-mode="paste this"><code>// A tiny web server: says hello, tells you which machine it runs on,
+<pre data-mode="paste this" data-where="new file main.go"><code>// A tiny web server: says hello, tells you which machine it runs on,
 // and counts visits in a file so we can see what survives a restart.
 package main
 
@@ -270,7 +270,7 @@ func bump(path string) int {
 	return n
 }</code></pre>
     <p>Nobody has Go installed. The <code>golang</code> image does. Mount the folder in, publish the port, and run it there:</p>
-<pre data-mode="type this"><code>docker run --rm -it -v &quot;$PWD&quot;:/app -w /app -p 8080:8080 golang:1.27 go run .</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>docker run --rm -it -v &quot;$PWD&quot;:/app -w /app -p 8080:8080 golang:1.27 go run .</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p>The browser at <a href="http://localhost:8080">localhost:8080</a> says "Hello from <em>some-hex-id</em>! You are visit number 1." and the number goes up on reload. <code>visits.txt</code> has appeared in your folder, because the folder is mounted. Ctrl-C stops it.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> the hostname it prints is the container identifier (ID). Where did the compiler run? Where is the compiled program now? (Inside a container that no longer exists.) What does the <code>-v</code> do that makes <code>visits.txt</code> appear on the laptop?</p>
   </article>
@@ -278,14 +278,14 @@ func bump(path string) int {
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>First Dockerfile</h3><span class="time">12 min</span></header>
     <p>Step 2 works but the recipe lives in a shell command. A Dockerfile writes it down, and the result is an image anyone can run. Create a file named exactly <code>Dockerfile</code>:</p>
-<pre data-mode="type this"><code>FROM golang:1.27
+<pre data-mode="type this" data-where="new file Dockerfile"><code>FROM golang:1.27
 WORKDIR /app
 COPY . .
 RUN go mod download
 RUN go build -o server .
 CMD [&quot;./server&quot;]</code></pre>
     <p>Six lines, four kinds of instruction: <code>FROM</code> picks the starting image, <code>WORKDIR</code> chooses a folder, <code>COPY</code> brings the project in, <code>RUN</code> executes a command at build time (fetch dependencies, then compile), and <code>CMD</code> says what to start. Build it, then run it like nginx in step 1:</p>
-<pre data-mode="type this"><code>docker build -t hello:1 .
+<pre data-mode="type this" data-where="terminal"><code>docker build -t hello:1 .
 docker images hello
 docker run --rm -p 8080:8080 hello:1</code></pre>
     <p>The <code>.</code> at the end of <code>build</code> is the build context: the folder whose files <code>COPY</code> may see. <code>-t hello:1</code> is the name and tag.</p>
@@ -296,10 +296,10 @@ docker run --rm -p 8080:8080 hello:1</code></pre>
   <article class="step" id="s4">
     <header><span class="num">Step 4</span><h3>Layers, cache, and the build context</h3><span class="time">15 min</span></header>
     <p>Change the word <code>Hello</code> in <code>main.go</code> to anything else and rebuild:</p>
-<pre data-mode="type this"><code>docker build -t hello:1 .
+<pre data-mode="type this" data-where="terminal"><code>docker build -t hello:1 .
 docker history hello:1</code></pre>
     <p>Watch the output: <code>FROM</code> and <code>WORKDIR</code> say <code>CACHED</code>; from <code>COPY . .</code> downwards everything ran again, including <code>go mod download</code>, which on a real project is the slow, network-bound step. <code>docker history</code> lists the layers with their sizes, newest first. Now reorder so that the part that rarely changes (dependencies) comes before the part that changes constantly (code):</p>
-<pre data-mode="type this"><code>FROM golang:1.27
+<pre data-mode="type this" data-where="replace Dockerfile"><code>FROM golang:1.27
 WORKDIR /app
 COPY go.mod ./
 RUN go mod download
@@ -309,7 +309,7 @@ CMD [&quot;./server&quot;]</code></pre>
     <p>Same six lines plus one: <code>COPY go.mod</code> before the download. Build once, change the greeting again, build again. The <code>go mod download</code> layer is now cached; only <code>COPY . .</code> and <code>go build</code> rerun. Our program has no dependencies so the saving is small here; on a real project this is the difference between a five-second and a five-minute rebuild. The same layout appears in every language's Dockerfiles: package manifest first, install, then the code.</p>
     <p>One more thing: <code>COPY . .</code> copies <em>everything</em> in the folder, including <code>visits.txt</code> from step 2 and, from step 6 on, the whole <code>data</code> folder. A <code>.dockerignore</code> keeps them out of the build context. Create it next to the Dockerfile; on Windows make sure the editor does not save it as <code>.dockerignore.txt</code>.</p>
     <h4>.dockerignore</h4>
-<pre data-mode="type this"><code>visits.txt
+<pre data-mode="type this" data-where="new file .dockerignore"><code>visits.txt
 data/</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p>After changing the greeting, the rebuild shows <code>CACHED</code> for <code>COPY go.mod</code> and <code>go mod download</code>, and only the last two layers run. <code>docker history hello:1</code> shows a layer per instruction.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> use the widget at the top of the page. Why is a change to <code>go.mod</code> expensive in both layouts? What would happen if <code>RUN go build</code> came before <code>COPY . .</code>?</p>
@@ -318,7 +318,7 @@ data/</code></pre>
   <article class="step" id="s5">
     <header><span class="num">Step 5</span><h3>Multi-stage build</h3><span class="time">15 min</span></header>
     <p><code>hello:1</code> ships a compiler, a shell, a package manager and Debian, to run an eight-megabyte program. A multi-stage Dockerfile builds in the big image and copies only the result into an empty one. Replace the whole Dockerfile:</p>
-<pre data-mode="type this"><code># Stage 1: build, in an image that has the Go toolchain (about 800 MB)
+<pre data-mode="type this" data-where="replace Dockerfile"><code># Stage 1: build, in an image that has the Go toolchain (about 800 MB)
 FROM golang:1.27 AS build
 WORKDIR /app
 COPY go.mod ./
@@ -333,7 +333,7 @@ COPY --from=build /app/server /server
 EXPOSE 8080
 CMD [&quot;/server&quot;]</code></pre>
     <p><code>scratch</code> is the empty image: no files at all. <code>CGO_ENABLED=0</code> makes Go produce a binary that needs no system libraries, which is why it can run on nothing. <code>WORKDIR /data</code> creates the one directory the program needs for its counter file.</p>
-<pre data-mode="type this"><code>docker build -t hello:2 .
+<pre data-mode="type this" data-where="terminal"><code>docker build -t hello:2 .
 docker images hello
 docker run -d --name app -p 8080:8080 hello:2
 docker exec -it app sh
@@ -345,14 +345,14 @@ docker rm -f app</code></pre>
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>Ports, environment, volumes: what survives</h3><span class="time">15 min</span></header>
     <p>Three experiments, each a question the program was written to answer. First, configuration through the environment:</p>
-<pre data-mode="type this"><code>docker run -d --name app -p 8080:8080 -e GREETING=Hej hello:2
+<pre data-mode="type this" data-where="terminal"><code>docker run -d --name app -p 8080:8080 -e GREETING=Hej hello:2
 docker logs -f app</code></pre>
     <p>Reload the browser a few times; the greeting changed without a rebuild, and <code>logs -f</code> follows the log live. Ctrl-C leaves the container running. Second, what a restart keeps and what <code>rm</code> destroys:</p>
-<pre data-mode="type this"><code>docker restart app
+<pre data-mode="type this" data-where="terminal"><code>docker restart app
 docker rm -f app
 docker run -d --name app -p 8080:8080 hello:2</code></pre>
     <p>Reload after each command. After <code>restart</code> the counter continues (the writable layer survived). After <code>rm</code> and a new <code>run</code> it is back to 1 (new container, new layer). Third, a volume:</p>
-<pre data-mode="type this"><code>docker rm -f app
+<pre data-mode="type this" data-where="terminal"><code>docker rm -f app
 docker run -d --name app -p 8080:8080 -v &quot;$PWD/data&quot;:/data hello:2
 docker rm -f app
 docker run -d --name app -p 8080:8080 -v &quot;$PWD/data&quot;:/data hello:2

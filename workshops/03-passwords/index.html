@@ -214,10 +214,10 @@ go run ready.go</code></pre>
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Ready: the project and a readiness check</h3><span class="time">5 min</span></header>
     <p>In the <code>passwords-lab</code> folder, confirm the toolchain and make the module. If you did the prep, <code>ready.go</code> and the module already exist; run the loader below either way.</p>
-<pre data-mode="type this"><code>go mod init passwords    # skip if go.mod already exists from the prep</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go mod init passwords    # skip if go.mod already exists from the prep</code></pre>
     <p>Save the ten-line users file as <code>users.txt</code> — this is the "database" the whole lab attacks — and a small loader as <code>load.go</code>. Both are pasted; a file-reading loop is not the topic.</p>
     <h4>users.txt</h4>
-<pre data-mode="paste this"><code>alice:password
+<pre data-mode="paste this" data-where="new file users.txt"><code>alice:password
 bob:123456
 carol:qwerty
 dave:letmein
@@ -228,7 +228,7 @@ heidi:trustno1
 ivan:football
 judy:Tr0ub4dour&amp;3-xq7</code></pre>
     <h4>load.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file load.go"><code>package main
 
 import (
 	&quot;fmt&quot;
@@ -257,7 +257,7 @@ func main() {
 	}
 	fmt.Printf(&quot;ready: %d users loaded\n&quot;, len(users))
 }</code></pre>
-<pre data-mode="type this"><code>go run load.go</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run load.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>go run load.go</code> prints <code>ready: 10 users loaded</code>. If it does, Go runs, the module is set up, and the users file is where the program expects it.</p></div>
     <p>Every step is one small file with its own <code>func main</code>, and we run them one at a time with <code>go run &lt;file&gt;.go</code>. Your editor (or <code>go build ./...</code>) will underline <code>main</code> in red with "main redeclared in this block" once there is more than one file — ignore it; each file compiles and runs fine on its own.</p>
     <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room now, while there is slack. This catches a missing <code>go.mod</code>, a Go older than 1.24, and a <code>users.txt</code> saved in the wrong folder — the three things that would otherwise surface mid-lab.</p></div>
@@ -267,7 +267,7 @@ func main() {
     <header><span class="num">Step 1</span><h3>Plaintext, and logging in as anyone</h3><span class="time">10 min</span></header>
     <p>Here is the naive password store: the file <em>is</em> the passwords, and a login is a string comparison. Save it as <code>login1.go</code> (pasted — the point is a concept, not the code) and log in as yourself:</p>
     <h4>login1.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file login1.go"><code>package main
 
 import (
 	&quot;fmt&quot;
@@ -289,9 +289,9 @@ func main() {
 		fmt.Println(&quot;no&quot;)
 	}
 }</code></pre>
-<pre data-mode="type this"><code>go run login1.go alice password    # correct -&gt; welcome; a wrong password -&gt; no</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run login1.go alice password    # correct -&gt; welcome; a wrong password -&gt; no</code></pre>
     <p>Now play the attacker. The database has leaked — which means you are holding <code>users.txt</code>. Read it, pick any account, and log in as them:</p>
-<pre data-mode="type this"><code>cat users.txt                       # PowerShell: type users.txt
+<pre data-mode="type this" data-where="terminal"><code>cat users.txt                       # PowerShell: type users.txt
 go run login1.go grace sunshine     # someone else&#x27;s account</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>You logged in as <code>grace</code> without ever being grace, using only what a leaked file handed you. That is the failure mode the rest of the lab removes.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> nothing was "hacked" here — the login code is correct. The bug is entirely in <em>what</em> was stored. Where else has grace probably used <code>sunshine</code>? That is why a leak of your site becomes a problem for sites you have never heard of.</p>
@@ -302,7 +302,7 @@ go run login1.go grace sunshine     # someone else&#x27;s account</code></pre>
     <p>The obvious fix is to store a hash instead of the password: one-way, so the file no longer <em>is</em> the passwords. But a hash is deterministic — the same password always hashes the same — so an attacker can guess. This is the step where you are the attacker, and you write the guesser yourself.</p>
     <p>You have stolen the whole leaked table — one SHA-256 hash per user, all ten of them — and you have a wordlist of common passwords. Save the ten target hashes as <code>hashes.txt</code>:</p>
     <h4>hashes.txt</h4>
-<pre data-mode="paste this"><code>5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+<pre data-mode="paste this" data-where="new file hashes.txt"><code>5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
 65e84be33532fb784c48129675f9eff3a682b27168c0ea744b2cf58ee02337c5
 1c8bfe8f801d79745c4631d09fff36c82aa37fc4cce4fc946683d7b336b63032
@@ -341,7 +341,7 @@ batman
 … 276 more …</code></pre>
     <p>Now the attack. Create <code>attack.go</code>. Paste the imports, then <strong>type the loop</strong> — it is the whole idea, about fifteen lines: hash each word, and if its fingerprint is one you stole, you have cracked that account.</p>
     <h4>attack.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file attack.go"><code>package main
 
 import (
 	&quot;bufio&quot;
@@ -352,7 +352,7 @@ import (
 	&quot;strings&quot;
 	&quot;time&quot;
 )</code></pre>
-<pre data-mode="type this"><code>func main() {
+<pre data-mode="type this" data-where="add to attack.go"><code>func main() {
 	data, _ := os.ReadFile(&quot;hashes.txt&quot;)
 	want := map[string]bool{}
 	for _, h := range strings.Fields(string(data)) {
@@ -370,7 +370,7 @@ import (
 	fmt.Printf(&quot;hashed the whole list in %v\n&quot;, time.Since(start))
 }</code></pre>
     <p>Run it — the program prints each cracked password and how long the whole list took to hash, so you feel how cheap guessing is:</p>
-<pre data-mode="type this"><code>go run attack.go</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run attack.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p>Nine of the ten hashes are cracked and printed as their plaintext passwords — <code>password</code>, <code>123456</code>, <code>qwerty</code>, <code>letmein</code>, <code>dragon</code>, <code>monkey</code>, <code>sunshine</code>, <code>football</code>, <code>trustno1</code> — followed by a line like <code>hashed the whole list in 250µs</code> (250 microseconds). Hashing all 300 words took well under a millisecond; there was no salt, so one pass over the list cracked every reused password at once. One hash (judy's) is not cracked.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> which hash survived, and why? (A long random password that is in no wordlist — the one defence a user can mount.) SHA-256 did its job perfectly and it did not help at all: the problem is that it is <em>fast</em>. A real wordlist is hundreds of millions of entries, and one gaming graphics processing unit (GPU) does 22 billion SHA-256 a second, about five thousand times your laptop core. Try the widget at the top of the page: hardware on "gaming GPU", storage on "SHA-256 once".</p>
   </article>
@@ -379,7 +379,7 @@ import (
     <header><span class="num">Step 3</span><h3>A per-user salt</h3><span class="time">15 min</span></header>
     <p>Two problems remain with a plain hash. Identical passwords produce identical hashes, which leaks who shares a password; and an attacker can precompute one giant word-to-hash table (a "rainbow table") once and look everyone up. A per-user <em>salt</em> — a few random bytes, stored with the hash and mixed in before hashing — fixes both. Create <code>salt.go</code>; <strong>type the <code>saltedHash</code> function</strong>, which is the whole new idea, then paste the demo below it.</p>
     <h4>salt.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file salt.go"><code>package main
 
 import (
 	&quot;bufio&quot;
@@ -389,11 +389,11 @@ import (
 	&quot;fmt&quot;
 	&quot;os&quot;
 )</code></pre>
-<pre data-mode="type this"><code>func saltedHash(salt []byte, password string) string {
+<pre data-mode="type this" data-where="add to salt.go"><code>func saltedHash(salt []byte, password string) string {
 	sum := sha256.Sum256(append(salt, []byte(password)...))
 	return hex.EncodeToString(sum[:])
 }</code></pre>
-<pre data-mode="paste this"><code>func main() {
+<pre data-mode="paste this" data-where="add to salt.go"><code>func main() {
 	// alice and erin both chose the SAME password:
 	pw := &quot;dragon&quot;
 	aSalt, eSalt := make([]byte, 16), make([]byte, 16)
@@ -414,7 +414,7 @@ import (
 		}
 	}
 }</code></pre>
-<pre data-mode="type this"><code>go run salt.go       # run it a second time: the salts, and so the hashes, change</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run salt.go       # run it a second time: the salts, and so the hashes, change</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p>alice and erin have the <em>same</em> password (<code>dragon</code>) but two different hashes, and both change every run as the salt changes — so rainbow tables and deduplication are dead. And yet the last line still prints <code>erin's password is still "dragon"</code>: a per-user dictionary attack, using the salt that leaked alongside the hash, cracks her anyway.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> the salt is not a secret and does not need to be — it is stored in the clear next to the hash. So what did salting actually buy us? (It stops one precomputed table from cracking the whole file at once; the attacker must now redo the work per user.) What did it <em>not</em> buy us? (Any slowdown of a single targeted guess.) That is the next step's job.</p>
   </article>
@@ -423,7 +423,7 @@ import (
     <header><span class="num">Step 4</span><h3>Slow it down with PBKDF2</h3><span class="time">15 min</span></header>
     <p>The reason step 2 was instant is that SHA-256 is fast. A password hash should be deliberately slow. PBKDF2 does this by running HMAC-SHA256 many times over — you pick how many. The current <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP recommendation</a> is <strong>600,000 iterations</strong> for PBKDF2-HMAC-SHA256. Create <code>slow.go</code> and <strong>type the body</strong>: one hash, timed, and the arithmetic for what the step-2 attack would now cost.</p>
     <h4>slow.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file slow.go"><code>package main
 
 import (
 	&quot;crypto/pbkdf2&quot;
@@ -434,7 +434,7 @@ import (
 )
 
 const iterations = 600_000 // OWASP-recommended work factor for PBKDF2-HMAC-SHA256</code></pre>
-<pre data-mode="type this"><code>func main() {
+<pre data-mode="type this" data-where="add to slow.go"><code>func main() {
 	salt := make([]byte, 16)
 	rand.Read(salt)
 	start := time.Now()
@@ -448,7 +448,7 @@ const iterations = 600_000 // OWASP-recommended work factor for PBKDF2-HMAC-SHA2
 	secs := space * per.Seconds()
 	fmt.Printf(&quot;all 8-char lowercase (%.2e): %.0f years\n&quot;, space, secs/(3600*24*365))
 }</code></pre>
-<pre data-mode="type this"><code>go run slow.go</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run slow.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 4</p><p>One hash now takes a fraction of a second (roughly 0.1–0.5 seconds depending on your laptop) instead of the microseconds of step 2. The program prints how long the 300-word attack would now take — over a minute, not the fraction of a millisecond of step 2 — and that brute-forcing all 8-character lowercase passwords would take thousands of years. Same laptop, same code, one constant changed.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> a single login now costs you a fraction of a second — imperceptible. The attacker pays that cost on <em>every one</em> of billions of guesses. Open the widget at the top of the page, keep the hardware on "gaming GPU", and drag storage from "SHA-256 once" to "600,000 · OWASP": watch ten seconds for the whole 8-letter lowercase space become months. Then drag hardware to the top of the scale and see what only a longer password can fix. Why is a hash you can tune better than a hash that is merely "strong"? (Because you can raise the cost as hardware gets faster — which step 6 does automatically.)</p>
   </article>
@@ -457,7 +457,7 @@ const iterations = 600_000 // OWASP-recommended work factor for PBKDF2-HMAC-SHA2
     <header><span class="num">Step 5</span><h3>Constant-time compare</h3><span class="time">10 min</span></header>
     <p>One leak is left, and it is in the comparison. Go's <code>==</code> on byte strings stops the instant it finds a difference, so a comparison that fails on the first byte returns sooner than one that fails on the last. Response time then spells out how many leading bytes were right, one guess at a time. Measure it. Create <code>timing.go</code>; paste the harness, then <strong>type the six comparisons</strong>.</p>
     <h4>timing.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file timing.go"><code>package main
 
 import (
 	&quot;crypto/subtle&quot;
@@ -484,14 +484,14 @@ func main() {
 	first := &quot;b&quot; + secret[1:]  // differs at the FIRST byte
 	last := secret[:n-1] + &quot;b&quot; // differs at the LAST byte
 	sec, fb, lb := []byte(secret), []byte(first), []byte(last)</code></pre>
-<pre data-mode="type this"><code>	fmt.Println(&quot;plain ==&quot;)
+<pre data-mode="type this" data-where="add to timing.go"><code>	fmt.Println(&quot;plain ==&quot;)
 	fmt.Println(&quot;  differs at first byte:&quot;, avg(func() bool { return secret == first }, reps))
 	fmt.Println(&quot;  differs at last byte :&quot;, avg(func() bool { return secret == last }, reps))
 	fmt.Println(&quot;subtle.ConstantTimeCompare&quot;)
 	fmt.Println(&quot;  differs at first byte:&quot;, avg(func() bool { return subtle.ConstantTimeCompare(sec, fb) == 1 }, reps))
 	fmt.Println(&quot;  differs at last byte :&quot;, avg(func() bool { return subtle.ConstantTimeCompare(sec, lb) == 1 }, reps))
 }</code></pre>
-<pre data-mode="type this"><code>go run timing.go</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run timing.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>For plain <code>==</code>, "differs at first byte" is a few nanoseconds while "differs at last byte" is hundreds of times slower (roughly 3 nanoseconds (ns) versus 1.3 µs) — the short-circuit is visible. For <code>subtle.ConstantTimeCompare</code>, the two are close to equal (both tens of microseconds, varying run to run): it always reads every byte, so its timing tells an attacker nothing about which byte was wrong. Note that it is slower in absolute terms than even the worst <code>==</code> — the secret here is 64 kibibytes (KiB) to make the effect large enough to see, and <code>ConstantTimeCompare</code> cannot use the wide single instruction, multiple data (SIMD) shortcut that <code>==</code> uses. On a real 32-byte hash the leak is a handful of nanoseconds rather than a microsecond, but it is the same leak, and the rule is the same.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> this is the same rule you met comparing time-based one-time password (TOTP) codes in workshop 2 — any comparison of secret material is constant-time, always. Why does the length check that a real verifier puts in front of <code>ConstantTimeCompare</code> not itself leak? (It only reveals the length, which for a fixed-size hash the attacker already knows.) Over a network the nanoseconds are buried in noise; why build the habit anyway? (Because the leak is real on a shared machine, and the correct call is no harder to write.)</p>
   </article>
@@ -500,7 +500,7 @@ func main() {
     <header><span class="num">Step 6</span><h3>Verify, and upgrade on login</h3><span class="time">10 min</span></header>
     <p>Put it together into what a server actually stores: one self-describing string, <code>$pbkdf2-sha256$iterations$salt$hash</code>, with the salt and hash in Base64. The recipe travels with the hash, so a verifier reads the parameters straight out of it — and can notice when they are out of date. Create <code>verify.go</code>; paste the imports and the <code>hashPassword</code> helper, then <strong>type the <code>verify</code> function</strong>, the parser and the constant-time check.</p>
     <h4>verify.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file verify.go"><code>package main
 
 import (
 	&quot;crypto/pbkdf2&quot;
@@ -523,7 +523,7 @@ func hashPassword(password string, iter int) string {
 	sum, _ := pbkdf2.Key(sha256.New, password, salt, iter, 32)
 	return fmt.Sprintf(&quot;$pbkdf2-sha256$%d$%s$%s&quot;, iter, b64.EncodeToString(salt), b64.EncodeToString(sum))
 }</code></pre>
-<pre data-mode="type this"><code>// verify reports whether password matches stored, and whether stored should be replaced.
+<pre data-mode="type this" data-where="add to verify.go"><code>// verify reports whether password matches stored, and whether stored should be replaced.
 func verify(stored, password string) (ok, stale bool) {
 	p := strings.Split(stored, &quot;$&quot;)
 	if len(p) != 5 || p[1] != &quot;pbkdf2-sha256&quot; {
@@ -536,7 +536,7 @@ func verify(stored, password string) (ok, stale bool) {
 	ok = subtle.ConstantTimeCompare(got, want) == 1
 	return ok, ok &amp;&amp; iter &lt; policy
 }</code></pre>
-<pre data-mode="paste this"><code>func main() {
+<pre data-mode="paste this" data-where="add to verify.go"><code>func main() {
 	old := hashPassword(&quot;dragon&quot;, 100_000) // an account hashed years ago
 	fmt.Println(&quot;stored:&quot;, old)
 
@@ -552,7 +552,7 @@ func verify(stored, password string) (ok, stale bool) {
 	ok, _ = verify(old, &quot;wrong&quot;)
 	fmt.Printf(&quot;wrong password  : ok=%v\n&quot;, ok)
 }</code></pre>
-<pre data-mode="type this"><code>go run verify.go</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>go run verify.go</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>An account stored at the old cost of 100,000 iterations verifies with the correct password and is reported <code>stale</code>; the program re-hashes it at today's 600,000 and prints the upgraded string; a second verify reports it no longer stale; and a wrong password is rejected. The stored string carries its own algorithm, cost and salt, so nothing external has to remember them.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> you never stored anyone's password, so how can you raise the iteration count on old accounts? (Only on a successful login, when the plaintext is briefly in hand — the store heals one login at a time.) Why is the algorithm name inside the string, not assumed? (So you can migrate to Argon2id later without a flag day: the same <code>verify</code> dispatches on what each record says.)</p>
   </article>
