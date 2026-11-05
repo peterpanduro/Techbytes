@@ -428,10 +428,11 @@ git stash pop</code></pre>
 08e14b1 Simplify f_to_c arithmetic</code></pre>
     <p><code>-S</code> (the "pickaxe") finds the two commits whose diff contains that string: the one that introduced it and your revert. That is the history of the words, which is a different question from who last touched the line.</p>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>The folder <code>kelvin</code> exists next to <code>git-lab</code> and <code>git status</code> shows <code>README.md</code> modified again after the pop. <code>log -S</code> prints exactly two commits, <code>08e14b1</code> and your revert.</p></div>
-    <p class="inst-only"><strong>Talk about it:</strong> run <code>git blame -L 6,8 temp.sh</code>. Line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally:</p>
+    <p>Run <code>git blame -L 6,8 temp.sh</code>:</p>
 <pre data-mode="you should see"><code>4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 6) c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
 f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
 4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 8)</code></pre>
+    <p class="inst-only"><strong>Talk about it:</strong> line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally.</p>
     <p>Blame tells you the last hand on a line; <code>-S</code> tells you the history of the words. And <code>git log -S273 --oneline --all</code> finds only your squashed commit, not the four WIP ones. Why? (<code>--all</code> means "reachable from any label"; the WIP commits are unreachable now. <code>git show cb1d805</code> still works.) Clean up with <code>git worktree remove ../kelvin</code> and <code>git restore README.md</code>.</p>
   </article>
 
