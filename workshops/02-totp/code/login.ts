@@ -1,7 +1,9 @@
+import QRCode from "npm:qrcode@1.5.4";
 import { newSecret, otpauthUri, toBase32, Verifier } from "./totp.ts";
 
 const s = newSecret();
-console.log("add this key to your phone:", otpauthUri(s, "you@example.edu", "TOTP Workshop"));
+const uri = otpauthUri(s, "you@example.edu", "TOTP Workshop");
+console.log(await QRCode.toString(uri, { type: "terminal", small: true }));
 console.log("or type it in:", toBase32(s));
 const v = new Verifier(s);
 while (true) {

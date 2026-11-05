@@ -145,7 +145,7 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
     <li>Run the whole lab yourself, once on each OS you expect in the room, using the exact commands on this page. The typical Windows failure is a terminal opened before Deno was installed (not on the path).</li>
     <li>Open this page on the projector from a file, <code>localhost</code> or an HTTPS (Hypertext Transfer Protocol Secure) address; the widget needs a secure context for WebCrypto and shows "no crypto" over plain HTTP from another machine. The live widget at the top is your demo for slides 3 and 6. Add its key (<code>GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ</code>) to an authenticator app on your own phone beforehand so you can hold the phone up next to the screen.</li>
     <li>Have the <a href="#solution">full solution</a> ready to paste for anyone who falls more than one step behind; the checkpoints are designed so a student can drop in the reference version of an earlier step and keep going.</li>
-    <li>If the venue has no Wi-Fi, students who skipped the prep cannot fetch <code>npm:qrcode</code>. Have them type the Base32 key into the phone manually in step 5; it takes a minute and makes the point that the QR code is only the secret.</li>
+    <li>If the venue has no Wi-Fi, students who skipped the prep cannot fetch <code>npm:qrcode</code>, so <code>qr.ts</code> and <code>login.ts</code> will not start. Have them delete the <code>QRCode</code> import and the lines that use it, then type the Base32 key into the phone manually; it takes a minute and makes the point that the QR code is only the secret.</li>
     <li>Print the RFC 4226 test-vector table (it is in step 3) for the room, or leave it on the projector during steps 2 and 3.</li>
     <li>Optional: bring one hardware token (a YubiKey or a cheap TOTP card) to pass around during slide 4.</li>
   </ul></div>
@@ -409,11 +409,13 @@ Deno.test(&quot;step 6: verifier accepts each step once, rejects replay&quot;, a
   assertEquals(await v.verify(await totp(s, t0 + 90), t0), false); // too far ahead
   assertEquals(await v.verify(&quot;12345&quot;, t0 + 300), false);          // wrong length
 });</code></pre>
-    <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>deno test</code>: all five tests pass. Then the live test, with a third small script, <code>login.ts</code>, that acts as the server: it prints the key both as a URI and as the bare Base32 text, so add it to the phone by typing (or reuse the QR trick from <code>qr.ts</code>), then type codes at it. It should accept a code once and refuse it the second time.</p></div>
-<pre data-mode="paste this" data-where="new file login.ts"><code>import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+    <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>deno test</code>: all five tests pass. Then the live test, with a third small script, <code>login.ts</code>, that acts as the server: it makes a new key and prints it as a QR code and as bare Base32 text, so add it to the phone, then type codes at it. It should accept a code once and refuse it the second time.</p></div>
+<pre data-mode="paste this" data-where="new file login.ts"><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
 
 const s = newSecret();
-console.log(&quot;add this key to your phone:&quot;, otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;));
+const uri = otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;);
+console.log(await QRCode.toString(uri, { type: &quot;terminal&quot;, small: true }));
 console.log(&quot;or type it in:&quot;, toBase32(s));
 const v = new Verifier(s);
 while (true) {
@@ -608,10 +610,12 @@ while (true) {
   await new Promise((r) =&gt; setTimeout(r, 5000));
 }
 </code></pre></details>
-  <details class="sol"><summary>login.ts<a class="dl" href="code/login.ts" download>download</a></summary><pre><code>import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+  <details class="sol"><summary>login.ts<a class="dl" href="code/login.ts" download>download</a></summary><pre><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
 
 const s = newSecret();
-console.log(&quot;add this key to your phone:&quot;, otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;));
+const uri = otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;);
+console.log(await QRCode.toString(uri, { type: &quot;terminal&quot;, small: true }));
 console.log(&quot;or type it in:&quot;, toBase32(s));
 const v = new Verifier(s);
 while (true) {
