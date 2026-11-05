@@ -192,7 +192,7 @@ docker images kindest/node</code></pre>
   <span class="eyebrow"><span class="inst-only">90 minutes · </span>7 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
   <p>Students make a new folder <code>k8s-lab</code> next to their workshop 6 folder and keep one terminal open in it, with a second terminal ready for step 4 (<code>port-forward</code> does not return). Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>pastes the reference file from the <a href="#solution">full solution</a> and continues.</p>
-  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is one Deployment (19 lines of YAML) and the <code>kubectl</code> and <code>kind</code> commands, 51 lines across the lab; the commands are the skill. <strong>Paste this</strong> is the other two Deployments: they mirror the one you typed, with two lines changed, and you read the diff instead of retyping it. Windows users: everything on this page works in PowerShell as written, except that <code>curl</code> must be spelled <code>curl.exe</code> (plain <code>curl</code> is a PowerShell alias for something else).</p></div>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is one Deployment (19 lines of YAML) and the <code>kubectl</code> and <code>kind</code> commands, 52 lines across the lab; the commands are the skill. <strong>Paste this</strong> is the other two Deployments: they mirror the one you typed, with two lines changed, and you read the diff instead of retyping it. Windows users: everything on this page works in PowerShell as written, except that <code>curl</code> must be spelled <code>curl.exe</code> (plain <code>curl</code> is a PowerShell alias for something else).</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
     <div class="row" data-from="0" data-to="5"><span class="k">0:00–0:05</span><span>Step 0 · A cluster in a container</span></div>
@@ -324,8 +324,9 @@ spec:
             - name: REDIS_URL
               value: redis://redis:6379</code></pre>
 <pre data-mode="type this" data-where="terminal"><code>kubectl apply -f api.yaml -f worker.yaml
+kubectl expose deployment api --port 8080
 kubectl get pods</code></pre>
-    <p>Three pods Running. Nothing outside the cluster can reach the API yet: a laptop cluster has no load balancer to hand out an external address. <code>port-forward</code> is the everyday substitute, a tunnel from a port on your laptop to the Service. It does not return, so run it in the second terminal:</p>
+    <p>Three pods Running. <code>expose</code> printed <code>service/api exposed</code>: the API has a stable name, as Redis did in step 3. Nothing outside the cluster can reach the API yet: a laptop cluster has no load balancer to hand out an external address. <code>port-forward</code> is the everyday substitute, a tunnel from a port on your laptop to the Service. It does not return, so run it in the second terminal:</p>
 <pre data-mode="type this" data-where="second terminal"><code>kubectl port-forward svc/api 8080:8080</code></pre>
     <p>It prints <code>Forwarding from 127.0.0.1:8080 -> 8080</code>. Back in the first terminal, send the request from workshop 6 and look at what the worker did with it:</p>
 <pre data-mode="type this" data-where="first terminal"><code>curl -s -X POST localhost:8080/jobs -d &#x27;{&quot;task&quot;:&quot;hello&quot;}&#x27;
