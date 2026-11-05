@@ -76,7 +76,7 @@
     <tr><th>Why this topic</th><td>Workshop 5's pre-commit hook is a "no" that one person can skip with <code>--no-verify</code>. Continuous integration (CI) is the same "no" for the whole team, run on a machine nobody's laptop can talk out of it. Everyone has seen a red cross on a pull request; few have written the file that puts it there, or know why the token that pushed the image is harmless in a log an hour later. As the last workshop of the series it ties the others together: workshop 1's image, built, scanned and published by a machine on every push.</td></tr>
     <tr><th>Concepts</th><td>Workflows, events, jobs, steps and runners (a fresh virtual machine (VM) per job); <code>needs</code> and <code>concurrency</code>; <code>GITHUB_TOKEN</code> and least-privilege <code>permissions</code>; a container registry, package linking and default-private visibility; tags versus digests; <code>go.sum</code> as the lock file, the Go vulnerability database and govulncheck's three levels (called, imported, required); the toolchain as a dependency; rulesets and required status checks; pinning the actions you run.</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 1: a Dockerfile, <code>docker run</code>, <code>--platform</code>. Workshops 3–4: a little Go and <code>go test</code>. Workshop 5: branches, push, the pre-commit hook. No GitHub Actions, YAML or registry knowledge is assumed.</td></tr>
-    <tr><th>Language</th><td>YAML for the workflow (21 typed lines), Go for one small feature (12 typed lines), one Dockerfile line. govulncheck runs with <code>go run</code>, so there is nothing new to install.</td></tr>
+    <tr><th>Language</th><td>YAML for the workflow (21 typed lines), Go for one small feature (13 typed lines), one Dockerfile line. govulncheck runs with <code>go run</code>, so there is nothing new to install.</td></tr>
     <tr><th>Students need</th><td>Laptop with git, Go 1.27.2 or later (go1.27.2 was released 2026-10-08), Docker running (workshop 1), a terminal (Git Bash on Windows), a browser, and a personal GitHub account with a public repository <code>ci-lab</code> cloned over Secure Shell (SSH) or Git Credential Manager. The readiness run in the prep proves all of it.</td></tr>
     <tr><th>Room needs</th><td>Projector. Wi-Fi that reaches github.com, ghcr.io, proxy.golang.org and vuln.go.dev; the traffic is small (pushes are kilobytes, the final image is a few megabytes). The instructor brings a phone hotspot and the fallback in the instructor notes.</td></tr>
     <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (six steps, each with a checkpoint that must pass before moving on, and a task for every wait).</td></tr>
@@ -186,7 +186,7 @@ go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
   <span class="eyebrow"><span class="inst-only">90 minutes · </span>6 steps</span>
   <div class="labhead"><h2>The lab</h2><span class="pill" id="cp-progress"></span></div>
   <p>Students work in the <code>ci-lab</code> folder from the prep, with a terminal (Git Bash on Windows), an editor, and the repository open in the browser. Every step ends in a checkpoint. Nobody moves to the next step until their checkpoint passes; anyone stuck <span class="inst-only">for more than five minutes </span>downloads the recovery file for that step from the <a href="#solution">full solution</a> and continues.</p>
-  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is 60 lines across the lab: 21 lines of workflow YAML, 12 lines of Go, one Dockerfile line and 26 commands. Typing the workflow is how its indentation gets into your fingers. <strong>Paste this</strong> is the copy command in step 0, the two test files, and the body of the build job in step 2. Windows users run everything in Git Bash; in PowerShell, <code>curl</code> is a different program, so type <code>curl.exe</code> there.</p></div>
+  <div class="call"><p class="lbl">Type or paste</p><p>Every code block is labelled. <strong>Type this</strong> is 61 lines across the lab: 21 lines of workflow YAML, 13 lines of Go, one Dockerfile line and 26 commands. Typing the workflow is how its indentation gets into your fingers. <strong>Paste this</strong> is the copy command in step 0, the two test files, and the body of the build job in step 2. Windows users run everything in Git Bash; in PowerShell, <code>curl</code> is a different program, so type <code>curl.exe</code> there.</p></div>
   <div class="call inst"><p class="lbl">Five runs, five tasks</p><p>Run 1 (step 1, about 1 min): read the log. Run 2 (step 2, about 2–3 min): create the ruleset. Run 3 (step 3, about 1–1.5 min, red): open the pull request. Run 4 (step 4, about 1–1.5 min until <code>test</code> is green): read "Fixed in" and the informational findings, then merge. Run 5 (step 5, about 3 min): the wrap-up. The first govulncheck in a run compiles x/vuln on a cold runner, which is most of the <code>test</code> job from step 3 on. All timings are estimates. Not executed in the authoring environment; verified against docs.</p></div>
   <div class="clock" id="clock"><button type="button" class="go">Start the lab clock</button><button type="button" class="rs quiet" hidden>Reset</button><span class="now">not started</span></div>
   <div class="timeline">
@@ -201,8 +201,8 @@ go mod download golang.org/x/text@v0.3.7 golang.org/x/text@v0.3.8</code></pre>
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Workshop 1's server, with a test</h3><span class="time">10 min</span></header>
     <p>The project for the lab is workshop 1's server, unchanged. Copy exactly four files from <code>docker-lab</code> into <code>ci-lab</code>: not <code>visits.txt</code>, not <code>data/</code>, not the <code>Dockerfile.v1</code> and <code>Dockerfile.v2</code> experiments, because in a minute <code>git add .</code> commits whatever is in the folder. (No <code>docker-lab</code> any more? Download <a href="../01-docker/code/main.go" download>main.go</a>, <a href="../01-docker/code/go.mod" download>go.mod</a>, <a href="../01-docker/code/Dockerfile" download>Dockerfile</a> and <a href="../01-docker/code/.dockerignore" download>.dockerignore</a> from workshop 1 into <code>ci-lab</code> instead.)</p>
-<pre data-mode="paste this" data-where="terminal"><code>cd ci-lab
-cp ../docker-lab/main.go ../docker-lab/go.mod ../docker-lab/Dockerfile ../docker-lab/.dockerignore .</code></pre>
+    <p>Run this in the <code>ci-lab</code> folder:</p>
+<pre data-mode="paste this" data-where="terminal"><code>cp ../docker-lab/main.go ../docker-lab/go.mod ../docker-lab/Dockerfile ../docker-lab/.dockerignore .</code></pre>
     <p>Workshop 1 had no tests, and a pipeline needs something to run. Save this next to <code>main.go</code> as <code>main_test.go</code>. It calls <code>bump</code> three times on a file in a fresh folder that Go deletes afterwards, so it never touches your real <code>visits.txt</code>:</p>
     <h4>main_test.go</h4>
 <pre data-mode="paste this" data-where="new file main_test.go"><code>package main
@@ -342,7 +342,8 @@ func TestGreet(t *testing.T) {
 	}
 }</code></pre>
     <p>Then the function, at the end of <code>main.go</code>:</p>
-<pre data-mode="type this" data-where="add to main.go"><code>func greet(acceptLanguage, fallback string) string {
+<pre data-mode="type this" data-where="add to main.go"><code>// greet says Hej to visitors whose first choice of language is Swedish.
+func greet(acceptLanguage, fallback string) string {
 	tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
 	if err != nil || len(tags) == 0 {
 		return fallback

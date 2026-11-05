@@ -295,7 +295,7 @@ docker run --rm -p 8080:8080 hello:1</code></pre>
 
   <article class="step" id="s4">
     <header><span class="num">Step 4</span><h3>Layers, cache, and the build context</h3><span class="time">15 min</span></header>
-    <p>Change the word <code>Hello</code> in <code>main.go</code> to anything else and rebuild:</p>
+    <p>Stop the container with Ctrl-C. Change the word <code>Hello</code> in <code>main.go</code> to anything else and rebuild:</p>
 <pre data-mode="type this" data-where="terminal"><code>docker build -t hello:1 .
 docker history hello:1</code></pre>
     <p>Watch the output: <code>FROM</code> and <code>WORKDIR</code> say <code>CACHED</code>; from <code>COPY . .</code> downwards everything ran again, including <code>go mod download</code>, which on a real project is the slow, network-bound step. <code>docker history</code> lists the layers with their sizes, newest first. Now reorder so that the part that rarely changes (dependencies) comes before the part that changes constantly (code):</p>

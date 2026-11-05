@@ -18,7 +18,7 @@ type recorder struct {
 
 func (r *recorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.WriteHeader(code) }
 
-// wrap runs around every handler: time it, log one line, record one observation.
+// wrap runs around every handler.
 func wrap(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

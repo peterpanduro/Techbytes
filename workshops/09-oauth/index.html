@@ -225,7 +225,7 @@ console.log(`Deno ${Deno.version.deno}, challenge ${challenge}`);
 </code></pre>
     <p>Then the settings. The server reads five values from the environment; this file holds the ones for the fake GitHub, and step 5 swaps four of them for the real thing. Save it as <code>.env.example</code>, then copy it to <code>.env</code>, the file the server actually reads (and git ignores):</p>
 <pre data-mode="paste this" data-where="new file .env.example"><code># Copy this file to .env and never commit .env. These values talk to fakehub.
-# Step 5 replaces the first four lines with your GitHub OAuth app and GitHub itself.
+# Step 5 replaces the first four settings with your GitHub OAuth app and GitHub itself.
 CLIENT_ID=fakehub-client
 CLIENT_SECRET=fakehub-secret-not-a-real-secret
 OAUTH_BASE=http://127.0.0.1:9000
@@ -1083,7 +1083,7 @@ Deno.test(&quot;step 7, PKCE: the app&#x27;s own code is useless without the coo
 });
 </code></pre></details>
   <details class="sol"><summary>.env.example<a class="dl" href="code/.env.example" download>download</a></summary><pre><code># Copy this file to .env and never commit .env. These values talk to fakehub.
-# Step 5 replaces the first four lines with your GitHub OAuth app and GitHub itself.
+# Step 5 replaces the first four settings with your GitHub OAuth app and GitHub itself.
 CLIENT_ID=fakehub-client
 CLIENT_SECRET=fakehub-secret-not-a-real-secret
 OAUTH_BASE=http://127.0.0.1:9000
