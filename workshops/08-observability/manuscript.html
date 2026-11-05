@@ -19,11 +19,11 @@
 <div class="wrap" style="padding-block:2rem 4rem"><main>
   <span class="eyebrow">TechBytes · Workshop 8 · manuscript</span>
   <h1 style="margin-bottom:.6rem">Logs and Metrics You Can Actually Use</h1>
-  <p class="muted">Word for word, in first person. 1831 words over 15 minutes: about 12 minutes at a comfortable 130 words per minute, which leaves room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
+  <p class="muted">Word for word, in first person. 1852 words over 15 minutes: about 14 minutes at a comfortable 130 words per minute, which leaves a little room for the live demo and one or two questions. Slide numbers match the <a href="slides/index.html">deck</a>; the same text appears in the deck's speaker view (press <kbd>S</kbd>).</p>
   
   <article class="ms">
-    <header><span class="num">1</span><h3>It&#x27;s slow. Which part?</h3><span class="time">0:00 → 1:00 · 1 min · 115 words</span></header>
-    <p>A customer writes in: checkout is slow. You have twelve servers, a log file on each one, and a hunch. What do you do? Most of us, honestly, ssh into one of them and tail the log and hope the slow request comes past. That works for one server, on a good day.</p><p>This workshop is about what works for twelve servers, or a thousand pods, at three in the morning. Two kinds of data, one small Go API, and by the end you will find a deliberately slow endpoint from a graph alone, and then find out why it is slow from one log line. Fifteen minutes of talking, then ninety minutes of typing.</p>
+    <header><span class="num">1</span><h3>It&#x27;s slow. Which part?</h3><span class="time">0:00 → 1:00 · 1 min · 123 words</span></header>
+    <p>A customer writes in: checkout is slow. You have twelve servers, a log file on each one, and a hunch. What do you do? Most of us, honestly, log in to one of them over Secure Shell and tail the log and hope the slow request comes past. That works for one server, on a good day.</p><p>This workshop is about what works for twelve servers, or a thousand pods, at three in the morning. Two kinds of data, one small Go application programming interface, or API, and by the end you will find a deliberately slow endpoint from a graph alone, and then find out why it is slow from one log line. Fifteen minutes of talking, then ninety minutes of typing.</p>
     <p class="cue">→ next slide</p>
   </article>
   <article class="ms">
@@ -32,8 +32,8 @@
     <p class="cue">→ next slide</p>
   </article>
   <article class="ms">
-    <header><span class="num">3</span><h3>A log line is data, not prose</h3><span class="time">3:00 → 5:00 · 2 min · 248 words</span></header>
-    <p>Here is the same event twice. On top, the way most programs log it: a timestamp and a sentence. A human can read that. Now try to answer, from a million of those lines, how many 504s happened in the last minute. You are writing a regular expression, and it will be wrong the first three times.</p><p>Underneath, the same event as a record. One JSON object per line, every field with a name: method, path, status as a number, the duration as a number of milliseconds, and a request id. Now the question is one filter: status greater than or equal to five hundred. No parsing. That is what structured logging means, and it is the difference between a log you read and a log you query.</p><p>Go has this in the standard library since 1.21, in the package log slash slog. One line of setup makes every log call in the program write JSON, including the old-style calls you forgot to change. You will do that in step one; it is seven lines.</p><p>The request id deserves a sentence of its own. It is eight random hex digits, made up at the door when the request arrives, and stamped onto the request so that everything deeper in the program can put it on its own log lines. Later, when you have one slow line in your hand, that id is how you find every other line about the same request. Hold that thought until slide nine.</p>
+    <header><span class="num">3</span><h3>A log line is data, not prose</h3><span class="time">3:00 → 5:00 · 2 min · 255 words</span></header>
+    <p>Here is the same event twice. On top, the way most programs log it: a timestamp and a sentence. A human can read that. Now try to answer, from a million of those lines, how many 504s happened in the last minute. You are writing a regular expression, and it will be wrong the first three times.</p><p>Underneath, the same event as a record. One JavaScript Object Notation, or JSON, object per line, every field with a name: method, path, status as a number, the duration as a number of milliseconds, and a request id, short for identifier. Now the question is one filter: status greater than or equal to five hundred. No parsing. That is what structured logging means, and it is the difference between a log you read and a log you query.</p><p>Go has this in the standard library since 1.21, in the package log slash slog. One line of setup makes every log call in the program write JSON, including the old-style calls you forgot to change. You will do that in step one; it is seven lines.</p><p>The request id deserves a sentence of its own. It is eight random hexadecimal digits, made up at the door when the request arrives, and stamped onto the request so that everything deeper in the program can put it on its own log lines. Later, when you have one slow line in your hand, that id is how you find every other line about the same request. Hold that thought until slide nine.</p>
     <p class="cue">→ next slide</p>
   </article>
   <article class="ms">
@@ -67,17 +67,17 @@
     <p class="cue">→ next slide</p>
   </article>
   <article class="ms">
-    <header><span class="num">10</span><h3>What we are not doing</h3><span class="time">13:00 → 14:00 · 1 min · 102 words</span></header>
-    <p>Three things we skip, so you know they exist. Traces are the third pillar: one record per request that follows it across every service it touches, with a timing for each hop. OpenTelemetry plus a collector plus a UI is a workshop of its own, and it is on the stretch list. The Prometheus client library does what our thirty lines do, plus forty runtime metrics for free; we write it by hand once so the library is never magic, and you can swap it in at home. And log levels, sampling, and service level objectives: all stretch goals, all on the page.</p>
+    <header><span class="num">10</span><h3>What we are not doing</h3><span class="time">13:00 → 14:00 · 1 min · 104 words</span></header>
+    <p>Three things we skip, so you know they exist. Traces are the third pillar: one record per request that follows it across every service it touches, with a timing for each hop. OpenTelemetry plus a collector plus a user interface is a workshop of its own, and it is on the stretch list. The Prometheus client library does what our thirty lines do, plus forty runtime metrics for free; we write it by hand once so the library is never magic, and you can swap it in at home. And log levels, sampling, and service level objectives: all stretch goals, all on the page.</p>
     <p class="cue">→ next slide</p>
   </article>
   <article class="ms">
-    <header><span class="num">11</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 130 words</span></header>
-    <p>Here is the lab. We run a small Go API and a load generator that hammers it. We switch its log to JSON and filter it for failures. We write the metrics page by hand: a counter, a histogram, thirty lines. Then Prometheus and Grafana come up next to it in Compose, we ask the three PromQL questions from slide seven, build the two-panel dashboard, and find the slow endpoint from the graph. Then we take a request id from a slow line, find the why, and write the alert rule so it never needs finding again.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.</p>
+    <header><span class="num">11</span><h3>What we build</h3><span class="time">14:00 → 15:00 · 1 min · 134 words</span></header>
+    <p>Here is the lab. We run a small Go API and a load generator that hammers it. We switch its log to JSON and filter it for failures. We write the metrics page by hand: a counter, a histogram, thirty lines. Then Prometheus and Grafana come up next to it in Compose, we ask the three Prometheus Query Language, or PromQL, questions from slide seven, build the two-panel dashboard, and find the slow endpoint from the graph. Then we take a request id from a slow line, find the why, and write the alert rule so it never needs finding again.</p><p>Every step ends with a checkpoint, and nobody moves on until theirs passes; stuck for more than five minutes, wave, and there is a reference version to paste. Five-minute break. Then step zero.</p>
     <p class="cue">→ next slide</p>
   </article>
 </main></div>
-<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the RFC test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
 <script src="../../assets/site.js"></script>
 </body>
 </html>

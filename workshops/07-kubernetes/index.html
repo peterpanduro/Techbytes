@@ -21,14 +21,14 @@
     <div>
       <span class="eyebrow">Software engineering workshop series · Workshop 7</span>
       <h1>Kubernetes on a Laptop</h1>
-      <p class="lede">Take workshop 6's three containers (an API, a worker, Redis) and run them on a real Kubernetes cluster that lives inside Docker on your laptop. Type one Deployment, scale it to three, kill a pod and watch it come back, roll out a new image and roll it back.</p>
+      <p class="lede">Take workshop 6's three containers (an application programming interface (API), a worker, Redis) and run them on a real Kubernetes cluster that lives inside Docker on your laptop. Type one Deployment, scale it to three, kill a pod and watch it come back, roll out a new image and roll it back.</p>
       <ul class="facts">
         <li class="inst-only"><b>15 min</b> talk</li>
         <li class="inst-only"><b>90 min</b> guided lab</li>
         <li class="inst-only"><b>~30 min</b> student prep, one week before</li>
         <li>Builds on workshop 6</li>
-        <li>YAML + kubectl, no code</li>
-        <li>Any OS</li>
+        <li>YAML Ain't Markup Language (YAML) + kubectl, no code</li>
+        <li>Any operating system (OS)</li>
       </ul>
     </div>
     <div class="demo" id="w7-demo">
@@ -83,7 +83,7 @@
   <div class="tbl"><table>
     <tr><th>Outcome</th><td>Every student leaves having run a three-service application on a Kubernetes cluster they created on their own laptop, with the four objects that matter (Pod, Deployment, ReplicaSet, Service) in their fingers, and having seen with their own eyes that a deleted pod comes back and a bad rollout can be undone with one command. They keep three YAML files that would work unchanged on a cloud cluster.</td></tr>
     <tr><th>Why this topic</th><td>Kubernetes is where most containers end up, and it is taught badly: either as a wall of YAML or as a vendor console. The one idea underneath it (you declare what should be true, a controller keeps making it true) is small, and once it lands, every command and every field on this page is a consequence. Doing it on a laptop, on last week's images, keeps it concrete.</td></tr>
-    <tr><th>Concepts</th><td>Cluster, node, control plane and API server; desired state and controllers; Pods as the unit; Deployments and ReplicaSets; labels and selectors; Services and in-cluster DNS; <code>kubectl get / describe / logs / apply / expose / scale / rollout</code>; image pull policy and why <code>:latest</code> bites; rolling updates, revisions and rollback; what a laptop cluster does not have (load balancers, persistent storage, more than one node).</td></tr>
+    <tr><th>Concepts</th><td>Cluster, node, control plane and API server; desired state and controllers; Pods as the unit; Deployments and ReplicaSets; labels and selectors; Services and in-cluster Domain Name System (DNS); <code>kubectl get / describe / logs / apply / expose / scale / rollout</code>; image pull policy and why <code>:latest</code> bites; rolling updates, revisions and rollback; what a laptop cluster does not have (load balancers, persistent storage, more than one node).</td></tr>
     <tr><th>Assumed knowledge</th><td>Workshop 6: what an image is, what <code>compose.yaml</code> did, and that the API finds Redis by the name <code>redis</code>. Nothing about Kubernetes.</td></tr>
     <tr><th>Language</th><td>None. YAML and <code>kubectl</code> only. The images from workshop 6 are used as they are; step 6 changes one string in the API and rebuilds it to have something to roll out.</td></tr>
     <tr><th>Students need</th><td>Laptop with Docker Desktop (or Docker Engine on Linux), <code>kind</code> 0.33 or later and <code>kubectl</code> 1.37 or later installed per the prep, the <code>kindest/node</code> image already downloaded, workshop 6's folder with its images rebuilt as <code>api:1</code> and <code>worker:1</code>.</td></tr>
@@ -100,7 +100,7 @@
   <p>This is written to be pasted into an email or course page as-is. It assumes you still have your workshop 6 folder and that Docker works.</p>
 
   <h4>1. Give Docker enough memory</h4>
-  <p>The cluster runs inside Docker. On macOS and Windows open Docker Desktop → Settings → Resources and check the memory limit: kind's documentation asks for 6 GB minimum and recommends 8 GB for the Docker virtual machine. On Linux there is no limit to set.</p>
+  <p>The cluster runs inside Docker. On macOS and Windows open Docker Desktop → Settings → Resources and check the memory limit: kind's documentation asks for 6 gigabytes (GB) minimum and recommends 8 GB for the Docker virtual machine. On Linux there is no limit to set.</p>
 
   <h4>2. Install kind 0.33 or later (a Kubernetes cluster inside Docker)</h4>
   <p>macOS:</p>
@@ -125,7 +125,7 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl</code></pre>
   <p>Other ways (Chocolatey, apt, dnf, snap) are at <a href="https://kubernetes.io/docs/tasks/tools/">kubernetes.io/docs/tasks/tools</a>.</p>
 
   <h4>4. Download the cluster image by creating and deleting a cluster</h4>
-  <p>This pulls the node image (about 370 MB) once, so the workshop needs no Wi-Fi. It takes a minute or two.</p>
+  <p>This pulls the node image (about 370 megabytes (MB)) once, so the workshop needs no Wi-Fi. It takes a minute or two.</p>
 <pre><code>kind create cluster
 kubectl get nodes
 kind delete cluster</code></pre>
@@ -144,12 +144,12 @@ kubectl version --client
 docker images kindest/node</code></pre>
   <div class="call check"><p class="lbl">Expected output</p><p>A line beginning <code>kind v0.33.0</code>, a line <code>Client Version: v1.37.0</code> (1.37 or later is fine; the line after it, <code>Kustomize Version</code>, can be ignored), and a table with one row for <code>kindest/node</code>. If all three are there, the lab will run without the network. If not, bring the error message to the workshop<span class="inst-only"> and arrive ten minutes early</span>.</p></div>
 
-  <div class="call inst"><p class="lbl">If kind will not start</p><p>The usual causes: Docker Desktop not running, Docker Desktop with too little memory, or on Linux a cgroup v1 system (kind warns about it and still works today). A student who cannot get a cluster can pair with a neighbour; every step works with two people at one keyboard. As a last resort, Docker Desktop has its own built-in Kubernetes (Settings → Kubernetes → Create cluster, context <code>docker-desktop</code>); the lab was written for kind and <code>kind load</code> does not apply there, but every <code>kubectl</code> line does.</p></div>
+  <div class="call inst"><p class="lbl">If kind will not start</p><p>The usual causes: Docker Desktop not running, Docker Desktop with too little memory, or on Linux a control group (cgroup) v1 system (kind warns about it and still works today). A student who cannot get a cluster can pair with a neighbour; every step works with two people at one keyboard. As a last resort, Docker Desktop has its own built-in Kubernetes (Settings → Kubernetes → Create cluster, context <code>docker-desktop</code>); the lab was written for kind and <code>kind load</code> does not apply there, but every <code>kubectl</code> line does.</p></div>
 
   <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
   <ul class="check">
     <li>Run the whole lab yourself on each OS you expect in the room, with the exact commands on this page, one week before. Note how long <code>kind create cluster</code> takes on the slowest laptop you can find; that is the length of step 0.</li>
-    <li>Bring workshop 6's images on a USB stick for anyone who lost their folder: <code>docker save api:1 worker:1 redis:7 -o w6-images.tar</code>, restored with <code>docker load -i w6-images.tar</code>. Bring the node image too if the venue has no Wi-Fi: <code>docker save kindest/node:v1.37.0 -o node.tar</code>.</li>
+    <li>Bring workshop 6's images on a Universal Serial Bus (USB) stick for anyone who lost their folder: <code>docker save api:1 worker:1 redis:7 -o w6-images.tar</code>, restored with <code>docker load -i w6-images.tar</code>. Bring the node image too if the venue has no Wi-Fi: <code>docker save kindest/node:v1.37.0 -o node.tar</code>.</li>
     <li>The demo widget at the top of this page is slide 3. Set replicas to 3, press "Kill a pod" while talking, then set replicas to 1 and watch it terminate two.</li>
     <li>Have the <a href="#solution">full solution</a> ready. The three Deployments differ by a handful of lines; a stuck student pastes <code>redis.yaml</code> and carries on.</li>
     <li>Ask the room to close anything listening on port 8080 (a workshop 6 <code>docker compose up</code> still running is the usual one): <code>docker compose down</code> in the workshop 6 folder, or <code>docker ps</code> and <code>docker rm -f</code>.</li>
@@ -168,11 +168,11 @@ docker images kindest/node</code></pre>
     <li><span class="n">1</span><span class="t">Who restarts it at three in the morning?</span><span class="d">1 min</span>
       <span class="say">Title slide. Workshop 6 ended with <code>docker compose up</code> on one laptop. Ask: the worker crashes at 3 a.m. on a server, who restarts it? The server dies, who moves the containers? You ship a broken image, who rolls it back? Today the answer to all three is "a control loop", and by the end of the workshop they will have watched it happen.</span></li>
     <li><span class="n">2</span><span class="t">What a cluster is</span><span class="d">2 min</span>
-      <span class="say">Nodes are machines that run containers. The control plane is a small set of programs: an API server that stores the desired state, a scheduler that picks a node for each pod, and controllers. <code>kubectl</code> is just an HTTP client for the API server. On the laptop the whole thing is one Docker container; on a cloud it is hundreds of machines; the commands are identical, which is the point of doing it here first.</span></li>
+      <span class="say">Nodes are machines that run containers. The control plane is a small set of programs: an API server that stores the desired state, a scheduler that picks a node for each pod, and controllers. <code>kubectl</code> is just a Hypertext Transfer Protocol (HTTP) client for the API server. On the laptop the whole thing is one Docker container; on a cloud it is hundreds of machines; the commands are identical, which is the point of doing it here first.</span></li>
     <li><span class="n">3</span><span class="t">Desired versus actual: the control loop</span><span class="d">2 min</span>
       <span class="say">The widget on this page. A Deployment says "three replicas". A controller reads that, counts the pods that exist, and creates or deletes to close the gap; then it does it again, forever. Kill a pod on the widget: the count drops to two, the loop notices, a new one appears. Set replicas to one: two are terminated. Nobody typed "restart" or "stop"; they changed a number. That is the whole model. The thermostat analogy from the Kubernetes docs.</span></li>
     <li><span class="n">4</span><span class="t">The Pod is the unit</span><span class="d">1 min</span>
-      <span class="say">Kubernetes never runs a container on its own; it runs a Pod, one or more containers that share a network address and can share storage. Almost always one container. A pod is disposable: it has a name and an IP until it dies, and it is not restarted, it is replaced. Step 1 runs a single pod by hand so the lifecycle is familiar before anything manages it.</span></li>
+      <span class="say">Kubernetes never runs a container on its own; it runs a Pod, one or more containers that share a network address and can share storage. Almost always one container. A pod is disposable: it has a name and an Internet Protocol (IP) address until it dies, and it is not restarted, it is replaced. Step 1 runs a single pod by hand so the lifecycle is familiar before anything manages it.</span></li>
     <li><span class="n">5</span><span class="t">Deployment, ReplicaSet, Pods</span><span class="d">2 min</span>
       <span class="say">The Deployment YAML on the slide is the one they type in step 3. Four top-level keys every object has: apiVersion, kind, metadata, spec. Inside spec: replicas (how many), selector (which pods are mine, by label), template (what a pod looks like). A Deployment makes a ReplicaSet, which makes the pods; the Deployment exists so that changing the template makes a new ReplicaSet next to the old one, which is what a rolling update is. Labels are the glue: every "which pods" question in Kubernetes is answered with labels.</span></li>
     <li><span class="n">6</span><span class="t">A Service is a stable name for moving pods</span><span class="d">2 min</span>
@@ -227,7 +227,7 @@ kubectl logs redis</code></pre>
 <pre data-mode="type this"><code>kubectl delete pod redis
 kubectl get pods</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>The pod reached STATUS <code>Running</code> and READY <code>1/1</code>; <code>logs</code> ended with <code>Ready to accept connections</code>; after <code>delete</code> (which prints <code>pod "redis" deleted from default namespace</code>) <code>get pods</code> says <code>No resources found in default namespace.</code></p></div>
-    <p><strong>Talk about it:</strong> the pod is gone and nothing brought it back. That is correct: nobody said it should exist, only that it should be created once. Compare with <code>docker run</code> + <code>docker rm</code>. What would have to be true for something to recreate it? (Something must hold the desired state. Step 3.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> the pod is gone and nothing brought it back. That is correct: nobody said it should exist, only that it should be created once. Compare with <code>docker run</code> + <code>docker rm</code>. What would have to be true for something to recreate it? (Something must hold the desired state. Step 3.)</p>
   </article>
 
   <article class="step" id="s2">
@@ -271,7 +271,7 @@ kubectl get deploy,rs,pods</code></pre>
     <p><code>apply</code> prints <code>deployment.apps/redis created</code>. The second command shows the chain: a Deployment (<code>READY 1/1</code>), a ReplicaSet named <code>redis-</code> plus a hash, and a pod named after the ReplicaSet plus five random characters. You wrote one object and got three. Now give it a stable name. This YAML is generated, not typed:</p>
 <pre data-mode="type this"><code>kubectl expose deployment redis --port 6379
 kubectl get svc</code></pre>
-    <p><code>expose</code> prints <code>service/redis exposed</code> and creates a Service called <code>redis</code>: a virtual IP in the <code>10.96.x.x</code> range and a DNS name, pointing at whichever pods carry the label <code>app: redis</code> at any moment. The first row in <code>get svc</code>, <code>kubernetes</code>, is the API server's own Service; ignore it. The Service is a real object like any other; <code>kubectl get svc redis -o yaml</code> shows the file you did not have to write (a trimmed version is in the <a href="#solution">full solution</a>).</p>
+    <p><code>expose</code> prints <code>service/redis exposed</code> and creates a Service called <code>redis</code>: a virtual Internet Protocol (IP) address in the <code>10.96.x.x</code> range and a DNS name, pointing at whichever pods carry the label <code>app: redis</code> at any moment. The first row in <code>get svc</code>, <code>kubernetes</code>, is the API server's own Service; ignore it. The Service is a real object like any other; <code>kubectl get svc redis -o yaml</code> shows the file you did not have to write (a trimmed version is in the <a href="#solution">full solution</a>).</p>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>kubectl get deploy,rs,pods</code> shows <code>deployment.apps/redis 1/1</code>, one <code>replicaset.apps/redis-…</code> with DESIRED 1 CURRENT 1 READY 1, and one <code>pod/redis-…-…</code> Running. <code>kubectl get svc</code> shows <code>redis</code> of TYPE <code>ClusterIP</code>, PORT(S) <code>6379/TCP</code>.</p></div>
     <p><strong>Common mistakes:</strong> a tab character in the YAML ("found character that cannot start any token"); <code>containers</code> list item indented wrongly ("unknown field"); template labels that do not match the selector ("selector does not match template labels"). Every error names the line; read it before waving.</p>
   </article>
@@ -330,8 +330,8 @@ kubectl get pods</code></pre>
     <p>It prints <code>Forwarding from 127.0.0.1:8080 -> 8080</code>. Back in the first terminal, send the request from workshop 6 and look at what the worker did with it:</p>
 <pre data-mode="type this"><code>curl -s -X POST localhost:8080/jobs -d &#x27;{&quot;task&quot;:&quot;hello&quot;}&#x27;
 kubectl logs deploy/worker</code></pre>
-    <div class="call check"><p class="lbl">Checkpoint 4</p><p><code>kubectl get pods</code> shows <code>api-…</code>, <code>redis-…</code> and <code>worker-…</code> all Running; the <code>curl</code> returns the same JSON reply the API gave in workshop 6; <code>kubectl logs deploy/worker</code> shows the job being picked up. Send two more and watch the log grow.</p></div>
-    <p><strong>Talk about it:</strong> the API found Redis with the same word as last week. What did the work: the Service, or the DNS server inside the cluster, or both? What would break if you renamed the Service to <code>cache</code>? Why is there no <code>kubectl expose</code> for the worker?</p>
+    <div class="call check"><p class="lbl">Checkpoint 4</p><p><code>kubectl get pods</code> shows <code>api-…</code>, <code>redis-…</code> and <code>worker-…</code> all Running; the <code>curl</code> returns the same JavaScript Object Notation (JSON) reply the API gave in workshop 6; <code>kubectl logs deploy/worker</code> shows the job being picked up. Send two more and watch the log grow.</p></div>
+    <p class="inst-only"><strong>Talk about it:</strong> the API found Redis with the same word as last week. What did the work: the Service, or the DNS server inside the cluster, or both? What would break if you renamed the Service to <code>cache</code>? Why is there no <code>kubectl expose</code> for the worker?</p>
   </article>
 
   <article class="step" id="s5">
@@ -343,7 +343,7 @@ kubectl get pods -w</code></pre>
 <pre data-mode="type this"><code>kubectl delete pod worker-REPLACE-WITH-A-NAME</code></pre>
     <p>Watch the first terminal: the deleted pod goes <code>Terminating</code>, and within a second or two a pod with a new name goes <code>Pending</code>, <code>ContainerCreating</code>, <code>Running</code>. Nobody asked for a new pod. The ReplicaSet's desired count is still 3, the actual count fell to 2, and the controller closed the gap. That is the whole point of the workshop, so do it twice. Then Ctrl-C the watch.</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p><code>kubectl get pods</code> shows three <code>worker-</code> pods Running, and at least one of them has an AGE of seconds while the others are minutes old: the replacement.</p></div>
-    <p><strong>Talk about it:</strong> restart <code>port-forward</code> and send three requests. Run <code>kubectl logs -l app=worker --prefix</code> (all worker pods, each line prefixed with the pod name): which pod took which job? What happens to a job the worker was in the middle of when you deleted its pod? (Workshop 6's idempotency stretch goal is the answer.) What would happen if you deleted the Redis pod? (It comes back, empty: no volume.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> restart <code>port-forward</code> and send three requests. Run <code>kubectl logs -l app=worker --prefix</code> (all worker pods, each line prefixed with the pod name): which pod took which job? What happens to a job the worker was in the middle of when you deleted its pod? (Workshop 6's idempotency stretch goal is the answer.) What would happen if you deleted the Redis pod? (It comes back, empty: no volume.)</p>
   </article>
 
   <article class="step" id="s6">
@@ -358,7 +358,7 @@ kubectl rollout status deployment/api</code></pre>
 kubectl rollout undo deployment/api
 kubectl get rs</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>rollout history</code> lists REVISION 1 and 2 (CHANGE-CAUSE <code>&lt;none&gt;</code>); <code>undo</code> prints <code>deployment.apps/api rolled back</code>; <code>get rs</code> shows two ReplicaSets for <code>api</code>, the <code>api:1</code> one back at DESIRED 1 and the <code>api:2</code> one at 0; after restarting <code>port-forward</code> the reply is the old string again.</p></div>
-    <p><strong>Talk about it:</strong> nothing was rebuilt during <code>undo</code>; the old ReplicaSet was simply scaled up again. What did the cluster keep that made this instant? (The old template, as revision 1.) Run <code>rollout history</code> once more: the rollback is a new revision, 3, and revision 1 is gone, because a revision is a template and the same template cannot be two revisions. With three replicas instead of one, how many pods would exist in the middle of the rollout? (Up to four: 25% surge, rounded up.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> nothing was rebuilt during <code>undo</code>; the old ReplicaSet was simply scaled up again. What did the cluster keep that made this instant? (The old template, as revision 1.) Run <code>rollout history</code> once more: the rollback is a new revision, 3, and revision 1 is gone, because a revision is a template and the same template cannot be two revisions. With three replicas instead of one, how many pods would exist in the middle of the rollout? (Up to four: 25% surge, rounded up.)</p>
   </article>
 
   <article class="step" id="s7">
@@ -480,7 +480,7 @@ spec:
   <p>Step 0 is the fragile moment: <code>kind create cluster</code> takes 30 seconds on a good laptop and three minutes on a bad one, and a student who skipped the prep needs the node image from the USB stick immediately. Step 3 is where the time goes: typing 19 lines of YAML with correct indentation takes the slowest keyboard ten minutes, and the first <code>apply</code> error costs another two. Protect steps 5 and 6; if you are behind after step 3, cut the "talk about it" questions in steps 2 and 4 and the three <code>:latest</code> lines in step 2 (say it from the front instead). Step 7's stretch goals absorb whatever is left. <code>port-forward</code> being killed when its pod is replaced (steps 5 and 6) surprises people every time; say in advance that restarting it is normal.</p>
   <h4>Things students ask</h4>
   <ul>
-    <li><em>"Is this what production looks like?"</em> The YAML, yes: these three files, with probes and resource requests added (stretch goals 1 and 2), are what a small service looks like on a cloud cluster. The <code>kubectl apply</code> from a laptop, no: in production a CI pipeline or a GitOps tool applies the files from a repository, and nobody types <code>scale</code> by hand.</li>
+    <li><em>"Is this what production looks like?"</em> The YAML, yes: these three files, with probes and resource requests added (stretch goals 1 and 2), are what a small service looks like on a cloud cluster. The <code>kubectl apply</code> from a laptop, no: in production a continuous integration (CI) pipeline or a GitOps tool applies the files from a repository, and nobody types <code>scale</code> by hand.</li>
     <li><em>"Why not Docker Desktop's built-in Kubernetes / minikube / k3s?"</em> All fine, same <code>kubectl</code>. kind was chosen because it installs as one binary, creates and deletes clusters in seconds, and is what the Kubernetes project itself tests with. Docker Desktop's built-in cluster (Settings → Kubernetes) works for every <code>kubectl</code> line on this page; only <code>kind load</code> is different there.</li>
     <li><em>"Why did the Redis queue disappear when I deleted its pod?"</em> No volume. A pod's filesystem is the container's writable layer from workshop 1, and it dies with the pod. Real clusters attach a PersistentVolume; on a laptop the honest answer is "do not keep state in this cluster".</li>
     <li><em>"Where is the YAML for the Service?"</em> Inside the cluster: <code>kubectl get svc redis -o yaml</code>. Every object, typed or generated, is stored the same way and can be read back. That is also the answer to "what if I lose my files": <code>kubectl get deploy api -o yaml</code>.</li>
@@ -505,7 +505,7 @@ spec:
 
 <script src="../../assets/07-kubernetes-hero.js"></script>
 
-<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. All lab code was run against the RFC test vectors and cross-checked before publishing. The live widget uses the RFC test secret; never use it for anything real.</p></div></footer>
+<footer class="site-foot"><div class="wrap"><p>TechBytes workshop series. Every lab was run in the order students follow it before publishing; where a step could not be run in the authoring environment, the page says so. The live widgets use example secrets and made-up data; never reuse them for anything real.</p></div></footer>
 <script src="../../assets/site.js"></script>
 </body>
 </html>

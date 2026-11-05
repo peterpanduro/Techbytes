@@ -21,14 +21,14 @@
     <div>
       <span class="eyebrow">Software engineering workshop series · Workshop 5</span>
       <h1>Git for the Things That Go Wrong</h1>
-      <p class="lede">A prepared repository with planted problems: a commit that broke the tests, four WIP commits that need squashing, a hard reset and a deleted branch to undo, a merge conflict to resolve by hand, and a pre-commit hook that says no. No code to write; thirty-eight commands, and after each one the repository is still whole.</p>
+      <p class="lede">A prepared repository with planted problems: a commit that broke the tests, four work-in-progress (WIP) commits that need squashing, a hard reset and a deleted branch to undo, a merge conflict to resolve by hand, and a pre-commit hook that says no. No code to write; thirty-eight commands, and after each one the repository is still whole.</p>
       <ul class="facts">
         <li class="inst-only"><b>15 min</b> talk</li>
         <li class="inst-only"><b>90 min</b> guided lab</li>
         <li class="inst-only"><b>~15 min</b> student prep, one week before</li>
         <li>Basic git only: add, commit, push</li>
         <li>No code; ~40 commands</li>
-        <li>Any OS (Git Bash on Windows)</li>
+        <li>Any operating system (OS) (Git Bash on Windows)</li>
       </ul>
     </div>
     <div class="demo" id="w5-demo">
@@ -87,7 +87,7 @@
     <tr><th>Concepts</th><td>Commits as content-addressed snapshots, the parent chain, why hashes are the same on every laptop today; branches and HEAD as pointers; reachable versus unreachable, and the reflog; <code>bisect</code> as binary search and <code>bisect run</code>; interactive rebase (pick, squash, reword, fixup) and the rule about rewriting shared history; <code>revert</code> versus <code>reset</code>; merge conflicts and the three markers; hooks and <code>--no-verify</code>; stash, worktrees, <code>log -S</code>, <code>blame -L</code>.</td></tr>
     <tr><th>Assumed knowledge</th><td>Has used git before: knows what a commit and a branch are for, has run <code>git add</code>, <code>git commit</code> and <code>git push</code>. Can open a terminal. No knowledge of git internals, rebase, bisect or hooks is assumed.</td></tr>
     <tr><th>Language</th><td>None. The practice project is a five-line shell script with a shell test script, both pasted by the setup script and never edited beyond one appended line. Every command is a git command.</td></tr>
-    <tr><th>Students need</th><td>Laptop with git 2.43 or later, a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: VS Code or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
+    <tr><th>Students need</th><td>Laptop with git 2.43 or later, a terminal (Terminal on macOS, Git Bash on Windows, any shell on Linux), a text editor git can open: Visual Studio Code (VS Code) or nano, configured in the prep. Wi-Fi is not needed at any point.</td></tr>
     <tr><th>Room needs</th><td>Projector. Nothing else.</td></tr>
     <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
@@ -124,11 +124,11 @@ git config --global core.editor nano               # or nano, which Git Bash and
   <h4>5. Optional: build the practice repository once</h4>
   <p>Save <a href="code/make-repo.sh" download>make-repo.sh</a> into an empty folder and run <code>bash make-repo.sh</code> there. It prints <code>Top of main: f063a35 CHANGELOG: prepare 1.1</code>. If it does, you are ready. Delete the <code>git-lab</code> folder it made before the workshop (<code>rm -rf git-lab</code>); we build it again together so everyone starts from the same place.</p>
 
-  <div class="call inst"><p class="lbl">If git will not install</p><p>A university-managed Windows laptop without admin rights can still install Git for Windows with the portable ("thumbdrive edition") build from the same download page, which needs no administrator. Everything else on this page works from it.</p></div>
+  <div class="call inst"><p class="lbl">If git will not install</p><p>A university-managed Windows laptop without administrator rights can still install Git for Windows with the portable ("thumbdrive edition") build from the same download page, which needs no administrator. Everything else on this page works from it.</p></div>
 
   <div class="inst-only"><h3 id="prep-instructor">For the instructor</h3>
   <ul class="check">
-    <li>Run <code>make-repo.sh</code> twice on your laptop and <code>diff</code> the two <code>git log --all</code> outputs: they must be identical, and the top of <code>main</code> must be <code>f063a35</code>. If it is not, the script was edited before it ran; global git config cannot change them (the script overrides <code>autocrlf</code> and <code>gpgsign</code> locally, and this was tested under a hostile global config). A script saved with CRLF line endings does not produce different hashes: it crashes on line 7 (<code>set: -: invalid option</code>) and makes no <code>git-lab</code> at all.</li>
+    <li>Run <code>make-repo.sh</code> twice on your laptop and <code>diff</code> the two <code>git log --all</code> outputs: they must be identical, and the top of <code>main</code> must be <code>f063a35</code>. If it is not, the script was edited before it ran; global git config cannot change them (the script overrides <code>autocrlf</code> and <code>gpgsign</code> locally, and this was tested under a hostile global config). A script saved with carriage return and line feed (CRLF) line endings does not produce different hashes: it crashes on line 7 (<code>set: -: invalid option</code>) and makes no <code>git-lab</code> at all.</li>
     <li>Run the whole lab yourself with exactly the commands on this page. Your own commits (the revert, the squash, the merge) will have different hashes from the ones shown here, because you are a different author committing at a different time; every hash the script made will be the same.</li>
     <li>Windows in the room: the hook, the test script and the setup script all need Git Bash. Say it before step 0, and again before step 5. <code>chmod +x</code> changes nothing on Windows and the hook still runs there, because Git for Windows does not check the executable bit.</li>
     <li>The widget at the top of this page is slide 4. Press reset, then reflog, then branch while you talk.</li>
@@ -268,7 +268,7 @@ bisect found first bad commit</code></pre>
 git revert --no-edit 08e14b1
 ./test.sh</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p><code>bisect run</code> ended with <code>08e14b18418e2643c52e5745cac2af59b5f3a741 is the first bad commit</code>. After the revert, <code>git log --oneline -1</code> shows <code>Revert "Simplify f_to_c arithmetic"</code> on top (your hash, not ours: you are the author) and <code>./test.sh</code> prints <code>all tests passed</code>.</p></div>
-    <p><strong>Talk about it:</strong> why revert and not reset? (The bad commit was pushed, in the story; revert adds history, reset rewrites it.) How many runs would bisect need for a thousand commits? (Ten.) What would you do if some commit in the middle did not build at all? (Exit 125 from the script tells bisect to skip it; stretch goal.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> why revert and not reset? (The bad commit was pushed, in the story; revert adds history, reset rewrites it.) How many runs would bisect need for a thousand commits? (Ten.) What would you do if some commit in the middle did not build at all? (Exit 125 from the script tells bisect to skip it; stretch goal.)</p>
   </article>
 
   <article class="step" id="s2">
@@ -343,7 +343,7 @@ f063a35 HEAD@{15}: commit: CHANGELOG: prepare 1.1
 <pre data-mode="type this"><code>git reset --hard HEAD@{1}
 git branch experiment/color 54ad38b</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>git log --oneline --graph --all</code> looks exactly as it did at the end of step 2: the revert on top of <code>main</code>, and <code>experiment/color</code> back on <code>54ad38b</code>. <code>./test.sh</code> passes again.</p></div>
-    <p><strong>Talk about it:</strong> why did <code>HEAD@{2}</code> know about the experiment branch? (Because you had switched to it; had you deleted it without ever checking it out, the reflog would not help, but the "was 54ad38b" in the delete message would.) What is the one thing the reflog cannot bring back? (Changes you never committed. <code>reset --hard</code> throws those away for real.) How long do you have? (30 days: both rescues here are unreachable commits, and <code>gc.reflogExpireUnreachable</code> defaults to 30 days; entries for commits still on a branch last 90.)</p>
+    <p class="inst-only"><strong>Talk about it:</strong> why did <code>HEAD@{2}</code> know about the experiment branch? (Because you had switched to it; had you deleted it without ever checking it out, the reflog would not help, but the "was 54ad38b" in the delete message would.) What is the one thing the reflog cannot bring back? (Changes you never committed. <code>reset --hard</code> throws those away for real.) How long do you have? (30 days: both rescues here are unreachable commits, and <code>gc.reflogExpireUnreachable</code> defaults to 30 days; entries for commits still on a branch last 90.)</p>
   </article>
 
   <article class="step" id="s4">
@@ -407,7 +407,7 @@ pre-commit: this commit adds a TODO. Do it or drop it:
     <p>No commit was made; <code>git log --oneline -1</code> still shows the merge. Throw the change away and confirm the tree is clean:</p>
 <pre data-mode="type this"><code>git restore temp.sh</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>The commit was refused with both messages, <code>git log --oneline -1</code> still shows <code>Merge branch 'feature/tagline'</code>, and after <code>git restore</code>, <code>git status</code> says <code>nothing to commit, working tree clean</code>. On Windows, <code>chmod</code> prints nothing and changes nothing, and the hook runs anyway.</p></div>
-    <p><strong>Talk about it:</strong> <code>git commit --no-verify</code> would have gone through. When is that right? (A work-in-progress commit on your own branch that you will squash, when the tests take twenty minutes.) When is it wrong? (Any time the answer to "why?" is "the hook was annoying".) Why is the hook not in the repository? (It lives in <code>.git</code>, which is never pushed, so every clone needs it installed: teams do that with a tool such as pre-commit or a one-line <code>core.hooksPath</code> setting pointing at a committed folder.) The hook greps the staged diff, not the files: an old TODO already in the project does not block you, only a new one.</p>
+    <p class="inst-only"><strong>Talk about it:</strong> <code>git commit --no-verify</code> would have gone through. When is that right? (A work-in-progress commit on your own branch that you will squash, when the tests take twenty minutes.) When is it wrong? (Any time the answer to "why?" is "the hook was annoying".) Why is the hook not in the repository? (It lives in <code>.git</code>, which is never pushed, so every clone needs it installed: teams do that with a tool such as pre-commit or a one-line <code>core.hooksPath</code> setting pointing at a committed folder.) The hook greps the staged diff, not the files: an old TODO already in the project does not block you, only a new one.</p>
   </article>
 
   <article class="step" id="s6">
@@ -428,10 +428,11 @@ git stash pop</code></pre>
 08e14b1 Simplify f_to_c arithmetic</code></pre>
     <p><code>-S</code> (the "pickaxe") finds the two commits whose diff contains that string: the one that introduced it and your revert. That is the history of the words, which is a different question from who last touched the line.</p>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>The folder <code>kelvin</code> exists next to <code>git-lab</code> and <code>git status</code> shows <code>README.md</code> modified again after the pop. <code>log -S</code> prints exactly two commits, <code>08e14b1</code> and your revert.</p></div>
-    <p><strong>Talk about it:</strong> run <code>git blame -L 6,8 temp.sh</code>. Line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally:</p>
+    <p>Run <code>git blame -L 6,8 temp.sh</code>:</p>
 <pre data-mode="you should see"><code>4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 6) c_to_f() { echo $(( $1 * 9 / 5 + 32 )); }
 f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 32) * 5 / 9 )); }
 4708ac82 (Maja Lindqvist 2026-03-02 23:00:00 +0000 8)</code></pre>
+    <p class="inst-only"><strong>Talk about it:</strong> line 7 is attributed to you, today, because the revert rewrote it, even though Maja wrote that correct version originally.</p>
     <p>Blame tells you the last hand on a line; <code>-S</code> tells you the history of the words. And <code>git log -S273 --oneline --all</code> finds only your squashed commit, not the four WIP ones. Why? (<code>--all</code> means "reachable from any label"; the WIP commits are unreachable now. <code>git show cb1d805</code> still works.) Clean up with <code>git worktree remove ../kelvin</code> and <code>git restore README.md</code>.</p>
   </article>
 
@@ -454,7 +455,7 @@ f108af51 (Sam Student    2026-09-22 12:40:24 +0200 7) f_to_c() { echo $(( ($1 - 
 # check.sh: pretend that a commit which touched documentation cannot be built, and skip it.
 git diff --quiet HEAD~1 HEAD -- &#x27;*.md&#x27; || exit 125
 ./test.sh</code></pre></li>
-      <li><strong>Signed commits.</strong> Git can sign commits with your SSH key: <code>git config --global gpg.format ssh</code>, <code>git config --global user.signingkey ~/.ssh/id_ed25519.pub</code>, <code>git commit -S</code>, then <code>git log --show-signature</code>. Discuss what a signature proves that the author line does not (the script forged Maja's name today with two environment variables).</li>
+      <li><strong>Signed commits.</strong> Git can sign commits with your Secure Shell (SSH) key: <code>git config --global gpg.format ssh</code>, <code>git config --global user.signingkey ~/.ssh/id_ed25519.pub</code>, <code>git commit -S</code>, then <code>git log --show-signature</code>. Discuss what a signature proves that the author line does not (the script forged Maja's name today with two environment variables).</li>
       <li><strong>switch and restore, properly.</strong> The old <code>git checkout</code> does both "change branch" and "throw away my changes to this file", which is how people lose work. Practise the split: <code>git switch -c</code>, <code>git restore --staged</code>, <code>git restore --source=v1.0 temp.sh</code>. Look at what each one does to <code>git status</code>.</li>
       <li><strong>Find the commit by message, then by content.</strong> <code>git log --grep=typo</code>, then <code>git log -G'temp[a-z]*ture' -p</code> to see every change to a misspelt word, then <code>git log --follow docs/usage.md</code>. Then the one people forget: <code>git log -p -- README.md</code>.</li>
       <li><strong>Make the hook shared.</strong> Move the hook into a committed folder, <code>git config core.hooksPath .githooks</code>, commit it. Now every clone can opt in with one command. Discuss why git does not do this by default (a cloned repository must not be able to run code on your machine without you asking).</li>
