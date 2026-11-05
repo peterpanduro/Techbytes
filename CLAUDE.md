@@ -33,5 +33,5 @@ node --check assets/10-ci-hero.js
 - No time-relative wording ("yesterday", "this year"); state versions and dates.
 - Spell out each acronym or shorthand name at its first use on a page, e.g. "Request for Comments (RFC)". Strict in manuscripts: the first spoken use expands it. Elsewhere titles, short labels and code may stay short; expand at the first sentence that uses the term, in both student and instructor views.
 - "Talk about it" blocks are instructor-only: `<p class="inst-only">`. Nothing students need may live only inside one.
-- Every lab code block says where it goes in `data-where`: "new file x", "add to x" (with its position when it matters) or "terminal".
+- Every lab code block says where it goes in `data-where`: "new file x", "add to x" (with its position when it matters), "replace x" or "terminal". Other places get a plain short name, such as "browser". Output blocks say where the output appears.
 - No named parts of the day ("afternoon", "morning") for the session; say "the workshop" or "the lab".

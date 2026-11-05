@@ -190,10 +190,10 @@ go version</code></pre>
 
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Hello, Compose is there, the images are there</h3><span class="time">5 min</span></header>
-<pre data-mode="type this"><code>docker compose version
+<pre data-mode="type this" data-where="terminal"><code>docker compose version
 mkdir api worker</code></pre>
     <p>Windows users type the PowerShell form of the second line instead (PowerShell wants a comma between the names):</p>
-<pre data-mode="type this"><code>mkdir api, worker</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>mkdir api, worker</code></pre>
     <p>Compose is a sub-command of <code>docker</code>, not a separate program. The two folders are where the API and the worker will live; the compose file will point at them. If you want to see the three images from the prep, <code>docker images</code> lists them.</p>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>docker compose version</code> prints a version (v5 or v2), and the folders <code>api</code> and <code>worker</code> exist inside <code>compose-lab</code>.</p></div>
     <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. Anyone whose images are missing plugs in the USB stick now. Anyone with "not a docker command" is on Linux without the plugin; see the prep note. Say "two terminals" again.</p></div>
@@ -202,18 +202,18 @@ mkdir api worker</code></pre>
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>Redis alone: the queue is two commands</h3><span class="time">15 min</span></header>
     <p>Before any code, the queue itself. Create <code>compose.yaml</code> in <code>compose-lab</code> with one service in it:</p>
-<pre data-mode="type this"><code>services:
+<pre data-mode="type this" data-where="new file compose.yaml"><code>services:
   redis:
     image: redis:7
     ports: [&quot;6379:6379&quot;]</code></pre>
     <p>Four lines: a <code>services</code> map, a service called <code>redis</code>, the image it runs, and a published port so that programs on your laptop can reach it at <code>localhost:6379</code>. Start it and open a Redis prompt inside the container:</p>
-<pre data-mode="type this"><code>docker compose up -d redis
+<pre data-mode="type this" data-where="first terminal"><code>docker compose up -d redis
 docker compose exec redis redis-cli
 BRPOP jobs 0</code></pre>
     <p>The prompt hangs. <code>BRPOP jobs 0</code> means "take one element from the right end of the list called <code>jobs</code>, and if there is none, wait forever". Nothing is there, so it waits. In your <strong>second terminal</strong>, put something on the left end:</p>
-<pre data-mode="type this"><code>docker compose exec redis redis-cli LPUSH jobs hello</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>docker compose exec redis redis-cli LPUSH jobs hello</code></pre>
     <p>The first terminal wakes up immediately and prints the list name and the element. That is the entire mechanism of the workshop: one side pushes, the other side blocks until there is something to pop. Now, still in the first terminal's prompt, push three at once and pop them one by one (press the up arrow to repeat <code>BRPOP</code>):</p>
-<pre data-mode="type this"><code>LPUSH jobs a b c
+<pre data-mode="type this" data-where="redis-cli"><code>LPUSH jobs a b c
 BRPOP jobs 0</code></pre>
     <p>They come out <code>a</code>, <code>b</code>, <code>c</code>: <code>LPUSH</code> adds to the left, so <code>a</code> was pushed first and ended up rightmost, and <code>BRPOP</code> takes from the right. Oldest first, a queue. A fourth <code>BRPOP</code> hangs again; Ctrl-C it (the image's <code>redis-cli</code> returns to its prompt) and type <code>exit</code>.</p>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>The blocked <code>BRPOP</code> in terminal one printed <code>1) "jobs"</code> <code>2) "hello"</code> the moment terminal two ran <code>LPUSH</code>; <code>LPUSH jobs a b c</code> printed <code>(integer) 3</code>; three pops gave <code>a</code>, <code>b</code>, <code>c</code> in that order; <code>docker compose ps</code> would show one container, <code>compose-lab-redis-1</code>.</p></div>
@@ -224,11 +224,11 @@ BRPOP jobs 0</code></pre>
     <header><span class="num">Step 2</span><h3>The API, natively, against the Compose Redis</h3><span class="time">15 min</span></header>
     <p>The API is 95 lines of Go, and it is pasted: Go is not today's topic. Create these two files in the <code>api</code> folder, then read <code>main.go</code> top to bottom as a room. It does three things. <code>POST /jobs</code> makes an identifier (ID) and pushes <code>"&lt;id&gt; &lt;body&gt;"</code> on the list, exactly your <code>LPUSH</code> from step 1. <code>GET /jobs/&lt;id&gt;</code> reads the key <code>result:&lt;id&gt;</code>, which nothing writes yet. And the function <code>redis()</code> at the bottom speaks the Redis protocol itself: it opens a TCP connection, writes the command as a counted list of words, and reads one reply. Match the bytes in its comment against what you typed in step 1.</p>
     <h4>api/go.mod</h4>
-<pre data-mode="paste this"><code>module api
+<pre data-mode="paste this" data-where="new file api/go.mod"><code>module api
 
 go 1.24</code></pre>
     <h4>api/main.go</h4>
-<pre data-mode="paste this"><code>// The API: takes jobs in over HTTP and puts them on a Redis list.
+<pre data-mode="paste this" data-where="new file api/main.go"><code>// The API: takes jobs in over HTTP and puts them on a Redis list.
 // It never does the work itself; a worker somewhere else does.
 package main
 
@@ -324,9 +324,9 @@ func newID() string {
 	return hex.EncodeToString(b)
 }</code></pre>
     <p>Run it natively in terminal one, from inside the <code>api</code> folder. With no <code>REDIS_ADDR</code> set it talks to <code>localhost:6379</code>, which is the port you published in step 1:</p>
-<pre data-mode="type this"><code>go run .</code></pre>
+<pre data-mode="type this" data-where="first terminal"><code>go run .</code></pre>
     <p>In terminal two, post a job and then ask for its result, using the id you got back:</p>
-<pre data-mode="type this"><code>curl -d &quot;hello world&quot; localhost:8080/jobs
+<pre data-mode="type this" data-where="second terminal"><code>curl -d &quot;hello world&quot; localhost:8080/jobs
 curl localhost:8080/jobs/1c8a66fe
 docker compose exec redis redis-cli LRANGE jobs 0 -1</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p>The POST prints <code>{"id":"1c8a66fe"}</code> (your eight hexadecimal characters differ). The GET prints <code>not done yet</code>, and that is correct: nobody has done it. <code>LRANGE</code> shows the job sitting in the list as one string, <code>1) "1c8a66fe hello world"</code>. Terminal one logged <code>queued 1c8a66fe (1 waiting)</code>.</p></div>
@@ -337,7 +337,7 @@ docker compose exec redis redis-cli LRANGE jobs 0 -1</code></pre>
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>The worker</h3><span class="time">15 min</span></header>
     <p>Now the other half, typed. Create <code>worker/worker.ts</code>. It is step 1's <code>BRPOP</code> loop in TypeScript: block on the list, split the job into its id and its text, pretend the work is hard for one second, write the answer under <code>result:&lt;id&gt;</code>, repeat. The "work" is reversing the text, so you can check it by eye. The <code>npm:redis</code> client is the official one; <code>brPop</code> returns the same two things <code>redis-cli</code> printed, the list name and the element. The <code>!</code> after <code>job</code> is not a typo: it tells TypeScript the pop cannot be empty, because we asked it to wait forever.</p>
-<pre data-mode="type this"><code>import { createClient } from &quot;npm:redis@4&quot;;
+<pre data-mode="type this" data-where="new file worker/worker.ts"><code>import { createClient } from &quot;npm:redis@4&quot;;
 
 const redis = createClient({ url: Deno.env.get(&quot;REDIS_URL&quot;) });
 await redis.connect();
@@ -355,9 +355,9 @@ while (true) {
   console.log(me, &quot;done&quot;, id, result);
 }</code></pre>
     <p>Leave the API running in terminal one and start the worker in terminal two, after <code>cd worker</code> (terminal two has been in <code>compose-lab</code> since step 1). Deno asks for each thing the program touches: the network, the <code>REDIS_URL</code> variable (unset for now, so the client uses <code>localhost:6379</code>), and the hostname it prints so you can tell workers apart later.</p>
-<pre data-mode="type this"><code>deno run --allow-net --allow-env --allow-sys worker.ts</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>deno run --allow-net --allow-env --allow-sys worker.ts</code></pre>
     <p>The first run downloads <code>npm:redis@4</code>. Watch the worker's output: the job you posted in step 2 was still in the list, so it is taken at once. Then, in a third terminal (this is the only step that needs one), post another and fetch the result:</p>
-<pre data-mode="type this"><code>curl -d &quot;hello world&quot; localhost:8080/jobs
+<pre data-mode="type this" data-where="third terminal"><code>curl -d &quot;hello world&quot; localhost:8080/jobs
 curl localhost:8080/jobs/1d33a31b</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p>The worker printed <code>vm waiting for jobs</code> (your hostname instead of <code>vm</code>), then <code>got 1c8a66fe hello world</code> and one second later <code>done 1c8a66fe dlrow olleh</code>. A GET for the new id within the first second says <code>not done yet</code>; after that it prints <code>dlrow olleh</code>. The list is empty again.</p></div>
     <p><strong>Common mistakes:</strong> <code>error: Module not found "file:///…/compose-lab/worker.ts"</code> means terminal two is still in <code>compose-lab</code>: <code>cd worker</code>; a missing <code>--allow-</code> flag stops the program with <code>NotCapable: Requires env access</code> (or sys access) and names the flag to add; <code>job.element</code> underlined red in the editor because the <code>!</code> was left out (<code>brPop</code> can return null on a timeout, and the type system does not know we passed 0).</p>
@@ -368,7 +368,7 @@ curl localhost:8080/jobs/1d33a31b</code></pre>
     <header><span class="num">Step 4</span><h3>All three in Compose</h3><span class="time">15 min</span></header>
     <p>Everything works, and it works because two programs are running natively in two terminals with the right folders and the right addresses in your head. Now write that down. First the two Dockerfiles, pasted: the API's is workshop 1's multi-stage file unchanged; the worker's is one stage because the Deno runtime has to stay in the image.</p>
     <h4>api/Dockerfile</h4>
-<pre data-mode="paste this"><code># Same recipe as workshop 1: build in the Go image, ship one file in an empty image.
+<pre data-mode="paste this" data-where="new file api/Dockerfile"><code># Same recipe as workshop 1: build in the Go image, ship one file in an empty image.
 FROM golang:1.27 AS build
 WORKDIR /app
 COPY go.mod ./
@@ -381,14 +381,14 @@ COPY --from=build /app/server /server
 EXPOSE 8080
 CMD [&quot;/server&quot;]</code></pre>
     <h4>worker/Dockerfile</h4>
-<pre data-mode="paste this"><code># Deno ships its own image; the runtime stays in, so this is one stage.
+<pre data-mode="paste this" data-where="new file worker/Dockerfile"><code># Deno ships its own image; the runtime stays in, so this is one stage.
 FROM denoland/deno:2.9.7
 WORKDIR /app
 COPY worker.ts .
 RUN deno cache worker.ts
 CMD [&quot;deno&quot;, &quot;run&quot;, &quot;--allow-net&quot;, &quot;--allow-env&quot;, &quot;--allow-sys&quot;, &quot;worker.ts&quot;]</code></pre>
     <p>Now stop both native programs with Ctrl-C and add two services to <code>compose.yaml</code>, under the <code>redis</code> service from step 1, at the same indentation:</p>
-<pre data-mode="type this"><code>  api:
+<pre data-mode="type this" data-where="add to compose.yaml"><code>  api:
     build: ./api
     ports: [&quot;8080:8080&quot;]
     environment:
@@ -400,7 +400,7 @@ CMD [&quot;deno&quot;, &quot;run&quot;, &quot;--allow-net&quot;, &quot;--allow-e
       REDIS_URL: redis://redis:6379
     depends_on: [redis]</code></pre>
     <p>Read it as three <code>docker run</code> commands. <code>build: ./api</code> is <code>docker build ./api</code>; <code>ports</code> is <code>-p</code>; <code>environment</code> is <code>-e</code>; <code>depends_on</code> says "start Redis first". The one new idea is in the two environment values: the address of Redis is <code>redis</code>, the service name, not <code>localhost</code>. Build and start all three in terminal one, in the foreground so you see every log line:</p>
-<pre data-mode="type this"><code>docker compose up --build
+<pre data-mode="type this" data-where="first terminal, then second"><code>docker compose up --build
 curl -d &quot;hello world&quot; localhost:8080/jobs
 curl localhost:8080/jobs/9f0c3a11</code></pre>
     <p>The two <code>curl</code>s go in terminal two once the logs settle. The API's build pulls nothing (you have <code>golang:1.27</code>) but compiles for a few seconds; the worker's build runs <code>deno cache</code> inside the image, which downloads <code>npm:redis</code> again, because the image has its own filesystem.</p>
@@ -412,11 +412,11 @@ curl localhost:8080/jobs/9f0c3a11</code></pre>
   <article class="step" id="s5">
     <header><span class="num">Step 5</span><h3>Scale the worker</h3><span class="time">7 min</span></header>
     <p>Ctrl-C the foreground <code>up</code> (it stops the containers; that is fine) and start again detached, with three workers, then follow only the workers' logs:</p>
-<pre data-mode="type this"><code>docker compose up -d --scale worker=3
+<pre data-mode="type this" data-where="first terminal"><code>docker compose up -d --scale worker=3
 docker compose logs -f worker</code></pre>
     <p>In terminal two, post ten jobs in one go. Paste the loop for your shell:</p>
-<pre data-mode="paste this"><code>for i in $(seq 1 10); do curl -sd &quot;job $i&quot; localhost:8080/jobs; done</code></pre>
-<pre data-mode="paste this"><code>1..10 | ForEach-Object { curl.exe -sd &quot;job $_&quot; localhost:8080/jobs }</code></pre>
+<pre data-mode="paste this" data-where="second terminal"><code>for i in $(seq 1 10); do curl -sd &quot;job $i&quot; localhost:8080/jobs; done</code></pre>
+<pre data-mode="paste this" data-where="second terminal (PowerShell)"><code>1..10 | ForEach-Object { curl.exe -sd &quot;job $_&quot; localhost:8080/jobs }</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>The log shows three prefixes, <code>worker-1</code>, <code>worker-2</code>, <code>worker-3</code>, each with its own hostname, and the jobs are dealt round-robin: job 1 to the worker that had been waiting longest, job 2 to the next, job 3 to the third, then job 4 to whichever finished first. All ten are done about four seconds after the loop, instead of ten. Nothing in <code>worker.ts</code> or the compose file changed.</p></div>
     <p class="inst-only"><strong>Talk about it:</strong> what decided which worker got job 1? (Redis wakes blocked clients in the order they blocked.) What would happen if you scaled the API to 3? (It would fail: three containers cannot all publish port 8080. Workshop 7 solves that with a load balancer.) Could you scale Redis the same way? (No: then there would be three queues.)</p>
   </article>
@@ -424,13 +424,13 @@ docker compose logs -f worker</code></pre>
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>Kill a worker mid-job</h3><span class="time">10 min</span></header>
     <p>Keep <code>logs -f</code> running in terminal one and do all of this step in terminal two. Back to one worker, so that the queue drains slowly enough to catch. Then post thirty jobs (thirty seconds of work), count to three, and kill the worker the hard way, which is what a crash, an out-of-memory or a machine reboot looks like:</p>
-<pre data-mode="type this"><code>docker compose up -d --scale worker=1</code></pre>
-<pre data-mode="paste this"><code>for i in $(seq 1 30); do curl -sd &quot;job $i&quot; localhost:8080/jobs; done</code></pre>
-<pre data-mode="paste this"><code>1..30 | ForEach-Object { curl.exe -sd &quot;job $_&quot; localhost:8080/jobs }</code></pre>
-<pre data-mode="type this"><code>docker compose kill worker
+<pre data-mode="type this" data-where="second terminal"><code>docker compose up -d --scale worker=1</code></pre>
+<pre data-mode="paste this" data-where="second terminal"><code>for i in $(seq 1 30); do curl -sd &quot;job $i&quot; localhost:8080/jobs; done</code></pre>
+<pre data-mode="paste this" data-where="second terminal (PowerShell)"><code>1..30 | ForEach-Object { curl.exe -sd &quot;job $_&quot; localhost:8080/jobs }</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>docker compose kill worker
 docker compose up -d worker</code></pre>
     <p>Look at terminal one's <code>logs -f</code> just before the restart: the worker had printed <code>got</code> for one job, say job 4, and no <code>done</code>. Copy the id from that last <code>got</code> line (not from the loop's output: a mistyped id also says <code>not done yet</code>, which would prove nothing) and fetch that job's result:</p>
-<pre data-mode="type this"><code>curl localhost:8080/jobs/9b4c2ae7</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>curl localhost:8080/jobs/9b4c2ae7</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>docker compose kill worker</code> prints <code>Killed</code> and <code>docker compose ps -a</code> would show <code>Exited (137)</code>, which is 128 plus signal 9. After <code>up -d worker</code> the worker continues with the <em>next</em> job (job 5 onwards) and finishes all of them. The job it was holding says <code>not done yet</code>, forever. It is not in the list (<code>BRPOP</code> removed it) and not in a result (the worker died first). Every other job survived, because they were still in Redis.</p></div>
     <p>That lost job is at-most-once delivery, which is what a plain <code>BRPOP</code> gives you. The alternative is at-least-once: move the job to a second list instead of popping it, and put it back if the worker dies. The price is that a job can then run twice, so the work must be idempotent: doing it again gives the same result.</p>
     <p class="inst-only"><strong>Talk about it:</strong> this is at-most-once delivery, and it is what a plain <code>BRPOP</code> gives you. For a thumbnail or an email it may be acceptable; for a payment it is not. The alternative is at-least-once: move the job to a second list instead of popping it, and put it back if the worker dies (stretch goal 1). The price is that a job can then run twice, so the work must be idempotent: doing it again gives the same result, like <code>SET result:&lt;id&gt;</code> does and "charge the card" does not. Ask the room which of their own projects' jobs are idempotent.</p>
@@ -439,7 +439,7 @@ docker compose up -d worker</code></pre>
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">8 min</span></header>
     <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal. Everyone finishes with:</p>
-<pre data-mode="type this"><code>docker compose down</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>docker compose down</code></pre>
     <h4>Wrap-up points</h4>
     <ul>
       <li>Three processes, three languages, one list. They never shared anything but a network; that is why they could be started separately in steps 1–3 and together in step 4 without changing a line.</li>

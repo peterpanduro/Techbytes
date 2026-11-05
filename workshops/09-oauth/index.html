@@ -142,7 +142,7 @@ winget install DenoLand.Deno # Windows</code></pre>
 
   <h4>4. The readiness check</h4>
   <p>Make a folder called <code>oauth-lab</code>, open a terminal in it, and save this as <code>ready.ts</code>. It computes the PKCE example from the specification you will meet in step 6:</p>
-<pre data-mode="paste this"><code>// Readiness check for the OAuth lab. Run:  deno run ready.ts
+<pre data-mode="paste this" data-where="new file ready.ts"><code>// Readiness check for the OAuth lab. Run:  deno run ready.ts
 const verifier = &quot;dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&quot;; // RFC 7636, Appendix B
 const hash = await crypto.subtle.digest(&quot;SHA-256&quot;, new TextEncoder().encode(verifier));
 const challenge = new Uint8Array(hash).toBase64({ alphabet: &quot;base64url&quot;, omitPadding: true });
@@ -221,10 +221,10 @@ console.log(`Deno ${Deno.version.deno}, challenge ${challenge}`);
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>A project and a fake GitHub</h3><span class="time">10 min</span></header>
     <p>Five pasted files and four commands, so that everything after this is the protocol. First, before any secret exists, tell git to ignore the file that will hold it. In the <code>oauth-lab</code> folder from the prep, create <code>.gitignore</code>:</p>
-<pre data-mode="paste this"><code>.env
+<pre data-mode="paste this" data-where="new file .gitignore"><code>.env
 </code></pre>
     <p>Then the settings. The server reads five values from the environment; this file holds the ones for the fake GitHub, and step 5 swaps four of them for the real thing. Save it as <code>.env.example</code>, then copy it to <code>.env</code>, the file the server actually reads (and git ignores):</p>
-<pre data-mode="paste this"><code># Copy this file to .env and never commit .env. These values talk to fakehub.
+<pre data-mode="paste this" data-where="new file .env.example"><code># Copy this file to .env and never commit .env. These values talk to fakehub.
 # Step 5 replaces the first four lines with your GitHub OAuth app and GitHub itself.
 CLIENT_ID=fakehub-client
 CLIENT_SECRET=fakehub-secret-not-a-real-secret
@@ -232,9 +232,9 @@ OAUTH_BASE=http://127.0.0.1:9000
 API_BASE=http://127.0.0.1:9000
 REDIRECT_URI=http://127.0.0.1:8000/callback
 </code></pre>
-<pre data-mode="type this"><code>cp .env.example .env</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>cp .env.example .env</code></pre>
     <p>Now the fake GitHub. <code>fakehub.ts</code> answers the same three URLs the lab uses on github.com and api.github.com, for one registered app and one user, <code>octocat</code>, and it skips the login page: it approves every request at once. Paste it and read two parts aloud. <code>registered()</code> is GitHub's redirect rule: the <code>redirect_uri</code> must equal the registered callback exactly, except that a loopback address may use any port. And the line <code>codes.delete(code)</code> makes every code work once.</p>
-<pre data-mode="paste this"><code>// fakehub: a stand-in for github.com&#x27;s two OAuth endpoints and api.github.com/user.
+<pre data-mode="paste this" data-where="new file fakehub.ts"><code>// fakehub: a stand-in for github.com&#x27;s two OAuth endpoints and api.github.com/user.
 // One registered app, one user, and no login screen: it approves every request at once.
 // Run it in its own terminal:  deno run --allow-net=127.0.0.1 fakehub.ts
 const APP = {
@@ -339,11 +339,11 @@ if (import.meta.main) {
 }
 </code></pre>
     <p>Start it in your first terminal. <code>--allow-net=127.0.0.1</code> lets it listen and connect on the loopback address and nowhere else:</p>
-<pre data-mode="type this"><code>deno run --allow-net=127.0.0.1 fakehub.ts</code></pre>
+<pre data-mode="type this" data-where="first terminal"><code>deno run --allow-net=127.0.0.1 fakehub.ts</code></pre>
     <p>In a second terminal, ask it who you are without a token:</p>
-<pre data-mode="type this"><code>curl -i http://127.0.0.1:9000/user</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>curl -i http://127.0.0.1:9000/user</code></pre>
     <p>Last, the two files you will add to throughout the lab. <code>oauth.ts</code> starts with its header: <code>env</code> reads a setting each time it is called (so the tests can change them), <code>b64url</code> is the URL-safe Base64 that both <code>state</code> and PKCE use, and <code>app()</code> is "who we are", the two values the app sends on both legs of the trip.</p>
-<pre data-mode="paste this"><code>// Log in with GitHub: the OAuth 2 client. Deno, no dependencies.
+<pre data-mode="paste this" data-where="new file oauth.ts"><code>// Log in with GitHub: the OAuth 2 client. Deno, no dependencies.
 const env = (name: string) =&gt; Deno.env.get(name) ?? &quot;&quot;; // read on every call, so tests can change it
 const b64url = (bytes: Uint8Array) =&gt; bytes.toBase64({ alphabet: &quot;base64url&quot;, omitPadding: true });
 const app = () =&gt; ({ client_id: env(&quot;CLIENT_ID&quot;), redirect_uri: env(&quot;REDIRECT_URI&quot;) }); // who we are
@@ -351,7 +351,7 @@ const app = () =&gt; ({ client_id: env(&quot;CLIENT_ID&quot;), redirect_uri: env
 export type Token = { access_token: string; token_type: string; scope: string; expires_in?: number };
 export type User = { login: string; name: string | null };</code></pre>
     <p><code>oauth_test.ts</code> starts with the four-line <code>assertEquals</code> from workshop 2, an <code>assertRejects</code> in the same spirit, and its own private fake GitHub on a free port, with the same settings as <code>.env.example</code>. The tests never touch the network beyond 127.0.0.1, and never read <code>.env</code>.</p>
-<pre data-mode="paste this"><code>import { fakehub } from &quot;./fakehub.ts&quot;;
+<pre data-mode="paste this" data-where="new file oauth_test.ts"><code>import { fakehub } from &quot;./fakehub.ts&quot;;
 
 function assertEquals(got: unknown, want: unknown, msg = &quot;&quot;) {
   const g = JSON.stringify(got), w = JSON.stringify(want);
@@ -372,7 +372,7 @@ Deno.env.set(&quot;API_BASE&quot;, HUB);
 Deno.env.set(&quot;CLIENT_ID&quot;, &quot;fakehub-client&quot;);
 Deno.env.set(&quot;CLIENT_SECRET&quot;, &quot;fakehub-secret-not-a-real-secret&quot;);
 Deno.env.set(&quot;REDIRECT_URI&quot;, &quot;http://127.0.0.1:8000/callback&quot;);</code></pre>
-<pre data-mode="type this"><code>deno test --allow-net=127.0.0.1 --allow-env</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>deno test --allow-net=127.0.0.1 --allow-env</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p>The first terminal prints <code>Listening on http://127.0.0.1:9000/</code> and then <code>fakehub: GET /user</code>. curl prints <code>HTTP/1.1 401 Unauthorized</code> and <code>{"message":"Bad credentials"}</code>: no token, no identity. <code>deno test</code> reports <code>ok | 0 passed | 0 failed</code>. Leave the fake GitHub running throughout the lab.</p></div>
     <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. This step catches a missing or old Deno, a busy port 9000, a <code>.env.example</code> saved as <code>.env.example.txt</code>, and forgotten permission flags. On a terminal, <code>deno run</code> stops and asks, naming what is missing: <code>Deno requests net access to "127.0.0.1:9000"</code> and <code>Allow? [y/n/A]</code>. Have students answer <code>n</code> and fix the command instead, so the permissions stay written down; <code>deno test</code> does not ask, it fails with <code>Requires net access to "127.0.0.1:0"</code>. From here on, <code>deno test</code> means the full command above; up-arrow brings it back.</p></div>
   </article>
@@ -380,7 +380,7 @@ Deno.env.set(&quot;REDIRECT_URI&quot;, &quot;http://127.0.0.1:8000/callback&quot
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>Send the user to GitHub: the authorize URL and state</h3><span class="time">5 min</span></header>
     <p>Two functions at the bottom of <code>oauth.ts</code>. <code>newState</code> is workshop 2's <code>newSecret</code> again: 32 bytes from the operating system's randomness, written as URL-safe Base64 so it can travel in a query string. <code>authorizeUrl</code> builds the address of GitHub's authorize page with the four values from the talk: <code>app()</code> spreads in <code>client_id</code> and <code>redirect_uri</code>, then the scope, then <code>state</code>. <code>URLSearchParams</code> does the encoding.</p>
-<pre data-mode="type this"><code>export function newState(): string {
+<pre data-mode="type this" data-where="add to oauth.ts"><code>export function newState(): string {
   return b64url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
@@ -389,7 +389,7 @@ export function authorizeUrl(state: string): string {
   return `${env(&quot;OAUTH_BASE&quot;)}/login/oauth/authorize?${q}`;
 }</code></pre>
     <p>Add the first test to <code>oauth_test.ts</code>. Each test block brings its own <code>import</code> line, as in workshop 2:</p>
-<pre data-mode="paste this"><code>import { authorizeUrl, newState } from &quot;./oauth.ts&quot;;
+<pre data-mode="paste this" data-where="add to oauth_test.ts"><code>import { authorizeUrl, newState } from &quot;./oauth.ts&quot;;
 
 Deno.test(&quot;step 1: the authorize URL carries the app, the scope and a fresh state&quot;, () =&gt; {
   const state = newState();
@@ -409,7 +409,7 @@ Deno.test(&quot;step 1: the authorize URL carries the app, the scope and a fresh
   <article class="step" id="s2">
     <header><span class="num">Step 2</span><h3>The callback server</h3><span class="time">10 min</span></header>
     <p>Create <code>server.ts</code>. It starts with four pasted helpers. <code>cookie</code> writes the cookie that carries <code>state</code> between the two halves of the login; read its comment, because every flag is there for a reason, including the one that is missing. <code>readCookie</code> reads it back. <code>same</code> is the constant-time comparison from workshop 3, here out of habit: <code>state</code> is not a password, and what matters is that it matches exactly. <code>page</code> writes a one-line HTML page, escaped.</p>
-<pre data-mode="paste this"><code>// The app: &quot;/&quot; sends you to GitHub, &quot;/callback&quot; is where GitHub sends you back.
+<pre data-mode="paste this" data-where="new file server.ts"><code>// The app: &quot;/&quot; sends you to GitHub, &quot;/callback&quot; is where GitHub sends you back.
 import { timingSafeEqual } from &quot;node:crypto&quot;;
 import * as oauth from &quot;./oauth.ts&quot;;
 
@@ -440,7 +440,7 @@ function page(status: number, text: string): Response {
   });
 }</code></pre>
     <p>Now the two routes, typed. <code>start</code> makes a fresh <code>state</code>, puts it in the cookie, and redirects the browser to GitHub with it. <code>callback</code> is where GitHub sends the browser back: it refuses unless the <code>state</code> in the query matches the one in the cookie, and for now it just shows the code it received.</p>
-<pre data-mode="type this"><code>async function start(): Promise&lt;Response&gt; {
+<pre data-mode="type this" data-where="add to server.ts"><code>async function start(): Promise&lt;Response&gt; {
   const state = oauth.newState();
   const location = oauth.authorizeUrl(state);
   return new Response(null, { status: 302, headers: { location, &quot;set-cookie&quot;: cookie(state) } });
@@ -453,7 +453,7 @@ async function callback(req: Request, url: URL): Promise&lt;Response&gt; {
   return page(200, `got a code: ${code}`);
 }</code></pre>
     <p>Last, paste the router. It sends <code>/</code> to <code>start</code> and <code>/callback</code> to <code>callback</code>, turns any error into a <code>502</code> page, and clears the cookie on every callback, whatever happened, so the browser drops it after one use. <code>Deno.serve</code> runs only when the file is started directly, so the tests can import <code>handler</code> and call it without opening a port.</p>
-<pre data-mode="paste this"><code>/** &quot;/&quot; starts a login, &quot;/callback&quot; finishes it; every callback clears the cookie. */
+<pre data-mode="paste this" data-where="add to server.ts"><code>/** &quot;/&quot; starts a login, &quot;/callback&quot; finishes it; every callback clears the cookie. */
 export async function handler(req: Request): Promise&lt;Response&gt; {
   const url = new URL(req.url);
   if (url.pathname === &quot;/&quot;) return await start();
@@ -465,11 +465,11 @@ export async function handler(req: Request): Promise&lt;Response&gt; {
 
 if (import.meta.main) Deno.serve({ hostname: &quot;127.0.0.1&quot;, port: 8000 }, handler);</code></pre>
     <p>Start the server in the second terminal. <code>--env-file=.env</code> loads the settings, and <code>--allow-env</code> lets the code read them:</p>
-<pre data-mode="type this"><code>deno run --allow-net=127.0.0.1 --allow-env --env-file=.env server.ts</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>deno run --allow-net=127.0.0.1 --allow-env --env-file=.env server.ts</code></pre>
     <p>Open a third terminal and look at the first hop without following it:</p>
-<pre data-mode="type this"><code>curl -i http://127.0.0.1:8000/</code></pre>
+<pre data-mode="type this" data-where="third terminal"><code>curl -i http://127.0.0.1:8000/</code></pre>
     <p>A <code>302 Found</code> whose <code>location</code> is <code>http://127.0.0.1:9000/login/oauth/authorize?client_id=fakehub-client&amp;redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Fcallback&amp;scope=read%3Auser&amp;state=…</code>, and a <code>set-cookie</code> line that starts with the same <code>state</code>. Now open <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a> in the browser. It flicks through the fake GitHub and lands on your callback. Then add the step 2 tests:</p>
-<pre data-mode="paste this"><code>import { handler } from &quot;./server.ts&quot;;
+<pre data-mode="paste this" data-where="add to oauth_test.ts"><code>import { handler } from &quot;./server.ts&quot;;
 
 const app = (path: string, cookie = &quot;&quot;) =&gt;
   handler(new Request(`http://127.0.0.1:8000${path}`, { headers: { cookie } }));
@@ -496,7 +496,7 @@ Deno.test(&quot;step 2: /callback refuses a missing or different state&quot;, as
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>Trade the code for a token</h3><span class="time">10 min</span></header>
     <p>The back channel. <code>exchangeCode</code> POSTs a form to the token endpoint with the app's two public values, the secret and the code. The secret appears in this function and nowhere else in the app. <code>Accept: application/json</code> asks for JavaScript Object Notation (JSON) instead of GitHub's default form encoding. GitHub reports problems as an <code>error</code> field in the JSON rather than with a clear Hypertext Transfer Protocol (HTTP) status, so the code checks for that field and turns it into an exception.</p>
-<pre data-mode="type this"><code>export async function exchangeCode(code: string): Promise&lt;Token&gt; {
+<pre data-mode="type this" data-where="add to oauth.ts"><code>export async function exchangeCode(code: string): Promise&lt;Token&gt; {
   const body = new URLSearchParams({ ...app(), client_secret: env(&quot;CLIENT_SECRET&quot;), code });
   const res = await fetch(`${env(&quot;OAUTH_BASE&quot;)}/login/oauth/access_token`, {
     method: &quot;POST&quot;, headers: { Accept: &quot;application/json&quot; }, body,
@@ -506,7 +506,7 @@ Deno.test(&quot;step 2: /callback refuses a missing or different state&quot;, as
   return json;
 }</code></pre>
     <p>The tests need to play the browser at GitHub: <code>visit</code> follows one redirect by hand, with <code>redirect: "manual"</code>, and reads where it points. That is how they get a code without a browser.</p>
-<pre data-mode="paste this"><code>import { exchangeCode } from &quot;./oauth.ts&quot;;
+<pre data-mode="paste this" data-where="add to oauth_test.ts"><code>import { exchangeCode } from &quot;./oauth.ts&quot;;
 
 // Plays the browser at GitHub: follow one redirect by hand and read where it points.
 async function visit(url: string): Promise&lt;URL&gt; {
@@ -541,17 +541,17 @@ Deno.test(&quot;step 3: the wrong client secret is refused&quot;, async () =&gt;
   <article class="step" id="s4">
     <header><span class="num">Step 4</span><h3>Who is this? Call /user</h3><span class="time">10 min</span></header>
     <p>There is no ID token to verify, so identity is an API call: send the token as <code>Authorization: Bearer …</code> to <code>/user</code> and believe the answer. Add <code>fetchUser</code> to <code>oauth.ts</code>:</p>
-<pre data-mode="type this"><code>export async function fetchUser(token: string): Promise&lt;User&gt; {
+<pre data-mode="type this" data-where="add to oauth.ts"><code>export async function fetchUser(token: string): Promise&lt;User&gt; {
   const res = await fetch(`${env(&quot;API_BASE&quot;)}/user`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`GET /user: ${res.status} ${(await res.json()).message}`);
   return res.json();
 }</code></pre>
     <p>Then finish the callback. In <code>server.ts</code>, replace the last line of <code>callback</code>, the one that shows the code, with these three:</p>
-<pre data-mode="type this"><code>  const token = await oauth.exchangeCode(code);
+<pre data-mode="type this" data-where="replace last line of callback in server.ts"><code>  const token = await oauth.exchangeCode(code);
   const user = await oauth.fetchUser(token.access_token);
   return page(200, `Signed in as ${user.login}`);</code></pre>
     <p>Stop the server with Ctrl-C and start it again (up-arrow), then open <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a>. After it lands, press reload on the callback page. Then add the step 4 tests:</p>
-<pre data-mode="paste this"><code>import { fetchUser } from &quot;./oauth.ts&quot;;
+<pre data-mode="paste this" data-where="add to oauth_test.ts"><code>import { fetchUser } from &quot;./oauth.ts&quot;;
 
 // The whole dance: the app&#x27;s /, fakehub&#x27;s authorize, the app&#x27;s /callback with the cookie.
 async function login() {
@@ -581,12 +581,12 @@ Deno.test(&quot;step 4: the round trip ends signed in&quot;, async () =&gt; {
   <article class="step" id="s5">
     <header><span class="num">Step 5</span><h3>Point it at the real GitHub</h3><span class="time">15 min</span></header>
     <p>Not a line of TypeScript changes. Open <code>.env</code> and replace the first four settings with your app from the prep (the client ID and secret are pasted from GitHub's page; everyone else types the two addresses). Students on the shared app use the values on their slip; students with neither stay on the fake GitHub and pair with a neighbour for this step.</p>
-<pre data-mode="type this"><code>CLIENT_ID=&lt;the Client ID from your app&#x27;s page&gt;
+<pre data-mode="type this" data-where="replace first four settings in .env"><code>CLIENT_ID=&lt;the Client ID from your app&#x27;s page&gt;
 CLIENT_SECRET=&lt;your client secret&gt;
 OAUTH_BASE=https://github.com
 API_BASE=https://api.github.com</code></pre>
     <p>Stop the server and start it with two more hosts on the permission list. The quotes keep PowerShell from splitting the list at the commas. Without the two hosts, Deno pauses the callback and asks in the server's terminal, <code>Deno requests net access to "github.com:443"</code>; answering <code>n</code> refuses the back channel with <code>Requires net access to "github.com:443"</code>, which is worth seeing once:</p>
-<pre data-mode="type this"><code>deno run "--allow-net=127.0.0.1,github.com,api.github.com" --allow-env --env-file=.env server.ts</code></pre>
+<pre data-mode="type this" data-where="second terminal"><code>deno run "--allow-net=127.0.0.1,github.com,api.github.com" --allow-env --env-file=.env server.ts</code></pre>
     <p>Open <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a>. This time the redirect goes to github.com: sign in if GitHub asks, then GitHub shows its authorization page for <strong>TechBytes OAuth lab</strong>, saying which account it wants to read, with an <strong>Authorize</strong> button. Press it.</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>The page says <code>Signed in as</code> followed by your own GitHub login. On GitHub, <strong>Settings → Applications → Authorized OAuth Apps</strong> now lists TechBytes OAuth lab. <code>deno test</code> still says <code>ok | 7 passed | 0 failed</code>: the tests never leave 127.0.0.1.</p></div>
     <div class="call warn"><p class="lbl">Not run in the authoring environment</p><p>Everything on github.com in this step (the sign-in and authorization pages and their wording, the redirect back, and GitHub's token and <code>/user</code> responses) is from GitHub's documentation; not run in the authoring environment. The code is the code that passed every test against the fake GitHub; only the two addresses and the credentials differ.</p></div>
@@ -598,28 +598,28 @@ API_BASE=https://api.github.com</code></pre>
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>PKCE: bind the code to the app</h3><span class="time">10 min</span></header>
     <p>A code is a claim ticket that has been through the browser. PKCE makes it worthless to anyone except the app that started the login. The verifier is just another random string, so <code>newState</code> makes it; the challenge is its Secure Hash Algorithm 256 (SHA-256) hash, in the same URL-safe Base64. Add this to <code>oauth.ts</code>:</p>
-<pre data-mode="type this"><code>export async function challengeFor(verifier: string): Promise&lt;string&gt; {
+<pre data-mode="type this" data-where="add to oauth.ts"><code>export async function challengeFor(verifier: string): Promise&lt;string&gt; {
   const hash = await crypto.subtle.digest(&quot;SHA-256&quot;, new TextEncoder().encode(verifier));
   return b64url(new Uint8Array(hash));
 }</code></pre>
     <p>Then four small edits in <code>oauth.ts</code>. The challenge rides along with the redirect: change the first line of <code>authorizeUrl</code> to</p>
-<pre data-mode="type this"><code>export function authorizeUrl(state: string, challenge?: string): string {</code></pre>
+<pre data-mode="type this" data-where="replace first line of authorizeUrl in oauth.ts"><code>export function authorizeUrl(state: string, challenge?: string): string {</code></pre>
     <p>and add two lines under its <code>const q = …</code> line:</p>
-<pre data-mode="type this"><code>  if (challenge) q.set(&quot;code_challenge&quot;, challenge);
+<pre data-mode="type this" data-where="add to authorizeUrl in oauth.ts, under const q"><code>  if (challenge) q.set(&quot;code_challenge&quot;, challenge);
   if (challenge) q.set(&quot;code_challenge_method&quot;, &quot;S256&quot;);</code></pre>
     <p>The verifier rides along with the redemption: change the first line of <code>exchangeCode</code> to</p>
-<pre data-mode="type this"><code>export async function exchangeCode(code: string, verifier?: string): Promise&lt;Token&gt; {</code></pre>
+<pre data-mode="type this" data-where="replace first line of exchangeCode in oauth.ts"><code>export async function exchangeCode(code: string, verifier?: string): Promise&lt;Token&gt; {</code></pre>
     <p>and add one line under its <code>const body = …</code> line:</p>
-<pre data-mode="type this"><code>  if (verifier) body.set(&quot;code_verifier&quot;, verifier);</code></pre>
+<pre data-mode="type this" data-where="add to exchangeCode in oauth.ts, under const body"><code>  if (verifier) body.set(&quot;code_verifier&quot;, verifier);</code></pre>
     <p>Both new parameters are optional, so the tests from steps 1 and 3 still compile; the server will always pass them. In <code>server.ts</code>, <code>start</code> makes the verifier, sends the challenge, and keeps the verifier in the cookie next to <code>state</code>, joined by a dot (neither ever contains one). Replace the last two lines of <code>start</code> with these three:</p>
-<pre data-mode="type this"><code>  const verifier = oauth.newState();
+<pre data-mode="type this" data-where="replace last 2 lines of start in server.ts"><code>  const verifier = oauth.newState();
   const location = oauth.authorizeUrl(state, await oauth.challengeFor(verifier));
   return new Response(null, { status: 302, headers: { location, &quot;set-cookie&quot;: cookie(`${state}.${verifier}`) } });</code></pre>
     <p>and in <code>callback</code>, read the verifier back and hand it over. Its first line becomes</p>
-<pre data-mode="type this"><code>  const [saved, verifier] = readCookie(req);</code></pre>
+<pre data-mode="type this" data-where="replace first line of callback in server.ts"><code>  const [saved, verifier] = readCookie(req);</code></pre>
     <p>and the <code>exchangeCode</code> line becomes</p>
-<pre data-mode="type this"><code>  const token = await oauth.exchangeCode(code, verifier);</code></pre>
-<pre data-mode="paste this"><code>import { challengeFor } from &quot;./oauth.ts&quot;;
+<pre data-mode="type this" data-where="replace the exchangeCode line in server.ts"><code>  const token = await oauth.exchangeCode(code, verifier);</code></pre>
+<pre data-mode="paste this" data-where="add to oauth_test.ts"><code>import { challengeFor } from &quot;./oauth.ts&quot;;
 
 Deno.test(&quot;step 6: S256 of the RFC 7636 verifier is the RFC&#x27;s challenge&quot;, async () =&gt; {
   const challenge = await challengeFor(&quot;dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&quot;);
@@ -643,7 +643,7 @@ Deno.test(&quot;step 6: a code issued for a challenge needs its verifier&quot;, 
   <article class="step" id="s7">
     <header><span class="num">Step 7</span><h3>The three checks, proved</h3><span class="time">10 min</span></header>
     <p>The code already has every defence from the talk. This step proves each one with a test, and finds the line that makes it pass. Paste the last block:</p>
-<pre data-mode="paste this"><code>Deno.test(&quot;step 7, state: a callback from another login is refused&quot;, async () =&gt; {
+<pre data-mode="paste this" data-where="add to oauth_test.ts"><code>Deno.test(&quot;step 7, state: a callback from another login is refused&quot;, async () =&gt; {
   const mine = (await app(&quot;/&quot;)).headers.get(&quot;set-cookie&quot;)!.split(&quot;;&quot;)[0];
   const other = await visit(authorizeUrl(newState()));
   assertEquals((await app(other.pathname + other.search, mine)).status, 400);

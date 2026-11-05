@@ -187,11 +187,11 @@ docker compose version</code></pre>
     <header><span class="num">Step 0</span><h3>Run the API and the load generator</h3><span class="time">8 min</span></header>
     <p>The app for the lab is a 47-line Go web server with three endpoints. Create these two files in <code>obs-lab</code> and read <code>main.go</code> once, top to bottom. <code>wrap</code> runs around every handler, times it and prints one line; the <code>recorder</code> exists only to remember the status code. <code>/checkout</code> is the interesting one: it always sleeps 300 ms, and one call in ten hangs for two more seconds and answers 504. That is the "payment provider" we will find later without being told.</p>
     <h4>go.mod</h4>
-<pre data-mode="paste this"><code>module obs
+<pre data-mode="paste this" data-where="new file go.mod"><code>module obs
 
 go 1.24</code></pre>
     <h4>main.go</h4>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file main.go"><code>package main
 
 import (
 	&quot;fmt&quot;
@@ -239,7 +239,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(&quot;:8080&quot;, nil))
 }</code></pre>
     <p>Now the load generator, a Deno script that hits the three endpoints at random from three loops, forever. Paste it as <code>load.ts</code>:</p>
-<pre data-mode="paste this"><code>// Load generator: three loops hitting the API at random, forever. Ctrl-C stops it.
+<pre data-mode="paste this" data-where="new file load.ts"><code>// Load generator: three loops hitting the API at random, forever. Ctrl-C stops it.
 const base = &quot;http://localhost:8080&quot;;
 const paths = [&quot;/&quot;, &quot;/products&quot;, &quot;/products&quot;, &quot;/checkout&quot;];
 async function loop(n: number) {
@@ -254,7 +254,7 @@ async function loop(n: number) {
 }
 await Promise.all([1, 2, 3].map(loop));</code></pre>
     <p>Terminal 1 runs the API, terminal 2 the load, terminal 3 is yours:</p>
-<pre data-mode="type this"><code>go run .
+<pre data-mode="type this" data-where="terminals 1, 2 and 3"><code>go run .
 deno run --allow-net load.ts
 curl -i localhost:8080/checkout</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p>Terminal 1 prints <code>listening on :8080</code> and then a line per request such as <code>GET /checkout 200 300.5ms</code>. Terminal 2 scrolls lines like <code>loop 2  200  /products  1 ms</code> and, every ten checkouts or so, <code>504  /checkout  2302 ms</code>. <code>curl</code> answers <code>paid</code> after about 300 ms, or <code>payment provider timed out</code> with a 504 after 2.3 seconds if you were unlucky.</p></div>
@@ -264,19 +264,19 @@ curl -i localhost:8080/checkout</code></pre>
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>Logs are data: <code>log/slog</code> and a filter</h3><span class="time">12 min</span></header>
     <p>The line terminal 1 prints is a sentence. Try to answer "how many 504s in the last minute?" from it and you are writing a regular expression. Go's <code>log/slog</code> package writes the same information as JSON: one record per line, every field named. Three edits to <code>main.go</code>. First, two imports:</p>
-<pre data-mode="type this"><code>	&quot;log/slog&quot;
+<pre data-mode="type this" data-where="add to main.go, in the import block"><code>	&quot;log/slog&quot;
 	&quot;os&quot;</code></pre>
     <p>Second, in <code>wrap</code>, replace the <code>rec :=</code>, <code>h(rec, r)</code> and <code>log.Printf</code> lines with these six. The request id is eight random hexadecimal digits, stamped onto the request as a header so that anything deeper in the program can find it:</p>
-<pre data-mode="type this"><code>		id := fmt.Sprintf(&quot;%08x&quot;, rand.Uint32())
+<pre data-mode="type this" data-where="replace 3 lines in func wrap in main.go"><code>		id := fmt.Sprintf(&quot;%08x&quot;, rand.Uint32())
 		r.Header.Set(&quot;X-Request-Id&quot;, id)
 		rec := &amp;recorder{w, 200}
 		h(rec, r)
 		slog.Info(&quot;request&quot;, &quot;method&quot;, r.Method, &quot;path&quot;, r.URL.Path, &quot;status&quot;, rec.status,
 			&quot;duration_ms&quot;, time.Since(start).Milliseconds(), &quot;request_id&quot;, id)</code></pre>
     <p>Third, the first line of <code>main</code> makes the JSON handler the default logger. It also captures the old <code>log</code> package, so the "listening" line turns into JSON too without being touched:</p>
-<pre data-mode="type this"><code>	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))</code></pre>
+<pre data-mode="type this" data-where="add to main.go, first line of func main"><code>	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))</code></pre>
     <p>Restart the API (Ctrl-C in terminal 1, <code>go run .</code> again). Every line is now a JSON object. Now filter it. Paste this as <code>filter.ts</code>; it reads lines from standard input, parses each one, and prints the ones with <code>status &gt;= 500</code>:</p>
-<pre data-mode="paste this"><code>// Reads JSON log lines on stdin. Prints the ones with status &gt;= 500,
+<pre data-mode="paste this" data-where="new file filter.ts"><code>// Reads JSON log lines on stdin. Prints the ones with status &gt;= 500,
 // or, given an argument, the ones containing that text (a request id).
 import { createInterface } from &quot;node:readline&quot;;
 import process from &quot;node:process&quot;;
@@ -289,7 +289,7 @@ for await (const line of createInterface({ input: process.stdin })) {
     // not JSON (a startup line, a panic): ignore
   }
 }</code></pre>
-<pre data-mode="type this"><code>go run . | deno run filter.ts</code></pre>
+<pre data-mode="type this" data-where="terminal 1"><code>go run . | deno run filter.ts</code></pre>
     <p>If you installed <code>jq</code>, <code>go run . | jq -c 'select(.status &gt;= 500)'</code> does the same thing. Either way the point is the same: nobody wrote a regular expression, because a log line is a record.</p>
     <div class="call check"><p class="lbl">Checkpoint 1</p><p>Terminal 1 shows only the failures, roughly one every few seconds, each a full JSON line. Nothing with status 200 gets through.</p>
 <pre><code>{&quot;time&quot;:&quot;2026-09-22T12:38:29.730449449+02:00&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;request&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;path&quot;:&quot;/checkout&quot;,&quot;status&quot;:504,&quot;duration_ms&quot;:2301,&quot;request_id&quot;:&quot;c11e5f84&quot;}</code></pre>
@@ -301,7 +301,7 @@ for await (const line of createInterface({ input: process.stdin })) {
   <article class="step" id="s2">
     <header><span class="num">Step 2</span><h3>Metrics by hand: a counter, a histogram, <code>/metrics</code></h3><span class="time">20 min</span></header>
     <p>A log line per request is the right thing for "what happened", and the wrong thing for "how are we doing": to answer "requests per second by endpoint" you would re-read the whole log. A metric keeps the answer up to date instead. Two metrics today: a counter of requests by path and status, and a histogram of request durations by path. We write them with maps and <code>fmt</code>, no library, so that the format is never magic. Create <code>metrics.go</code> and paste its top: the imports and the four variables. <code>buckets</code> is the histogram's upper bounds in seconds, ending in <code>+Inf</code>.</p>
-<pre data-mode="paste this"><code>package main
+<pre data-mode="paste this" data-where="new file metrics.go"><code>package main
 
 import (
 	&quot;fmt&quot;
@@ -321,7 +321,7 @@ var (
 	sums     = map[string]float64{}
 )</code></pre>
     <p>Now type the two functions under it. <code>observe</code> is called once per request: it bumps the counter for this path and status, then bumps every bucket whose bound the duration fits under (so the buckets are cumulative, which is what Prometheus expects), and adds to the sum. <code>metrics</code> prints everything in the Prometheus text format: a <code>TYPE</code> line, then one line per label combination, <code>name{labels} value</code>.</p>
-<pre data-mode="type this"><code>func observe(path string, status int, seconds float64) {
+<pre data-mode="type this" data-where="add to metrics.go"><code>func observe(path string, status int, seconds float64) {
 	mu.Lock()
 	defer mu.Unlock()
 	requests[fmt.Sprintf(&quot;%s %d&quot;, path, status)]++
@@ -355,10 +355,10 @@ func metrics(w http.ResponseWriter, r *http.Request) {
 	}
 }</code></pre>
     <p>Two lines in <code>main.go</code> connect it: the observation at the end of <code>wrap</code>, after <code>slog.Info</code>, and the route in <code>main</code> before the "listening" line. <code>/metrics</code> is deliberately not wrapped, so scraping it does not count as traffic:</p>
-<pre data-mode="type this"><code>		observe(r.URL.Path, rec.status, time.Since(start).Seconds())
+<pre data-mode="type this" data-where="add to main.go, end of func wrap and in func main"><code>		observe(r.URL.Path, rec.status, time.Since(start).Seconds())
 	http.HandleFunc(&quot;/metrics&quot;, metrics)</code></pre>
     <p>Restart the API, let the load run for half a minute, then look at the page:</p>
-<pre data-mode="type this"><code>curl localhost:8080/metrics</code></pre>
+<pre data-mode="type this" data-where="terminal 3"><code>curl localhost:8080/metrics</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 2</p><p>Something close to this, with your own numbers. Four counter lines, then for each path six <code>_bucket</code> lines whose values never decrease from top to bottom, a <code>_sum</code> and a <code>_count</code>. For <code>/checkout</code> the <code>le="0.25"</code> bucket is 0 (nothing is faster than 300 ms) and the <code>le="0.5"</code> and <code>le="1"</code> buckets are equal (nothing lands between half a second and one second):</p>
 <pre><code># TYPE http_requests_total counter
 http_requests_total{path=&quot;/checkout&quot;,status=&quot;200&quot;} 111
@@ -383,7 +383,7 @@ http_request_duration_seconds_count{path=&quot;/checkout&quot;} 128
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>Prometheus scrapes it: <code>prometheus.yml</code> and Compose</h3><span class="time">12 min</span></header>
     <p>The API serves numbers; Prometheus collects them. It needs to be told what to fetch and how often. Type <code>prometheus.yml</code>; six lines, and every one of them is a real decision:</p>
-<pre data-mode="type this"><code>global:
+<pre data-mode="type this" data-where="new file prometheus.yml"><code>global:
   scrape_interval: 5s
 scrape_configs:
   - job_name: api
@@ -391,7 +391,7 @@ scrape_configs:
       - targets: [&quot;api:8080&quot;]</code></pre>
     <p><code>scrape_interval: 5s</code> is aggressive (the default is a minute; 15 seconds is common) so that the graphs move while you watch. The target is <code>api:8080</code>, not <code>localhost</code>: inside Compose, services find each other by name, exactly as in workshop 6, so the API needs to be a service too. Paste the Dockerfile from workshop 1 with one change (<code>COPY *.go</code>, since there are now two files) and a Compose file with three services:</p>
     <h4>Dockerfile</h4>
-<pre data-mode="paste this"><code>FROM golang:1.27 AS build
+<pre data-mode="paste this" data-where="new file Dockerfile"><code>FROM golang:1.27 AS build
 WORKDIR /app
 COPY go.mod ./
 COPY *.go ./
@@ -401,7 +401,7 @@ FROM scratch
 COPY --from=build /app/server /server
 CMD [&quot;/server&quot;]</code></pre>
     <h4>compose.yaml</h4>
-<pre data-mode="paste this"><code>services:
+<pre data-mode="paste this" data-where="new file compose.yaml"><code>services:
   api:
     build: .
     ports: [&quot;8080:8080&quot;]
@@ -416,7 +416,7 @@ CMD [&quot;/server&quot;]</code></pre>
     image: grafana/grafana:13.2.2
     ports: [&quot;3000:3000&quot;]</code></pre>
     <p>Stop the <code>go run</code> in terminal 1 (Ctrl-C) so that port 8080 is free; the load generator in terminal 2 can keep running, it will fail for a few seconds and recover. Then bring everything up:</p>
-<pre data-mode="type this"><code>docker compose up -d --build
+<pre data-mode="type this" data-where="terminal 3"><code>docker compose up -d --build
 docker compose ps</code></pre>
     <p>Open <a href="http://localhost:9090/targets">localhost:9090/targets</a>. Prometheus lists its one target, <code>api:8080</code>, and after a few seconds says <code>UP</code>. Then <a href="http://localhost:9090/query">localhost:9090/query</a>, type <code>http_requests_total</code> in the box and press Execute: the four counter lines from step 2, now as time series that Prometheus has been storing every five seconds.</p>
     <div class="call check"><p class="lbl">Checkpoint 3</p><p><code>docker compose ps</code> shows <code>api</code>, <code>prometheus</code> and <code>grafana</code> running. The targets page shows <code>api:8080</code> as <code>UP</code> with a "last scrape" a few seconds ago. The query <code>http_requests_total</code> returns four series, and running it again returns bigger numbers.</p></div>
@@ -427,7 +427,7 @@ docker compose ps</code></pre>
   <article class="step" id="s4">
     <header><span class="num">Step 4</span><h3>Three PromQL questions</h3><span class="time">10 min</span></header>
     <p>Prometheus's query page is where you learn the language, one expression at a time. Switch to the Graph tab for each one. Nothing here is typed into a file; the three expressions are the whole step, and the dashboard in step 5 reuses them unchanged.</p>
-<pre data-mode="type this"><code>rate(http_requests_total[1m])
+<pre data-mode="type this" data-where="Prometheus graph tab"><code>rate(http_requests_total[1m])
 sum by (path) (rate(http_requests_total[1m]))
 histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_bucket[1m])))</code></pre>
     <p>The first asks: over the last minute, how fast did each counter climb, per second? Four lines, one per path-and-status pair. The second adds them up but keeps <code>path</code>, so the 200s and 504s of <code>/checkout</code> merge into one line: requests per second per endpoint. The third is the one people copy for years: take the six bucket counters per path, turn each into a rate, add them up keeping <code>path</code> and <code>le</code>, and ask for the 95th percentile. Read it inside out and it is three ideas you already have.</p>
@@ -449,13 +449,13 @@ histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_b
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>Logs find the why, and an alert rule</h3><span class="time">10 min</span></header>
     <p>The graph says <em>checkout</em>. It cannot say why. That is a log question, and the request id is the join. The API now runs in a container, so its log comes from Compose; the filter from step 1 still applies, and with an argument it prints the lines containing a request id instead:</p>
-<pre data-mode="type this"><code>docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
+<pre data-mode="type this" data-where="terminal 3"><code>docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
     <p>Copy the <code>request_id</code> from any 504 line, then ask for everything about it:</p>
-<pre data-mode="type this"><code>docker compose logs --no-log-prefix api | deno run filter.ts c11e5f84</code></pre>
+<pre data-mode="type this" data-where="terminal 3"><code>docker compose logs --no-log-prefix api | deno run filter.ts c11e5f84</code></pre>
     <p>One line comes back: the request record. The <em>why</em> is not in the log yet, because nothing inside the handler logs. Add one line to the slow branch of <code>/checkout</code>, just before <code>http.Error</code>. It reads the id back from the header that <code>wrap</code> set, so the two lines can be joined:</p>
-<pre data-mode="type this"><code>			slog.Warn(&quot;payment provider timed out&quot;, &quot;request_id&quot;, r.Header.Get(&quot;X-Request-Id&quot;))</code></pre>
+<pre data-mode="type this" data-where="add to main.go, in /checkout above http.Error"><code>			slog.Warn(&quot;payment provider timed out&quot;, &quot;request_id&quot;, r.Header.Get(&quot;X-Request-Id&quot;))</code></pre>
     <p>Now the alert, so that next time nobody needs to be watching. Paste <code>alerts.yml</code>: one rule, the step 4 p95 expression, fire when it has been above one second for a minute. The annotation uses Prometheus's template syntax to name the path and the value:</p>
-<pre data-mode="paste this"><code>groups:
+<pre data-mode="paste this" data-where="new file alerts.yml"><code>groups:
   - name: api
     rules:
       - alert: CheckoutSlow
@@ -466,10 +466,10 @@ histogram_quantile(0.95, sum by (path, le) (rate(http_request_duration_seconds_b
         annotations:
           summary: &quot;p95 latency on {{ $labels.path }} is {{ $value }} s&quot;</code></pre>
     <p>Two typed lines tell Prometheus to load it, at the end of <code>prometheus.yml</code>, and one line in <code>compose.yaml</code>, under the Prometheus volumes, mounts the file:</p>
-<pre data-mode="type this"><code>rule_files:
+<pre data-mode="type this" data-where="add to prometheus.yml"><code>rule_files:
   - alerts.yml</code></pre>
-<pre data-mode="type this"><code>      - ./alerts.yml:/etc/prometheus/alerts.yml</code></pre>
-<pre data-mode="type this"><code>docker compose up -d --build
+<pre data-mode="type this" data-where="add to compose.yaml, under prometheus volumes:"><code>      - ./alerts.yml:/etc/prometheus/alerts.yml</code></pre>
+<pre data-mode="type this" data-where="terminal 3"><code>docker compose up -d --build
 docker compose logs --no-log-prefix api | deno run filter.ts</code></pre>
     <p>The rebuild picks up the warning line; the restart of Prometheus picks up the rule. Take a new 504's request id and filter for it again: two lines this time. Then open <a href="http://localhost:9090/alerts">localhost:9090/alerts</a>.</p>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p>Filtering for a request id returns two lines with the same id, the warning from inside the handler and then the request line:</p>
