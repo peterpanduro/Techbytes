@@ -202,19 +202,19 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
   <article class="step" id="s0">
     <header><span class="num">Step 0</span><h3>Two empty files and a green test run</h3><span class="time">5 min</span></header>
     <p>In the <code>totp-lab</code> folder from the prep, create <code>totp.ts</code> with just the header, and <code>totp_test.ts</code> with the test scaffolding. Both are pasted; there is nothing to learn from typing an import line.</p>
-<pre data-mode="paste this"><code>// TOTP from scratch — complete lab file. Deno, no dependencies.
+<pre data-mode="paste this" data-where="new file totp.ts"><code>// TOTP from scratch — complete lab file. Deno, no dependencies.
 import { timingSafeEqual } from &quot;node:crypto&quot;;
 
 type Bytes = Uint8Array&lt;ArrayBuffer&gt;; // a Uint8Array that WebCrypto accepts</code></pre>
   <p>The <code>Bytes</code> alias is there because current TypeScript distinguishes a <code>Uint8Array</code> over a plain <code>ArrayBuffer</code> from one over shared memory, and WebCrypto only accepts the former. One alias saves six annotations later.</p>
   <p>Then <code>totp_test.ts</code>. It has a four-line <code>assertEquals</code> of its own rather than importing one, so the code and its tests have zero dependencies:</p>
-<pre data-mode="paste this"><code>function assertEquals(got: unknown, want: unknown, msg = &quot;&quot;) {
+<pre data-mode="paste this" data-where="new file totp_test.ts"><code>function assertEquals(got: unknown, want: unknown, msg = &quot;&quot;) {
   const g = JSON.stringify(got), w = JSON.stringify(want);
   if (g !== w) throw new Error(`${msg} got ${g}, want ${w}`);
 }
 
 const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // RFC test secret</code></pre>
-<pre data-mode="type this"><code>deno test</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>deno test</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 0</p><p><code>deno test</code> reports <code>ok | 0 passed | 0 failed</code>. Deno type-checks a file before running it, so from here on a typo shows up as a red line with a file and line number before a single test runs.</p></div>
     <div class="call inst"><p class="lbl">Instructor</p><p>Walk the room. This step catches every installation problem at once, while there is still slack. Each pasted test block later brings its own <code>import</code> line, so the test file only ever refers to functions that already exist; that is deliberate, so the file compiles after every step.</p></div>
   </article>
@@ -222,11 +222,11 @@ const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // RFC tes
   <article class="step" id="s1">
     <header><span class="num">Step 1</span><h3>Generate a secret and write it in Base32</h3><span class="time">10 min</span></header>
     <p>A TOTP secret is just random bytes. RFC 4226 says at least 16, recommends 20. <code>crypto.getRandomValues</code> fills a typed array from the operating system's cryptographic randomness.</p>
-<pre data-mode="type this"><code>export function newSecret(nbytes = 20): Bytes {
+<pre data-mode="type this" data-where="add to totp.ts"><code>export function newSecret(nbytes = 20): Bytes {
   return crypto.getRandomValues(new Uint8Array(nbytes));
 }</code></pre>
     <p>Authenticator apps want the secret as Base32 text: the 32 characters <code>A–Z</code> and <code>2–7</code>, five bits each, no lower case and nothing that looks like anything else, so it survives being read aloud or typed on a phone. Deno's standard library has an encoder, but to keep the lab dependency-free here is one in twelve lines. Paste it under <code>newSecret</code> and read it once: it pushes eight bits in and pulls five bits out until the bytes run out.</p>
-<pre data-mode="paste this"><code>const B32 = &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ234567&quot;;
+<pre data-mode="paste this" data-where="add to totp.ts"><code>const B32 = &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ234567&quot;;
 
 export function toBase32(bytes: Bytes): string {
   let bits = 0, acc = 0, out = &quot;&quot;;
@@ -243,7 +243,7 @@ export function toBase32(bytes: Bytes): string {
   return out;
 }</code></pre>
     <p>Add the first test to <code>totp_test.ts</code>. The RFC's test secret is the ASCII (American Standard Code for Information Interchange) string <code>12345678901234567890</code>; its Base32 form is the key printed under the live widget at the top of this page.</p>
-<pre data-mode="paste this"><code>import { newSecret, toBase32 } from &quot;./totp.ts&quot;;
+<pre data-mode="paste this" data-where="add to totp_test.ts"><code>import { newSecret, toBase32 } from &quot;./totp.ts&quot;;
 
 Deno.test(&quot;step 1: secrets are 20 bytes, base32 matches the RFC key&quot;, () =&gt; {
   assertEquals(newSecret().length, 20);
@@ -256,7 +256,7 @@ Deno.test(&quot;step 1: secrets are 20 bytes, base32 matches the RFC key&quot;, 
   <article class="step" id="s2">
     <header><span class="num">Step 2</span><h3>HMAC over a counter</h3><span class="time">15 min</span></header>
     <p>HOTP feeds a counter into HMAC-SHA1. The counter must be exactly 8 bytes, most significant byte first ("big-endian"). A <code>DataView</code> over an 8-byte buffer writes it that way with <code>setBigUint64</code>. WebCrypto wants the secret wrapped as a key first, then signs.</p>
-<pre data-mode="type this"><code>export async function hmacCounter(secret: Bytes, counter: number, hash = &quot;SHA-1&quot;) {
+<pre data-mode="type this" data-where="add to totp.ts"><code>export async function hmacCounter(secret: Bytes, counter: number, hash = &quot;SHA-1&quot;) {
   const key = await crypto.subtle.importKey(
     &quot;raw&quot;, secret, { name: &quot;HMAC&quot;, hash }, false, [&quot;sign&quot;],
   );
@@ -265,7 +265,7 @@ Deno.test(&quot;step 1: secrets are 20 bytes, base32 matches the RFC key&quot;, 
   return new Uint8Array(await crypto.subtle.sign(&quot;HMAC&quot;, key, msg));
 }</code></pre>
     <p>Now the first number from the RFC. Appendix D of RFC 4226 prints the full HMAC for counter 0:</p>
-<pre data-mode="paste this"><code>import { hmacCounter } from &quot;./totp.ts&quot;;
+<pre data-mode="paste this" data-where="add to totp_test.ts"><code>import { hmacCounter } from &quot;./totp.ts&quot;;
 
 Deno.test(&quot;step 2: HMAC-SHA1 of counter 0 (RFC 4226 Appendix D)&quot;, async () =&gt; {
   const mac = await hmacCounter(k, 0);
@@ -281,7 +281,7 @@ Deno.test(&quot;step 2: HMAC-SHA1 of counter 0 (RFC 4226 Appendix D)&quot;, asyn
   <article class="step" id="s3">
     <header><span class="num">Step 3</span><h3>Dynamic truncation: 20 bytes to 6 digits</h3><span class="time">10 min</span></header>
     <p>Twenty bytes is not something a human types. RFC 4226 §5.3 turns it into a number: take the low four bits of the last byte as an <em>offset</em> (0–15), read the four bytes starting there as a big-endian integer, clear the top bit so it is never negative, then take it modulo 10<sup>6</sup>.</p>
-<pre data-mode="type this"><code>export function truncate(mac: Bytes, digits = 6): string {
+<pre data-mode="type this" data-where="add to totp.ts"><code>export function truncate(mac: Bytes, digits = 6): string {
   const offset = mac[mac.length - 1] &amp; 0x0f; // low 4 bits of the last byte
   const num = new DataView(mac.buffer).getUint32(offset) &amp; 0x7fffffff;
   return String(num % 10 ** digits).padStart(digits, &quot;0&quot;);
@@ -291,7 +291,7 @@ export async function hotp(secret: Bytes, counter: number, digits = 6, hash = &q
   return truncate(await hmacCounter(secret, counter, hash), digits);
 }</code></pre>
     <p>Test against all ten RFC vectors at once:</p>
-<pre data-mode="paste this"><code>import { hotp } from &quot;./totp.ts&quot;;
+<pre data-mode="paste this" data-where="add to totp_test.ts"><code>import { hotp } from &quot;./totp.ts&quot;;
 
 Deno.test(&quot;step 3: HOTP vectors (RFC 4226 Appendix D)&quot;, async () =&gt; {
   const expected = [&quot;755224&quot;, &quot;287082&quot;, &quot;359152&quot;, &quot;969429&quot;, &quot;338314&quot;,
@@ -320,11 +320,11 @@ Deno.test(&quot;step 3: HOTP vectors (RFC 4226 Appendix D)&quot;, async () =&gt;
   <article class="step" id="s4">
     <header><span class="num">Step 4</span><h3>Let the clock be the counter</h3><span class="time">10 min</span></header>
     <p>This is the entire difference between HOTP and TOTP: <code>counter = floor(unix_time / 30)</code>. Unix time is seconds since 1970-01-01 00:00 Coordinated Universal Time (UTC), so time zones never enter into it. <code>Date.now()</code> is milliseconds, hence the division by 1000 in the default.</p>
-<pre data-mode="type this"><code>export function totp(secret: Bytes, at = Date.now() / 1000, step = 30, digits = 6, hash = &quot;SHA-1&quot;) {
+<pre data-mode="type this" data-where="add to totp.ts"><code>export function totp(secret: Bytes, at = Date.now() / 1000, step = 30, digits = 6, hash = &quot;SHA-1&quot;) {
   return hotp(secret, Math.floor(at / step), digits, hash);
 }</code></pre>
     <p>RFC 6238 Appendix B gives 8-digit vectors for the same test secret at fixed times:</p>
-<pre data-mode="paste this"><code>import { totp } from &quot;./totp.ts&quot;;
+<pre data-mode="paste this" data-where="add to totp_test.ts"><code>import { totp } from &quot;./totp.ts&quot;;
 
 Deno.test(&quot;step 4: TOTP vectors (RFC 6238 Appendix B, 8 digits)&quot;, async () =&gt; {
   const vectors: [number, string][] = [[59, &quot;94287082&quot;], [1111111109, &quot;07081804&quot;],
@@ -332,7 +332,7 @@ Deno.test(&quot;step 4: TOTP vectors (RFC 6238 Appendix B, 8 digits)&quot;, asyn
   for (const [t, e] of vectors) assertEquals(await totp(k, t, 30, 8), e, `t=${t}:`);
 });</code></pre>
     <p>And a main block at the bottom of <code>totp.ts</code> that prints the live code for the RFC secret, so it can be compared with the widget at the top of this page:</p>
-<pre data-mode="paste this"><code>if (import.meta.main) {
+<pre data-mode="paste this" data-where="add to totp.ts, at the bottom"><code>if (import.meta.main) {
   const k = new TextEncoder().encode(&quot;12345678901234567890&quot;); // the RFC test secret
   console.log(&quot;code right now:&quot;, await totp(k));
 }</code></pre>
@@ -343,13 +343,13 @@ Deno.test(&quot;step 4: TOTP vectors (RFC 6238 Appendix B, 8 digits)&quot;, asyn
   <article class="step" id="s5">
     <header><span class="num">Step 5</span><h3>Put it on your phone</h3><span class="time">15 min</span></header>
     <p>Authenticator apps read a Uniform Resource Identifier (URI) in the <code>otpauth://</code> format, usually from a QR code. The label is <code>issuer:account</code>, and the secret is the Base32 string from step 1.</p>
-<pre data-mode="type this"><code>export function otpauthUri(secret: Bytes, account: string, issuer: string) {
+<pre data-mode="type this" data-where="add to totp.ts, above the import.meta.main block"><code>export function otpauthUri(secret: Bytes, account: string, issuer: string) {
   const label = `${encodeURIComponent(issuer)}:${encodeURIComponent(account)}`;
   return `otpauth://totp/${label}?secret=${toBase32(secret)}` +
     `&amp;issuer=${encodeURIComponent(issuer)}&amp;algorithm=SHA1&amp;digits=6&amp;period=30`;
 }</code></pre>
     <p>Now a separate script, <code>qr.ts</code>, that makes a fresh secret, draws the QR code in the terminal with the package fetched during the prep, also saves it as <code>qr.png</code> in case the terminal version does not scan, and then prints the current code every five seconds:</p>
-<pre data-mode="paste this"><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+<pre data-mode="paste this" data-where="new file qr.ts"><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
 import { newSecret, otpauthUri, toBase32, totp } from &quot;./totp.ts&quot;;
 
 const s = newSecret();
@@ -365,7 +365,7 @@ while (true) {
 }
 </code></pre>
     <p>Run it. Deno will stop and ask whether the script may write <code>qr.png</code>, because nothing is allowed by default; answer <code>y</code>, or grant exactly that up front:</p>
-<pre data-mode="type this"><code>deno run --allow-write=qr.png qr.ts</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>deno run --allow-write=qr.png qr.ts</code></pre>
     <p>Scan the QR code with your phone's authenticator app (or add an account manually and type the Base32 secret). Watch the two codes change together.</p>
     <div class="call check"><p class="lbl">Checkpoint 5</p><p>Your phone and your terminal show the same six digits, and they roll over to the same new digits at the same moment. Stop the loop with Ctrl-C.</p></div>
     <div class="call warn"><p class="lbl">If the codes differ</p><p>Nine times out of ten it is a clock. Compare the laptop's clock with the phone's to the second. If the phone is the one that is wrong, turn automatic time off and on again. Anyone on the Docker fallback: the clock of Docker's virtual machine drifts after sleep; restart Docker Desktop. Only after both clocks agree is it worth looking at the code.</p></div>
@@ -375,7 +375,7 @@ while (true) {
   <article class="step" id="s6">
     <header><span class="num">Step 6</span><h3>A verifier a server could use</h3><span class="time">15 min</span></header>
     <p>Generating codes is the easy half. A server that checks them must handle three things: the user's clock may be a little off and typing takes time, so accept the previous and next step (RFC 6238 §5.2 allows at most one step of delay; accepting one step early as well, for a phone whose clock runs fast, is the common extension); a code must never be accepted twice; and the comparison must not leak information through timing. <code>timingSafeEqual</code> comes from Deno's built-in Node compatibility layer, so it is still not a download.</p>
-<pre data-mode="type this"><code>export class Verifier {
+<pre data-mode="type this" data-where="add to totp.ts, above the import.meta.main block"><code>export class Verifier {
   lastCounter = -1; // highest counter already used
 
   constructor(private secret: Bytes, private window = 1, private step = 30) {}
@@ -396,7 +396,7 @@ while (true) {
   }
 }</code></pre>
     <p>Test it with fixed times so the result is deterministic. Google Authenticator shows the code as "151 534"; the login script strips the space, but a copied code with other characters is rejected without a hint:</p>
-<pre data-mode="paste this"><code>import { Verifier } from &quot;./totp.ts&quot;;
+<pre data-mode="paste this" data-where="add to totp_test.ts"><code>import { Verifier } from &quot;./totp.ts&quot;;
 
 Deno.test(&quot;step 6: verifier accepts each step once, rejects replay&quot;, async () =&gt; {
   const s = newSecret();
@@ -410,7 +410,7 @@ Deno.test(&quot;step 6: verifier accepts each step once, rejects replay&quot;, a
   assertEquals(await v.verify(&quot;12345&quot;, t0 + 300), false);          // wrong length
 });</code></pre>
     <div class="call check"><p class="lbl">Checkpoint 6</p><p><code>deno test</code>: all five tests pass. Then the live test, with a third small script, <code>login.ts</code>, that acts as the server: it prints the key both as a URI and as the bare Base32 text, so add it to the phone by typing (or reuse the QR trick from <code>qr.ts</code>), then type codes at it. It should accept a code once and refuse it the second time.</p></div>
-<pre data-mode="paste this"><code>import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+<pre data-mode="paste this" data-where="new file login.ts"><code>import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
 
 const s = newSecret();
 console.log(&quot;add this key to your phone:&quot;, otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;));
@@ -422,7 +422,7 @@ while (true) {
   console.log(await v.verify(code.replace(/\s/g, &quot;&quot;)) ? &quot;accepted&quot; : &quot;rejected&quot;);
 }
 </code></pre>
-<pre data-mode="type this"><code>deno run login.ts</code></pre>
+<pre data-mode="type this" data-where="terminal"><code>deno run login.ts</code></pre>
     <p class="inst-only"><strong>Talk about it:</strong> replace <code>timingSafeEqual(...)</code> with <code>expected === code</code>. It still passes every test. Why is it wrong anyway? (<code>===</code> stops at the first differing character, so response time leaks how many leading digits were right. Against a network it is hard to exploit for six digits, but the habit matters: any comparison of a secret uses constant-time compare, always.) Why the length check in front of it? (<code>timingSafeEqual</code> throws on inputs of different length rather than returning false, and a user who types five digits should get "rejected", not a crash.) Why keep <code>lastCounter</code> rather than a set of used codes? (One integer per user, and it also rejects a code from an older step after a newer one was used.)</p>
   </article>
 
