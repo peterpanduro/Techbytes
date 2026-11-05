@@ -89,9 +89,9 @@
     <tr><th>Why this topic</th><td>Two-factor authentication (2FA) is on every real system students will work on, yet it is almost never taught. It is also the ideal size: one RFC, one workshop, no infrastructure, and a very satisfying moment of proof at the end.</td></tr>
     <tr><th>Concepts</th><td>Shared secrets, HMAC, HOTP (HMAC-based one-time password, RFC 4226), TOTP (RFC 6238), Base32, big-endian packing, dynamic truncation, time windows, replay, constant-time comparison, brute-force arithmetic, and the limits of TOTP (phishing, relay attacks) that motivate passkeys. On the side: WebCrypto, typed arrays, Deno's permission flags and test runner.</td></tr>
     <tr><th>Assumed knowledge</th><td>Can write a JavaScript or TypeScript function and run a script. Nothing else. <code>async</code>/<code>await</code> appears because WebCrypto is asynchronous; the talk spends one sentence on it.</td></tr>
-    <tr><th>Language</th><td>TypeScript on Deno. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary; Deno fetches the one npm package itself. Docker is not needed; a container is offered as a fallback only.</td></tr>
-    <tr><th>Students need</th><td>Laptop with Deno 2.9 or later, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled.</td></tr>
-    <tr><th>Room needs</th><td>Projector. Wi-Fi is only needed for one <code>npm:</code> download in step 5, which the prep pack fetches ahead of time.</td></tr>
+    <tr><th>Language</th><td>TypeScript on Deno. Chosen because HMAC comes from the built-in WebCrypto API (no library, and the same call runs in the browser widget above), the test runner is built in, and there is nothing to install beyond one binary; Deno fetches the one npm package itself. Docker is not needed for the lab: only the optional stretch goal uses it, and a container is offered as a fallback for installing Deno.</td></tr>
+    <tr><th>Students need</th><td>Laptop with Deno 2.9 or later, a smartphone with an authenticator app, a text editor. Both devices with automatic time enabled. Docker from workshop 1 only for the optional stretch goal.</td></tr>
+    <tr><th>Room needs</th><td>Projector. Wi-Fi is only needed for one <code>npm:</code> download in step 5, which the prep pack fetches ahead of time. The optional stretch goal also downloads a Docker image.</td></tr>
     <tr class="inst-only"><th>Timing</th><td>15 min talk · 5 min break · 90 min lab (seven steps, each with a checkpoint that must pass before moving on).</td></tr>
   </table></div>
 </section>
@@ -196,7 +196,7 @@ console.log([...mac].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).jo
     <div class="row" data-from="40" data-to="50"><span class="k">0:40–0:50</span><span>Step 4 · Counter from the clock → TOTP</span></div>
     <div class="row" data-from="50" data-to="65"><span class="k">0:50–1:05</span><span>Step 5 · QR code, phone, proof</span></div>
     <div class="row" data-from="65" data-to="80"><span class="k">1:05–1:20</span><span>Step 6 · A verifier a server could use</span></div>
-    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 7 · Wrap-up and stretch goals</span></div>
+    <div class="row" data-from="80" data-to="90"><span class="k">1:20–1:30</span><span>Step 7 · Wrap-up and stretch goal</span></div>
   </div>
 
   <article class="step" id="s0">
@@ -429,30 +429,62 @@ while (true) {
   </article>
 
   <article class="step" id="s7">
-    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goals</h3><span class="time">10 min</span></header>
-    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students pick a stretch goal.</p>
+    <header><span class="num">Step 7</span><h3>Wrap-up and stretch goal</h3><span class="time">10 min</span></header>
+    <p>Bring the room back together<span class="inst-only"> for five minutes</span>, then let the fast students start the stretch goal.</p>
     <h4>Wrap-up points</h4>
     <ul>
       <li>Everything they built runs on APIs that ship with the runtime; the "crypto" was one call to <code>crypto.subtle.sign</code>. The design work is all in what surrounds it: randomness, encoding, windows, replay, timing, throttling.</li>
       <li>Redo the slide-8 arithmetic with their own verifier: window 1 accepts 3 codes out of 10<sup>6</sup>. Ask what a login endpoint needs around the verifier before it is safe (rate limit per account, lockout, logging).</li>
       <li>Ask them to delete the throwaway account from their phone and to never reuse a secret printed on a projector.</li>
     </ul>
-    <h4>Stretch goals (pick one)</h4>
-    <ul>
-      <li><strong>The decoder.</strong> Write <code>fromBase32</code>, the mirror image of the pasted encoder (push five bits in, pull eight out), and add a round-trip test. A server that stores secrets as Base32 text needs it.</li>
-      <li><strong>Other hashes and sizes.</strong> Make it produce the RFC 6238 SHA-256 vector (secret is the ASCII digits repeated to 32 bytes, <code>t=59</code> → <code>46119246</code>, hash name <code>"SHA-256"</code>) and SHA-512 (64 bytes, <code>t=59</code> → <code>90693936</code>). Then put <code>algorithm=SHA256</code> in the URI and see whether their phone app honours it. (Google Authenticator has historically ignored <code>algorithm</code> and <code>period</code>, which is why nearly every site sticks to SHA-1, 6 digits, 30 seconds.)</li>
-      <li><strong>Drift experiment.</strong> Feed <code>totp(s, Date.now() / 1000 + 40)</code> to the verifier. Then <code>+ 70</code>. Where does the window stop helping? What would a server do if a user's codes are consistently one step ahead? (RFC 6238 §6 suggests recording the drift after a successful login and applying it next time.)</li>
-      <li><strong>Brute force it.</strong> Write a loop that guesses every code from <code>000000</code> to <code>999999</code> against a <code>Verifier</code> at a fixed time. How many guesses until success, on average? Then add a counter of failed attempts and lock after five. This is the whole argument for rate limiting in one experiment.</li>
-      <li><strong>Serve it.</strong> Wrap the verifier in <code>Deno.serve</code> with a <code>POST /login</code> that takes a code, and note that the first flag you need is <code>--allow-net</code>. This is the seed of workshop 9, the OAuth (Open Authorization) workshop.</li>
-    </ul>
+    <h4>Stretch goal: serve it, then put it in a Docker image</h4>
+    <p>This is optional. Do it if the lab runs ahead of time, or on your own after the workshop. It turns the verifier into a small Hypertext Transfer Protocol (HTTP) service, then packages that service as an image. The image half needs Docker from workshop 1.</p>
+    <p>Create <code>server.ts</code>. It starts like <code>login.ts</code>, but codes arrive as <code>POST /login</code> requests instead of at a prompt.</p>
+<pre data-mode="paste this" data-where="new file server.ts"><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+
+const s = newSecret();
+const uri = otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;);
+console.log(await QRCode.toString(uri, { type: &quot;terminal&quot;, small: true }));
+console.log(&quot;or type it in:&quot;, toBase32(s));
+const v = new Verifier(s);
+
+Deno.serve({ port: 8000 }, async (req) =&gt; {
+  if (req.method !== &quot;POST&quot; || new URL(req.url).pathname !== &quot;/login&quot;) {
+    return new Response(&quot;not found\n&quot;, { status: 404 });
+  }
+  const code = (await req.text()).replace(/\s/g, &quot;&quot;);
+  return await v.verify(code)
+    ? new Response(&quot;accepted\n&quot;)
+    : new Response(&quot;rejected\n&quot;, { status: 401 });
+});
+</code></pre>
+    <p>Run it with Deno first. The server only needs to listen on one port, so that is the only permission it gets.</p>
+<pre data-mode="paste this" data-where="terminal"><code>deno run --allow-net=0.0.0.0:8000 server.ts</code></pre>
+    <p>Add the key to your phone. Then send the code it shows, in place of <code>123456</code>:</p>
+<pre data-mode="paste this" data-where="second terminal"><code>curl -X POST localhost:8000/login -d 123456</code></pre>
+    <p>The server answers <code>accepted</code>. Send the same code again and it answers <code>rejected</code>: the replay protection from step 6 now works over a network. Stop the server with Ctrl-C.</p>
+    <p>Now the image. Deno ships its own image, so unlike the Go build in workshop 1 this is one stage. <code>RUN deno cache</code> stores the npm package in the image, so the container does not download it when it starts. The build itself needs a network connection.</p>
+<pre data-mode="paste this" data-where="new file Dockerfile"><code># Deno ships its own image; the runtime stays in, so this is one stage.
+FROM denoland/deno:2.9.7
+WORKDIR /app
+COPY totp.ts server.ts ./
+RUN deno cache server.ts
+EXPOSE 8000
+CMD [&quot;deno&quot;, &quot;run&quot;, &quot;--allow-net=0.0.0.0:8000&quot;, &quot;server.ts&quot;]
+</code></pre>
+<pre data-mode="paste this" data-where="terminal"><code>docker build -t totp .
+docker run --rm --init -p 8000:8000 totp</code></pre>
+    <p><code>--init</code> lets Ctrl-C stop the server. The secret is made when the server starts, so each run prints a new key: add it to your phone, then send a new code with the same <code>curl</code> command. On macOS and Windows, if correct codes are rejected, the clock of Docker's virtual machine may have drifted; restart Docker Desktop. When you finish, delete the throwaway accounts from your phone.</p>
+    <p><code>server.ts</code> was run with Deno and tested with <code>curl</code>. The <code>docker</code> commands and the <code>Dockerfile</code> were not run in the authoring environment.</p>
   </article>
 </section>
 
 <section id="solution">
   <span class="eyebrow">Reference</span>
   <h2>Full solution</h2>
-  <p>Paste only. The four lab files exactly as tested, plus <code>check.ts</code> from the prep: every RFC 4226 Appendix D vector and RFC 6238 Appendix B for SHA-1 in <code>deno test</code>, the SHA-256 and SHA-512 vectors from the stretch goal checked by hand through the <code>hash</code> parameter, type-checked with <code>deno check</code> on Deno 2.9, and cross-checked against the <code>pyotp</code> library. Hand this out only after step 6, or to a student who is stuck.</p>
-  <div class="dlrow"><a href="code/totp.ts" download>totp.ts</a><a href="code/totp_test.ts" download>totp_test.ts</a><a href="code/qr.ts" download>qr.ts</a><a href="code/login.ts" download>login.ts</a><a href="code/check.ts" download>check.ts</a></div>
+  <p>Paste only. The four lab files exactly as tested, plus <code>check.ts</code> from the prep and the two stretch goal files: every RFC 4226 Appendix D vector and RFC 6238 Appendix B for SHA-1 in <code>deno test</code>, the RFC 6238 SHA-256 and SHA-512 vectors checked by hand through the <code>hash</code> parameter, type-checked with <code>deno check</code> on Deno 2.9, and cross-checked against the <code>pyotp</code> library. Hand this out only after step 6, or to a student who is stuck.</p>
+  <div class="dlrow"><a href="code/totp.ts" download>totp.ts</a><a href="code/totp_test.ts" download>totp_test.ts</a><a href="code/qr.ts" download>qr.ts</a><a href="code/login.ts" download>login.ts</a><a href="code/check.ts" download>check.ts</a><a href="code/server.ts" download>server.ts</a><a href="code/Dockerfile" download>Dockerfile</a></div>
   <details class="sol"><summary>totp.ts<a class="dl" href="code/totp.ts" download>download</a></summary><pre><code>// TOTP from scratch — complete lab file. Deno, no dependencies.
 import { timingSafeEqual } from &quot;node:crypto&quot;;
 
@@ -624,13 +656,40 @@ while (true) {
   console.log(await v.verify(code.replace(/\s/g, &quot;&quot;)) ? &quot;accepted&quot; : &quot;rejected&quot;);
 }
 </code></pre></details>
+  <details class="sol"><summary>server.ts<a class="dl" href="code/server.ts" download>download</a></summary><pre><code>import QRCode from &quot;npm:qrcode@1.5.4&quot;;
+import { newSecret, otpauthUri, toBase32, Verifier } from &quot;./totp.ts&quot;;
+
+const s = newSecret();
+const uri = otpauthUri(s, &quot;you@example.edu&quot;, &quot;TOTP Workshop&quot;);
+console.log(await QRCode.toString(uri, { type: &quot;terminal&quot;, small: true }));
+console.log(&quot;or type it in:&quot;, toBase32(s));
+const v = new Verifier(s);
+
+Deno.serve({ port: 8000 }, async (req) =&gt; {
+  if (req.method !== &quot;POST&quot; || new URL(req.url).pathname !== &quot;/login&quot;) {
+    return new Response(&quot;not found\n&quot;, { status: 404 });
+  }
+  const code = (await req.text()).replace(/\s/g, &quot;&quot;);
+  return await v.verify(code)
+    ? new Response(&quot;accepted\n&quot;)
+    : new Response(&quot;rejected\n&quot;, { status: 401 });
+});
+</code></pre></details>
+  <details class="sol"><summary>Dockerfile<a class="dl" href="code/Dockerfile" download>download</a></summary><pre><code># Deno ships its own image; the runtime stays in, so this is one stage.
+FROM denoland/deno:2.9.7
+WORKDIR /app
+COPY totp.ts server.ts ./
+RUN deno cache server.ts
+EXPOSE 8000
+CMD [&quot;deno&quot;, &quot;run&quot;, &quot;--allow-net=0.0.0.0:8000&quot;, &quot;server.ts&quot;]
+</code></pre></details>
 </section>
 
 <section id="instructor" class="inst-only">
   <span class="eyebrow">Running the room</span>
   <h2>Instructor notes</h2>
   <h4>Timing reality</h4>
-  <p>Steps 2 and 3 are where the room spreads out; that is why they have the most slack. If you are more than ten minutes behind at the end of step 3, cut the "talk about it" discussions in steps 4 and 6 and keep the code. Step 5 is the payoff and must not be rushed: budget for at least one student whose phone clock is wrong. Step 7's stretch goals absorb any time left over.</p>
+  <p>Steps 2 and 3 are where the room spreads out; that is why they have the most slack. If you are more than ten minutes behind at the end of step 3, cut the "talk about it" discussions in steps 4 and 6 and keep the code. Step 5 is the payoff and must not be rushed: budget for at least one student whose phone clock is wrong. Step 7's stretch goal absorbs any time left over, and it is the part to drop first: students can try it on their own afterwards.</p>
   <h4>Things students ask</h4>
   <ul>
     <li><em>"Why SHA-1? Isn't it broken?"</em> SHA-1 collisions are practical, but HMAC-SHA1 does not depend on collision resistance and has no known practical attack. The RFCs allow SHA-256 and SHA-512 too; apps' patchy support is why SHA-1 is still the default.</li>
